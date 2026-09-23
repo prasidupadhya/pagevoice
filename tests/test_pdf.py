@@ -40,7 +40,7 @@ def test_ocr_disabled_and_missing_language(tmp_path):
     with pytest.raises(ValueError, match='enable OCR'):
         read_pdf(path, ocr='never')
     if shutil.which('tesseract'):
-        with pytest.raises(ValueError, match='Missing Tesseract language data'):
+        with pytest.raises(ValueError, match='Only English and Spanish OCR'):
             read_pdf(path, ocr_language='not_installed')
 
 

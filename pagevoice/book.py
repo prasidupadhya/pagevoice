@@ -10,6 +10,7 @@ import zipfile
 from bs4 import BeautifulSoup
 from defusedxml import ElementTree as ET
 import pysbd
+from .languages import language_code
 
 
 @dataclass
@@ -35,6 +36,7 @@ def clean(text: str) -> str:
 
 
 def sentences(text: str, language: str) -> list[str]:
+    language = language_code(language)
     try:
         segmenter = pysbd.Segmenter(language=language, clean=False)
     except ValueError as exc:
@@ -84,7 +86,7 @@ def read_epub(path: Path, language: str | None = None) -> Book:
         def meta(key, default):
             element = metadata.find('{*}' + key) if metadata is not None else None
             return clean(element.text or '') if element is not None else default
-        lang = (language or meta('language', 'en')).lower().split('-')[0]
+        lang = language_code(language or meta('language', 'en'))
         manifest = {e.attrib['id']: e.attrib for e in root.findall('./{*}manifest/{*}item')}
         chapters = []
         for ref in root.findall('./{*}spine/{*}itemref'):

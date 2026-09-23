@@ -12,6 +12,7 @@ import pypdfium2 as pdfium
 from .audio import run
 from .book import Book, Chapter, clean, sentences
 from .storage import digest, save
+from .languages import language_code
 
 OCR_LANGUAGES = {'en': 'eng', 'es': 'spa', 'fr': 'fra', 'de': 'deu', 'it': 'ita',
                  'pt': 'por', 'zh': 'chi_sim', 'ja': 'jpn', 'ko': 'kor', 'hi': 'hin',
@@ -56,8 +57,10 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
     reader = PdfReader(path)
     if reader.is_encrypted:
         raise ValueError('Encrypted PDFs are not supported; provide a decrypted copy.')
-    lang = (language or str(reader.trailer['/Root'].get('/Lang', 'en'))).lower().split('-')[0]
-    ocr_lang = ocr_language or OCR_LANGUAGES.get(lang, lang)
+    lang = language_code(language or reader.trailer['/Root'].get('/Lang', 'en'))
+    ocr_lang = ocr_language or OCR_LANGUAGES[lang]
+    if set(ocr_lang.split('+')) - {'eng', 'spa'}:
+        raise ValueError('Only English and Spanish OCR data (eng, spa, eng+spa) are supported.')
     key = {'source': digest(path), 'language': lang, 'ocr': ocr, 'ocr_language': ocr_lang, 'parser': 1}
     if cache:
         cache.mkdir(parents=True, exist_ok=True)
@@ -115,7 +118,7 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
                 current_title = starts[index]
             continue
         lines = [clean(line) for line in text.splitlines() if clean(line)]
-        heading = next((line for line in lines[:3] if re.match(r'^(chapter|part|prologue|epilogue)\b', line, re.I)), None)
+        heading = next((line for line in lines[:3] if re.match(r'^(chapter|part|prologue|epilogue|capítulo|capitulo|parte|prólogo|prólogo|epílogo)\b', line, re.I)), None)
         title = starts.get(index) if use_outline else heading
         # No outline: chapter/part headings delimit chapters; before any heading,
         # use page groups. The deterministic fallback is one chapter per page.

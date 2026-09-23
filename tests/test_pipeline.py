@@ -25,11 +25,11 @@ def test_spine_metadata_and_cleaning(tmp_path):
 
 def test_bounded_multilingual_text():
     assert sentences('Dr. Reed arrived. He smiled.', 'en') == ['Dr. Reed arrived.', 'He smiled.']
-    text = '界' * 650
-    pieces = sentences(text, 'zh')
+    text = 'á' * 650
+    pieces = sentences(text, 'es')
     assert ''.join(pieces) == text
     assert max(map(len, pieces)) <= 220
-    with pytest.raises(ValueError, match='Unsupported'):
+    with pytest.raises(ValueError, match='Only English'):
         sentences('Hello.', 'zz')
 
 

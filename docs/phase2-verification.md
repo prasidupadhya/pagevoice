@@ -128,3 +128,12 @@ PR/merge and phase 3 have not started.
 - [Tesseract CLI](https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html)
 
 No reference audiobook repository code was copied or fetched for this phase.
+
+## Final pipeline scope update
+
+The user subsequently authorized completion and PR merges for all remaining
+phases, and restricted the product to English/Spanish. Other language codes are
+now rejected throughout parsing, sentence splitting and recovery. Spanish uses
+Monica locally and Elvira for optional Edge. English/Spanish narration tests run
+real macOS voices. Spanish Tesseract data was installed from the official
+`tesseract-ocr/tessdata_fast` 4.1.0 `spa.traineddata` resource.

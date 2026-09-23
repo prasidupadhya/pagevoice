@@ -14,6 +14,7 @@ from .book import Book, Chapter, read_epub, clean
 from .engines import REGISTRY, create
 from .pdf import read_pdf
 from .storage import digest, save
+from .languages import language_code, default_voice
 
 
 def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
@@ -101,6 +102,8 @@ def _execute(session, state, allow_network=False):
             if state['book']['title'] == source.stem:
                 state['book']['title'] = Path(state.get('original_name', source.name)).stem
         book = session_book(state)
+        book.language = language_code(book.language)
+        state['voice'] = state['voice'] or default_voice(state['engine'], book.language)
         state['status'] = 'synthesizing'
         save(manifest, state)
         total = sum(len(c.sentences) for c in book.chapters)
@@ -170,7 +173,7 @@ def convert(source: Path, data: Path, engine='xtts', voice=None, language=None,
     state = {'schema': 2, 'id': identifier, 'created': datetime.now(timezone.utc).isoformat(),
              'source_sha256': digest(data / 'uploads' / name), 'source_name': name, 'original_name': source.name,
              'parse_options': {'language': language, 'ocr': ocr, 'ocr_language': ocr_language},
-             'book': None, 'engine': engine, 'voice': voice or REGISTRY[engine].default_voice,
+             'book': None, 'engine': engine, 'voice': voice,
              'device': device, 'format': output_format, 'status': 'pending', 'chunks': [], 'revisions': {}}
     with FileLock(str(session / '.lock'), timeout=0):
         save(session / 'session.json', state)

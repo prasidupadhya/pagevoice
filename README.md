@@ -4,7 +4,8 @@ A local-first PDF/EPUB → audiobook application, implemented from scratch.
 
 ## Development plan
 
-Work stops for review after each phase:
+The CLI phases were reviewed individually. The remaining phases are authorized
+for completion; finished branches are reviewed through PRs and merged:
 
 1. EPUB → chaptered M4B CLI, engine registry, local smoke test.
 2. PDF + OCR, crash recovery, sentence regeneration.
@@ -67,7 +68,8 @@ an installed macOS voice.
 ```
 
 Use `--format mp3` for MP3; M4B is the default. `--voice Samantha` selects an
-installed macOS voice (`say -v '?'` lists voices). `--language es` overrides EPUB
+installed macOS voice (`say -v '?'` lists voices). `--language es` selects Spanish (Monica for macOS, Elvira for Edge); `en`
+selects English. All other language codes are rejected. This overrides EPUB
 language. `--data-dir /path/to/library` sets the storage root. The CLI prints
 the session and output paths. Book title, author, language, and chapter titles
 are included in the output. MP3 chapter display depends on your player.
@@ -93,7 +95,7 @@ or language packs produce actionable errors. No PDF content leaves the machine.
 PDFium renders OCR input; Poppler is only needed to render test fixtures for visual QA.
 
 PDF top-level bookmarks define chapter starts at page boundaries. Without
-bookmarks, English Chapter/Part/Prologue/Epilogue headings in the first three
+bookmarks, English or Spanish chapter headings in the first three
 nonempty lines start chapters. Otherwise pages become chapters; pages following
 a detected chapter heading remain in that chapter until the next heading.
 Nested bookmarks and intra-page destinations are not resolved. The inspection
@@ -184,13 +186,12 @@ completed chunks.
 
 - One readable linear EPUB spine document per chapter; no NCX/nav fragment chapter
   splitting, cover art, footnote filtering, or DRM decryption. Headings are narrated.
-- Language-aware sentence splitting is limited to pySBD languages; very long
+- Only English and Spanish books are supported; very long
   sentences are subdivided to 220 characters. Engine language support varies.
 - PDF reading order is best for simple, single-column books. Headers, footers,
   tables, and OCR mistakes may need manual sentence edits. Auto OCR uses a
   low-text threshold and can miss image text on pages with substantial native text;
-  use `--ocr always` in that case. English OCR is tested; other languages require
-  installed Tesseract language data.
+  use `--ocr always` in that case. English OCR is tested; Spanish requires the `spa` Tesseract language data.
 - API, web UI, cloning, speaker tagging, inline markup, and custom engines
   are pending their assigned phases. Recognized pause/voice markup is rejected
   instead of being narrated incorrectly.
@@ -205,5 +206,4 @@ completed chunks.
 Five branches total (including `main`), already created. `feat/pipeline` covers
 phases 1 and 2, reserving commits for phase 2 fixes. Future branches currently
 point at the README baseline and will be updated from merged `main` before work
-begins. Keep at most four unique commits per feature branch. No phase is merged
-or started past its review checkpoint. PR creation and merge are later steps.
+begins. Keep at most four unique commits per feature branch. Finished branches are pushed, opened as PRs, and merged after verification.
