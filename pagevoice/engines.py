@@ -73,6 +73,8 @@ class EdgeSpeech:
 
 class XttsSpeech:
     def __init__(self, device):
+        if not xtts_ready():
+            raise ValueError('XTTS model is not installed. Run .venv/bin/pagevoice setup-xtts and review the model terms, or select a built-in local voice.')
         try:
             from TTS.api import TTS
         except ImportError as exc:
@@ -93,3 +95,13 @@ def create(name, device='auto', allow_network=False) -> Engine:
     if name == 'xtts':
         return XttsSpeech(device)
     return {'say': MacSpeech, 'edge': EdgeSpeech}[name]()
+
+
+def xtts_ready():
+    """No download or license acceptance is performed by this probe."""
+    try:
+        from TTS.utils.manage import ModelManager
+        folder = Path(ModelManager(progress_bar=False).output_prefix) / 'tts_models--multilingual--multi-dataset--xtts_v2'
+        return all((folder / name).is_file() for name in ('model.pth', 'config.json', 'vocab.json', 'speakers_xtts.pth'))
+    except ImportError:
+        return False
