@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser(prog='pagevoice', description='Local-first EPUB/PDF narration')
     parser.add_argument('--version', action='version', version=__version__)
     commands = parser.add_subparsers(dest='command', required=True)
+    commands.add_parser('setup-xtts', help='Download XTTS after reviewing its interactive model license prompt')
     commands.add_parser('doctor', help='Report hardware and dependencies')
     commands.add_parser('engines', help='List engine capabilities')
     inspect = commands.add_parser('inspect', help='Parse EPUB/PDF without synthesis')
@@ -41,7 +42,11 @@ def main():
     regeneration.add_argument('--text', help='Optional replacement text (1–220 characters)')
     args = parser.parse_args()
     try:
-        if args.command == 'doctor':
+        if args.command == 'setup-xtts':
+            from TTS.api import TTS
+            TTS(model_name='tts_models/multilingual/multi-dataset/xtts_v2')
+            print('XTTS model ready for local narration and consent-based voice cloning.')
+        elif args.command == 'doctor':
             print(json.dumps(hardware(), indent=2))
         elif args.command == 'engines':
             for key, info in REGISTRY.items():
