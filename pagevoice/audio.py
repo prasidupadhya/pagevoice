@@ -23,12 +23,19 @@ def normalize(source: Path, target: Path):
 
 
 def frames(path: Path) -> int:
-    with wave.open(str(path), 'rb') as audio:
-        if (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) != (1, 2, RATE):
-            raise ValueError(f'Invalid normalized audio: {path}')
-        if audio.getnframes() == 0:
-            raise ValueError(f'Empty audio: {path}')
-        return audio.getnframes()
+    try:
+        with wave.open(str(path), 'rb') as audio:
+            if (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) != (1, 2, RATE):
+                raise ValueError(f'Invalid normalized audio: {path}')
+            expected = audio.getnframes()
+            count = 0
+            while data := audio.readframes(RATE * 10):
+                count += len(data)
+            if expected == 0 or count != expected * 2:
+                raise ValueError(f'Empty or truncated audio: {path}')
+            return expected
+    except (wave.Error, EOFError) as exc:
+        raise ValueError(f'Invalid WAV file: {path}') from exc
 
 
 def escape(value: str) -> str:

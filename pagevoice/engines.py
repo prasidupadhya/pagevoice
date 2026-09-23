@@ -44,7 +44,8 @@ def hardware():
             'device': device, 'torch': torch_version,
             'recommendation': 'say for a fast offline draft; xtts for neural narration' if platform.system() == 'Darwin' else 'xtts',
             'warning': 'Modern neural engines can be very slow on CPU.' if device == 'cpu' else 'Benchmark a chapter before rendering a whole book.',
-            'ffmpeg': shutil.which('ffmpeg'), 'ffprobe': shutil.which('ffprobe')}
+            'ffmpeg': shutil.which('ffmpeg'), 'ffprobe': shutil.which('ffprobe'),
+            'tesseract': shutil.which('tesseract')}
 
 
 class MacSpeech:

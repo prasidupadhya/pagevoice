@@ -1,5 +1,5 @@
 """Read EPUB spine order without extracting untrusted archive paths."""
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import posixpath
@@ -24,6 +24,7 @@ class Book:
     author: str
     language: str
     chapters: list[Chapter]
+    source_pages: list[dict] = field(default_factory=list)
 
     def to_dict(self):
         return asdict(self)

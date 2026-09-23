@@ -1,73 +1,221 @@
+"""Durable session state, checksum-verified reuse, and targeted regeneration."""
 from pathlib import Path
 from datetime import datetime, timezone
 import hashlib
 import json
+import re
 import shutil
 import uuid
 
-from .audio import assemble, normalize
-from .book import read_epub
+from filelock import FileLock, Timeout
+
+from .audio import assemble, normalize, frames
+from .book import Book, Chapter, read_epub, clean
 from .engines import REGISTRY, create
+from .pdf import read_pdf
+from .storage import digest, save
 
 
-def save(path, data):
-    temporary = path.with_suffix('.tmp')
-    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    temporary.replace(path)
+def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
+    if source.suffix.lower() == '.epub':
+        return read_epub(source, language)
+    if source.suffix.lower() == '.pdf':
+        return read_pdf(source, language, ocr, ocr_language, cache)
+    raise ValueError('Supported book formats: EPUB and PDF.')
+
+
+def signature(state, identifier, text):
+    settings = {k: state[k] for k in ('engine', 'voice', 'device')}
+    settings.update(language=state['book']['language'], text=text,
+                    revision=state.get('revisions', {}).get(identifier, 0), pipeline=2)
+    return hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()
+
+
+def session_book(state):
+    data = dict(state['book'])
+    data['chapters'] = [Chapter(**chapter) for chapter in data['chapters']]
+    return Book(**data)
+
+
+def chunk_path(session, record):
+    path = (session / record['audio']).resolve()
+    if not path.is_relative_to((session / 'chunks').resolve()):
+        raise ValueError('Chunk audio path escapes the session.')
+    return path
+
+
+def reusable(session, record, fingerprint):
+    if not record or record.get('signature') != fingerprint or record.get('status') != 'complete':
+        return False
+    try:
+        path = chunk_path(session, record)
+        frames(path)
+        return digest(path) == record['sha256']
+    except (OSError, ValueError, EOFError, KeyError):
+        return False
+
+
+def load(session):
+    state = json.loads((session / 'session.json').read_text())
+    if state.get('schema') not in (1, 2):
+        raise ValueError('Unsupported session schema.')
+    if state.get('id') != session.name:
+        raise ValueError('Session folder must match its recorded ID.')
+    if state.get('format') not in ('m4b', 'mp3') or state.get('engine') not in REGISTRY:
+        raise ValueError('Invalid session format or engine.')
+    if state['schema'] == 1:
+        # Adopt validated phase 1 audio once, then use fingerprints/checksums.
+        for record in state['chunks']:
+            try:
+                text = state['book']['chapters'][record['chapter']]['sentences'][record['sentence']]
+                if text == record['text']:
+                    path = chunk_path(session, record)
+                    frames(path)
+                    record.update(signature=signature(state, record['id'], text), sha256=digest(path))
+            except (OSError, ValueError, EOFError, KeyError, IndexError):
+                record['status'] = 'invalid'
+        state['schema'] = 2
+    state.setdefault('revisions', {})
+    return state
+
+
+def _execute(session, state, allow_network=False):
+    manifest = session / 'session.json'
+    output = session.parent.parent / 'outputs' / f'{state["id"]}.{state["format"]}'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    reused = generated = 0
+    try:
+        for executable in ('ffmpeg', 'ffprobe'):
+            if not shutil.which(executable):
+                raise ValueError(f'{executable} is required; install FFmpeg.')
+        state.pop('error', None)
+        state['output_current'] = False
+        if state.get('book') is None:
+            state['status'] = 'parsing'
+            save(manifest, state)
+            source = session.parent.parent / 'uploads' / state['source_name']
+            if digest(source) != state['source_sha256']:
+                raise ValueError('Stored source checksum mismatch; restore the original upload.')
+            options = state['parse_options']
+            state['book'] = read_book(source, cache=session / 'pages', **options).to_dict()
+            if state['book']['title'] == source.stem:
+                state['book']['title'] = Path(state.get('original_name', source.name)).stem
+        book = session_book(state)
+        state['status'] = 'synthesizing'
+        save(manifest, state)
+        total = sum(len(c.sentences) for c in book.chapters)
+        records = {record['id']: record for record in state['chunks']}
+        chapter_paths = []
+        adapter = None
+        for chapter_index, chapter in enumerate(book.chapters):
+            paths = []
+            for sentence_index, text in enumerate(chapter.sentences):
+                identifier = f'{chapter_index:04d}-{sentence_index:05d}'
+                fingerprint = signature(state, identifier, text)
+                record = records.get(identifier)
+                if reusable(session, record, fingerprint):
+                    target = chunk_path(session, record)
+                    reused += 1
+                else:
+                    if adapter is None:
+                        adapter = create(state['engine'], state['device'], allow_network)
+                    # Unique generations ensure a crash cannot overwrite previously
+                    # committed audio before the replacement record is durable.
+                    generation = uuid.uuid4().hex[:12]
+                    target = session / 'chunks' / f'{identifier}-{generation}.wav'
+                    raw = target.with_suffix('.raw.wav')
+                    adapter.synthesize(text, raw, state['voice'], book.language)
+                    normalize(raw, target)
+                    raw.unlink()
+                    records[identifier] = {'id': identifier, 'chapter': chapter_index,
+                        'sentence': sentence_index, 'text': text, 'audio': str(target.relative_to(session)),
+                        'signature': fingerprint, 'sha256': digest(target), 'status': 'complete'}
+                    state['chunks'] = list(records.values())
+                    save(manifest, state)
+                    generated += 1
+                paths.append(target)
+                print(f'[{reused + generated}/{total}] {chapter.title}', flush=True)
+            chapter_paths.append(paths)
+        state['status'] = 'assembling'
+        save(manifest, state)
+        probe = assemble(book, chapter_paths, session, output)
+        state.update(status='complete', output=str(output.resolve()), output_current=True,
+                     output_sha256=digest(output), duration=probe['format']['duration'],
+                     last_run={'reused': reused, 'synthesized': generated})
+        save(manifest, state)
+        print(f'Output: {output}\nChapters: {len(probe["chapters"])}; duration: {state["duration"]} seconds\n'
+              f'Reused: {reused}; synthesized: {generated}', flush=True)
+        return output
+    except BaseException as exc:
+        state.update(status='interrupted' if isinstance(exc, KeyboardInterrupt) else 'failed',
+                     error=str(exc), output_current=False, last_run={'reused': reused, 'synthesized': generated})
+        save(manifest, state)
+        raise
 
 
 def convert(source: Path, data: Path, engine='xtts', voice=None, language=None,
-            output_format='m4b', device='auto', allow_network=False):
-    if source.suffix.lower() != '.epub':
-        raise ValueError('Phase 1 accepts EPUB only; PDF arrives in phase 2.')
-    for executable in ('ffmpeg', 'ffprobe'):
-        if not shutil.which(executable):
-            raise ValueError(f'{executable} is required; install FFmpeg.')
-    book = read_epub(source, language)
-    voice = voice or REGISTRY[engine].default_voice
+            output_format='m4b', device='auto', allow_network=False, ocr='auto', ocr_language=None):
+    if source.suffix.lower() not in ('.epub', '.pdf'):
+        raise ValueError('Supported book formats: EPUB and PDF.')
+    if output_format not in ('m4b', 'mp3') or engine not in REGISTRY:
+        raise ValueError('Invalid engine or output format.')
     for folder in ('uploads', 'voices', 'outputs', 'sessions'):
         (data / folder).mkdir(parents=True, exist_ok=True)
     identifier = uuid.uuid4().hex
     session = data / 'sessions' / identifier
     session.mkdir()
     (session / 'chunks').mkdir()
-    shutil.copyfile(source, data / 'uploads' / f'{identifier}.epub')
-    state = {'schema': 1, 'id': identifier, 'created': datetime.now(timezone.utc).isoformat(),
-             'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
-             'book': book.to_dict(), 'engine': engine, 'voice': voice, 'device': device,
-             'format': output_format, 'status': 'synthesizing', 'chunks': []}
-    manifest = session / 'session.json'
-    save(manifest, state)
-    print(f'Session: {session}', flush=True)
+    name = identifier + source.suffix.lower()
+    shutil.copyfile(source, data / 'uploads' / name)
+    state = {'schema': 2, 'id': identifier, 'created': datetime.now(timezone.utc).isoformat(),
+             'source_sha256': digest(data / 'uploads' / name), 'source_name': name, 'original_name': source.name,
+             'parse_options': {'language': language, 'ocr': ocr, 'ocr_language': ocr_language},
+             'book': None, 'engine': engine, 'voice': voice or REGISTRY[engine].default_voice,
+             'device': device, 'format': output_format, 'status': 'pending', 'chunks': [], 'revisions': {}}
+    with FileLock(str(session / '.lock'), timeout=0):
+        save(session / 'session.json', state)
+        print(f'Session: {session}', flush=True)
+        return _execute(session, state, allow_network)
+
+
+def resume(session: Path, allow_network=False):
+    session = session.resolve()
+    if not (session / 'session.json').is_file():
+        raise ValueError('Session not found; pass the session directory.')
     try:
-        adapter = create(engine, device, allow_network)
-        total = sum(len(c.sentences) for c in book.chapters)
-        chapter_paths = []
-        for chapter_index, chapter in enumerate(book.chapters):
-            paths = []
-            for sentence_index, text in enumerate(chapter.sentences):
-                chunk_id = f'{chapter_index:04d}-{sentence_index:05d}'
-                target = session / 'chunks' / f'{chunk_id}.wav'
-                raw = session / 'chunks' / (chunk_id + '.raw.wav')
-                adapter.synthesize(text, raw, voice, book.language)
-                normalize(raw, target)
-                raw.unlink()
-                paths.append(target)
-                state['chunks'].append({'id': chunk_id, 'chapter': chapter_index,
-                                        'sentence': sentence_index, 'text': text,
-                                        'audio': str(target.relative_to(session)), 'status': 'complete'})
-                save(manifest, state)
-                print(f'[{len(state["chunks"])}/{total}] {chapter.title}', flush=True)
-            chapter_paths.append(paths)
-        state['status'] = 'assembling'
-        save(manifest, state)
-        output = data / 'outputs' / f'{identifier}.{output_format}'
-        probe = assemble(book, chapter_paths, session, output)
-        state.update(status='complete', output=str(output.resolve()), duration=probe['format']['duration'])
-        save(manifest, state)
-        print(f'Output: {output}\nChapters: {len(probe["chapters"])}; duration: {state["duration"]} seconds', flush=True)
-        return output
-    except BaseException as exc:
-        state.update(status='interrupted' if isinstance(exc, KeyboardInterrupt) else 'failed', error=str(exc))
-        save(manifest, state)
-        raise
+        with FileLock(str(session / '.lock'), timeout=0):
+            return _execute(session, load(session), allow_network)
+    except Timeout as exc:
+        raise ValueError('This session is already being modified by another process.') from exc
+
+
+def regenerate(session: Path, identifier: str, text=None, allow_network=False):
+    session = session.resolve()
+    if not (session / 'session.json').is_file():
+        raise ValueError('Session not found; pass the session directory.')
+    if not re.fullmatch(r'\d{4}-\d{5}', identifier):
+        raise ValueError('Use a sentence ID such as 0000-00001 (zero-based chapter/sentence).')
+    try:
+        with FileLock(str(session / '.lock'), timeout=0):
+            state = load(session)
+            if not state.get('book'):
+                raise ValueError('Resume parsing before regenerating a sentence.')
+            chapter, sentence = map(int, identifier.split('-'))
+            try:
+                old = state['book']['chapters'][chapter]['sentences'][sentence]
+            except IndexError as exc:
+                raise ValueError('Sentence ID does not exist.') from exc
+            replacement = clean(text) if text is not None else old
+            if not replacement or len(replacement) > 220:
+                raise ValueError('Replacement text must contain 1–220 characters.')
+            if re.search(r'\[(?:pause|voice)[:\]]', replacement):
+                raise ValueError('Inline pause/voice markup is not implemented yet.')
+            state['book']['chapters'][chapter]['sentences'][sentence] = replacement
+            state['revisions'][identifier] = state['revisions'].get(identifier, 0) + 1
+            state.update(status='pending', output_current=False)
+            # Persist the request before synthesis, so resume honors the edit even
+            # if the process is killed while the selected sentence is rendering.
+            save(session / 'session.json', state)
+            return _execute(session, state, allow_network)
+    except Timeout as exc:
+        raise ValueError('This session is already being modified by another process.') from exc
