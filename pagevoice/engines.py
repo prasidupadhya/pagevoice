@@ -72,7 +72,8 @@ class EdgeSpeech:
 
 
 class XttsSpeech:
-    def __init__(self, device):
+    def __init__(self, device, voices_dir=None):
+        self.voices_dir = voices_dir or Path("voices")
         if not xtts_ready():
             raise ValueError('XTTS model is not installed. Run .venv/bin/pagevoice setup-xtts and review the model terms, or select a built-in local voice.')
         try:
@@ -85,15 +86,16 @@ class XttsSpeech:
         self.model = TTS(model_name='tts_models/multilingual/multi-dataset/xtts_v2', progress_bar=False).to(selected)
 
     def synthesize(self, text, destination, voice, language):
-        self.model.tts_to_file(text=text, file_path=str(destination), speaker=voice,
-                               language='zh-cn' if language == 'zh' else language, split_sentences=False)
+        from .voices import reference
+        options = {'speaker_wav': str(reference(self.voices_dir, voice))} if voice.startswith('clone:') else {'speaker': voice}
+        self.model.tts_to_file(text=text, file_path=str(destination), language=language, split_sentences=False, **options)
 
 
-def create(name, device='auto', allow_network=False) -> Engine:
+def create(name, device='auto', allow_network=False, voices_dir=None) -> Engine:
     if REGISTRY[name].online and not allow_network:
         raise ValueError('Edge sends book text to Microsoft. Pass --allow-network to opt in.')
     if name == 'xtts':
-        return XttsSpeech(device)
+        return XttsSpeech(device, voices_dir)
     return {'say': MacSpeech, 'edge': EdgeSpeech}[name]()
 
 

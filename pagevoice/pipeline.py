@@ -136,7 +136,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                     reused += 1
                 else:
                     if adapter is None:
-                        adapter = create(state['engine'], state['device'], allow_network)
+                        adapter = create(state['engine'], state['device'], allow_network, session.parent.parent / 'voices')
                     # Unique generations ensure a crash cannot overwrite previously
                     # committed audio before the replacement record is durable.
                     generation = uuid.uuid4().hex[:12]
