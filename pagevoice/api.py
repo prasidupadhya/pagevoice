@@ -17,7 +17,8 @@ from filelock import FileLock, Timeout
 
 from .engines import REGISTRY, hardware, xtts_ready, builtin_voices, validate_voice
 from .jobs import Jobs
-from .pipeline import new_session, load, signature
+from .pipeline import new_session, load, signature, reusable
+from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
 from .storage import save
 from .languages import default_voice
 from .voices import register, reference, catalogue
@@ -101,31 +102,38 @@ def create_app(data=None):
 
     def present(project):
         path = session(project)
+        # Snapshot the job first: a completed job must never accompany an older
+        # manifest that still says the output is unavailable.
+        with jobs.guard:
+            latest = sorted((dict(r) for r in jobs.records.values() if r['project'] == project), key=lambda r: r['created'], reverse=True)
         state = load(path)
         records = {r['id']: r for r in state['chunks']}
         chapters = []
         ready = total = 0
         for ci, chapter in enumerate((state.get('book') or {}).get('chapters', [])):
             rows = []
+            contiguous = 0
             for si, text in enumerate(chapter['sentences']):
                 identifier = f'{ci:04d}-{si:05d}'
                 record = records.get(identifier)
                 complete = bool(record and record.get('signature') == signature(state, identifier, text) and (path / record['audio']).is_file())
+                if complete and contiguous == si:
+                    contiguous += 1
                 ready += int(complete)
                 total += 1
                 rows.append({'id': identifier, 'text': text, 'ready': complete,
                              'speaker': state.get('speaker_tags', {}).get(identifier, 'Narrator'),
-                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio' if complete else None})
+                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio?v={record.get("sha256", "")[:16]}' if complete else None})
             chapters.append({'index': ci, 'title': chapter['title'], 'sentences': rows,
+                             'ready': sum(row['ready'] for row in rows), 'total': len(rows), 'contiguous_ready': contiguous,
                              'preview': f'/api/projects/{project}/previews/{ci}' if str(ci) in state.get('previews', {}) else None})
-        with jobs.guard:
-            latest = sorted((dict(r) for r in jobs.records.values() if r['project'] == project), key=lambda r: r['created'], reverse=True)
         return {'id': project, 'title': (state.get('book') or {}).get('title', state.get('original_name', 'Book')),
                 'author': (state.get('book') or {}).get('author', ''),
                 'language': (state.get('book') or {}).get('language', state.get('parse_options', {}).get('language', 'en')),
                 'status': state['status'], 'error': state.get('error'),
                 'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'],
-                'chapters': chapters, 'progress': {'complete': ready, 'total': total},
+                'chapters': chapters, 'progress': {'complete': ready, 'total': total, 'current_chapter': state.get('current_chapter')},
+                'listening': {'chapter': priority(path), 'buffer': BUFFER_SENTENCES, 'pausing': paused(path)},
                 'source_pages': (state.get('book') or {}).get('source_pages', []),
                 'output': f'/api/projects/{project}/download' if state.get('output_current') else None,
                 'duration': state.get('duration'), 'job': dict(latest[0]) if latest else None,
@@ -290,9 +298,38 @@ def create_app(data=None):
             if state['engine'] == 'edge' and not values.get('allow_network'):
                 raise HTTPException(400, 'Edge sends text to Microsoft; explicit network consent is required.')
             try:
+                if not jobs.busy(project):
+                    set_priority(path, priority(path))
                 return jobs.submit(project, kind, **values)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
+
+    @app.post('/api/projects/{project}/pause', status_code=202)
+    def pause_preparation(project: str):
+        path = session(project)
+        with jobs.guard:
+            active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
+            if not active or active['kind'] not in ('listen','render','regen'):
+                raise HTTPException(409, 'There is no background preparation to pause.')
+            pause(path)
+        return present(project)
+
+    @app.post('/api/projects/{project}/listen', status_code=202)
+    def listen(project: str, options: PreviewRequest):
+        path = session(project)
+        with jobs.guard:
+            state = load(path)
+            if not state.get('book') or options.chapter >= len(state['book']['chapters']):
+                raise HTTPException(404, 'Chapter not found.')
+            active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
+            if active and active['kind'] not in ('render','listen','regen'):
+                raise HTTPException(409, 'Finish parsing or the chapter preview before starting progressive listening.')
+            if not active and not state.get('output_current') and state['engine'] == 'edge' and not options.allow_network:
+                raise HTTPException(400, 'Edge requires explicit permission to send text to Microsoft.')
+            set_priority(path, options.chapter)
+            if not active and not state.get('output_current'):
+                jobs.submit(project, 'listen', allow_network=options.allow_network)
+        return present(project)
 
     @app.post('/api/projects/{project}/render', status_code=202)
     def render(project: str, options: RenderRequest):
@@ -349,15 +386,15 @@ def create_app(data=None):
         return FileResponse(path / 'previews' / f'chapter-{chapter}.mp3', media_type='audio/mpeg')
 
     @app.get('/api/projects/{project}/sentences/{identifier}/audio')
-    def sentence_audio(project: str, identifier: str):
+    def sentence_audio(project: str, identifier: str, v: str | None = None):
         path = session(project)
         state = load(path)
         record = next((r for r in state['chunks'] if r['id'] == identifier), None)
         if not record:
             raise HTTPException(404, 'Sentence audio not ready.')
         text = state['book']['chapters'][record['chapter']]['sentences'][record['sentence']]
-        if record.get('signature') != signature(state, identifier, text):
-            raise HTTPException(409, 'Sentence audio is out of date.')
+        if (v and v != record.get('sha256', '')[:16]) or not reusable(path, record, signature(state, identifier, text)):
+            raise HTTPException(409, 'Sentence audio is missing, damaged or out of date. Resume preparation.')
         from .pipeline import chunk_path
         return FileResponse(chunk_path(path, record), media_type='audio/wav')
 

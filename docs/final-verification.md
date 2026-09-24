@@ -1,5 +1,8 @@
 # Final local verification — 2026-09-24
 
+Latest [progressive listening verification](progressive-listening.md):
+48 backend tests, 17 UI tests, real browser audio-engine and timed HTTP checks.
+
 Subsequent [broken-pipe repair](broken-pipe-repair.md) adds detached-server and
 shutdown regressions: 45 backend tests and 8 UI tests pass.
 
@@ -99,7 +102,7 @@ branches (five branches including main), with at most four unique feature commit
 | --- | --- | --- |
 | feat/pipeline | 3 | [#1](https://github.com/prasidupadhya/pagevoice/pull/1) |
 | feat/api | 1 | [#2](https://github.com/prasidupadhya/pagevoice/pull/2) |
-| feat/reader-ui | 1 | [#3](https://github.com/prasidupadhya/pagevoice/pull/3) |
+| feat/reader-ui | 2 (+1 merge from main; 3 branch commits total) | [#3](https://github.com/prasidupadhya/pagevoice/pull/3), progressive listening PR |
 | feat/voices-engines | 2 (+1 merge from main; 3 branch commits total) | [#4](https://github.com/prasidupadhya/pagevoice/pull/4), repair PR |
 
 Finished branches are pushed and squash-merged through their PRs.

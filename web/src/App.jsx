@@ -2,6 +2,8 @@ import React, {useEffect, useRef, useState} from 'react'
 import {BookOpen, Headphones, Plus, Upload, Sun, Moon, Globe, Play, Download, Settings2, Mic, X, Check, RefreshCw, Pencil, Volume2, AlertCircle, ChevronRight, AudioLines, ShieldCheck, LoaderCircle} from 'lucide-react'
 import {api} from './api'
 import {Casting} from './Casting'
+import {Listener,forwardRows,bufferStatus} from './listener'
+import {ListeningPlayer} from './ListeningPlayer'
 import {registerProjectTools} from './webmcp'
 import {messages, preference, persist} from './i18n'
 
@@ -59,8 +61,10 @@ export function SentenceEditor({row,onClose,onSave,t,busy,speakers=[]}) {
 }
 
 function statusText(p,t) {
+  if(p.status==='assembling')return t.finishingExport
   if(p.job?.status==='queued')return t.queued
   if(p.job?.status==='running')return p.job.kind==='prepare'?t.preparing:t.working
+  if(p.status==='paused')return t.preparationPaused
   if(p.status==='failed'||p.job?.status==='failed')return t.failed
   return p.output?t.ready:t.reviewing
 }
@@ -74,7 +78,11 @@ export default function App() {
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[disconnected,setDisconnected]=useState(false),[pending,setPending]=useState(false)
   const [upload,setUpload]=useState(false),[uploadFile,setUploadFile]=useState(null),[clone,setClone]=useState(false),[editor,setEditor]=useState(null),[chapter,setChapter]=useState(0),[playing,setPlaying]=useState(null)
   const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(false),[showProfiles,setShowProfiles]=useState(false)
-  const audio=useRef(null),intent=useRef(null)
+  const audio=useRef(null),intent=useRef(null),listener=useRef(null),listenRequest=useRef(0)
+  const [listenStart,setListenStart]=useState(0),[listenState,setListenState]=useState({status:'idle',cursor:0,ready:0,target:20,total:0})
+  useEffect(()=>{const engine=new Listener(setListenState);listener.current=engine;return()=>{engine.onChange=()=>{};engine.dispose()}},[activeId])
+  useEffect(()=>{listener.current?.update(forwardRows(project,listenStart))},[project,listenStart])
+  useEffect(()=>{if(listenState.status==='playing'&&listenState.row)setChapter(listenState.row.chapter)},[listenState.row?.chapter,listenState.status])
   useEffect(()=>{document.documentElement.lang=locale;persist('pagevoice-locale',locale);document.title=locale==='es'?'PageVoice · Tu biblioteca':'PageVoice · Your listening library'},[locale])
   useEffect(()=>{document.documentElement.dataset.theme=theme;persist('pagevoice-theme',theme)},[theme])
   async function refresh() {
@@ -86,12 +94,12 @@ export default function App() {
   useEffect(()=>{refresh();api('/api/hardware').then(setHardware).catch(()=>{})},[])
   useEffect(()=>{
     if(!activeId){setProject(null);return}persist('pagevoice-project',activeId);setChapter(0);setPlaying(null);setProject(null);setDirty(false);setDisconnected(false)
-    let closed=false
-    function update(p){if(closed)return;setProject(p);setProjects(all=>all.some(x=>x.id===p.id)?all.map(x=>x.id===p.id?p:x):[p,...all])
+    let closed=false,initial=true
+    function update(p){if(closed)return;if(initial){initial=false;setChapter(p.listening?.chapter||0);setListenStart(p.listening?.chapter||0)}setProject(p);setProjects(all=>all.some(x=>x.id===p.id)?all.map(x=>x.id===p.id?p:x):[p,...all])
       if(intent.current?.project===p.id && p.job?.status==='complete') {
         const action=intent.current;intent.current=null
         if(action.kind==='preview'&&p.chapters[action.chapter]?.preview)setPlaying({src:p.chapters[action.chapter].preview+'?v='+p.job.id,label:p.chapters[action.chapter].title})
-        if(action.kind==='render'&&p.output)setPlaying({src:p.output+'?v='+p.job.id,label:p.title})
+
       }
     }
     api('/api/projects/'+activeId).then(update).catch(e=>setError(e.message))
@@ -108,26 +116,46 @@ export default function App() {
   if(settings?.engine==='xtts')voiceOptions.push(...voices.filter(v=>v.language===project?.language))
   const readyEngine=selectedEngine?.installed && (selectedEngine.id!=='xtts'||selectedEngine.model_ready)
   const selectedChapter=project?.chapters[chapter]
-  function chooseProject(id){setActiveId(id);setError('');setNotice('')}
+  const canListenDuringJob=['render','listen','regen'].includes(project?.job?.kind)
+  const cachedListening=bufferStatus(forwardRows(project,chapter)).canStart
+  const listenDisabled=pending||dirty||(!readyEngine&&!cachedListening)||(settings?.engine==='edge'&&!allowNetwork&&!cachedListening&&!canListenDuringJob)||(busy&&!canListenDuringJob)
+  function chooseProject(id){listenRequest.current++;setActiveId(id);setError('');setNotice('')}
   function openUpload(file=null){setUploadFile(file);setUpload(true)}
   function updateSettings(key,value){setSettings(s=>{const next={...s,[key]:value};if(key==='engine')next.voice=engines.find(e=>e.id===value)?.voices.find(v=>v.language===project.language)?.id||'';return next});setDirty(true)}
-  async function saveSettings(){setPending(true);setError('');try{const p=await api(`/api/projects/${activeId}/settings`,{method:'PATCH',body:JSON.stringify(settings)});setProject(p);setDirty(false);setNotice(t.saved)}catch(e){setError(e.message)}finally{setPending(false)}}
+  async function saveSettings(){listener.current?.reset();setPending(true);setError('');try{const p=await api(`/api/projects/${activeId}/settings`,{method:'PATCH',body:JSON.stringify(settings)});setProject(p);setDirty(false);setNotice(t.saved)}catch(e){setError(e.message)}finally{setPending(false)}}
   async function runJob(kind,extra={}) {
     setPending(true);setError('');setNotice('');intent.current={project:activeId,kind,chapter}
     try{await api(`/api/projects/${activeId}/${kind}`,{method:'POST',body:JSON.stringify({allow_network:allowNetwork,...extra})});setEditor(null);const p=await api('/api/projects/'+activeId);setProject(p)}catch(e){setError(e.message);intent.current=null}finally{setPending(false)}
   }
   async function changeCasting(path,body,method) {
-    setPending(true);setError('')
+    listener.current?.reset();setPending(true);setError('')
     try{const p=await api(`/api/projects/${activeId}/${path}`,{method,body:JSON.stringify(body)});setProject(p);setNotice(t.castSaved);return true}
     catch(e){setError(e.message);return false}finally{setPending(false)}
   }
   async function saveSentence(text,speaker) {
+    listener.current?.reset()
     if(speaker!==(editor.speaker||'Narrator')) {
       const saved=await changeCasting('casting',{tags:{[editor.id]:speaker}},'PATCH');if(!saved)return
     }
     await runJob('regen',{sentence_id:editor.id,text})
   }
-  function play(src,label){setPlaying({src:src+'?v='+(project?.job?.id||''),label})}
+  async function beginListening(next=chapter) {
+    if(dirty||pending)return
+    const request=++listenRequest.current
+    setPlaying(null);audio.current?.pause();setListenStart(next);setError('')
+    const rows=forwardRows(project,next)
+    // Unlock the browser audio context immediately in the user gesture.
+    listener.current?.start(rows)
+    if(!readyEngine&&bufferStatus(rows).canStart)return
+    if(settings?.engine==='edge'&&!allowNetwork&&!canListenDuringJob&&bufferStatus(rows).canStart)return
+    try{const p=await api(`/api/projects/${activeId}/listen`,{method:'POST',body:JSON.stringify({chapter:next,allow_network:allowNetwork})});if(request===listenRequest.current)setProject(p)}
+    catch(e){if(request!==listenRequest.current)return;setError(e.message);if(!bufferStatus(rows).canStart)listener.current?.reset()}
+  }
+  function selectChapter(next) {
+    setChapter(next);setPlaying(null)
+    if((canListenDuringJob&&busy)||['playing','buffering','paused'].includes(listenState.status))beginListening(next)
+  }
+  function play(src,label){listener.current?.reset();setPlaying({src,label})}
   return <>
     <a className="skip-link" href="#reading-area">{t.skip}</a>
     <header className="topbar"><a className="brand" href="#" onClick={e=>e.preventDefault()}><span className="brand-mark"><BookOpen size={23}/></span>PageVoice</a><span className="local-badge"><ShieldCheck size={16}/>{t.local}</span>
@@ -147,11 +175,17 @@ export default function App() {
           {(project.error||project.job?.error)&&<ErrorNotice error={project.job?.error||project.error} t={t}/>}
           {project.source_pages?.some(p=>p.warning)&&<details className="notice"><summary>{t.pageWarning}</summary>{project.source_pages.filter(p=>p.warning).map(p=><p key={p.page}>{p.page}: {p.warning}</p>)}</details>}
           {!project.chapters.length?<section className="preparing-panel"><BookOpen size={35}/><h2>{busy?t.preparing:t.prepareError}</h2><p>{t.preparingHint}</p>{!busy&&<button className="primary" onClick={()=>runJob('resume')}>{t.resume}</button>}</section>:<div className="workspace">
-            <section className="manuscript"><div className="chapter-tabs" role="tablist" aria-label={t.chapters}>{project.chapters.map((c,i)=><button key={i} role="tab" aria-selected={chapter===i} tabIndex={chapter===i?0:-1} onKeyDown={e=>{let next=i;if(e.key==='ArrowRight')next=(i+1)%project.chapters.length;else if(e.key==='ArrowLeft')next=(i+project.chapters.length-1)%project.chapters.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=project.chapters.length-1;else return;e.preventDefault();setChapter(next);document.getElementById('chapter-tab-'+next)?.focus()}} id={`chapter-tab-${i}`} aria-controls="chapter-panel" onClick={()=>{setChapter(i);setPlaying(null)}}><span>{String(i+1).padStart(2,'0')}</span>{c.title}</button>)}</div>
-              <div className="reading-sheet" id="chapter-panel" role="tabpanel" aria-labelledby={`chapter-tab-${chapter}`}><div className="chapter-heading"><span className="chapter-number">{String(chapter+1).padStart(2,'0')}</span><div><h2>{selectedChapter?.title}</h2><p className="small muted">{selectedChapter?.sentences.length} {t.sentences}</p></div><button className="icon-button" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('preview',{chapter})} aria-label={t.preview} title={t.preview}><Play size={20}/></button></div>
-                <ol className="sentence-list">{selectedChapter?.sentences.map((row,i)=><li key={row.id}><span className="sentence-number" aria-hidden="true">{i+1}</span><p>{row.speaker&&row.speaker!=='Narrator'&&<span className="speaker-label">{row.speaker==='Dialogue'?t.dialogue:row.speaker}</span>}{row.text}</p><div className="sentence-actions"><button className="icon-button" onClick={()=>setEditor(row)} disabled={busy} aria-label={`${t.edit} ${i+1}`} title={t.edit}><Pencil size={16}/></button><button className="icon-button" disabled={!row.ready||busy} onClick={()=>play(row.audio,`${t.chapter} ${chapter+1} / ${i+1}`)} aria-label={`${t.listen} ${i+1}`} title={t.listen}><Volume2 size={16}/></button><span className={`sentence-state ${row.ready?'ready':''}`} aria-label={row.ready?t.complete:t.reviewing}>{row.ready?<Check size={12}/>:null}</span></div></li>)}</ol>
+            <section className="manuscript"><div className="chapter-tabs" role="tablist" aria-label={t.chapters}>{project.chapters.map((c,i)=><button key={i} role="tab" aria-selected={chapter===i} tabIndex={chapter===i?0:-1} onKeyDown={e=>{let next=i;if(e.key==='ArrowRight')next=(i+1)%project.chapters.length;else if(e.key==='ArrowLeft')next=(i+project.chapters.length-1)%project.chapters.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=project.chapters.length-1;else return;e.preventDefault();selectChapter(next);document.getElementById('chapter-tab-'+next)?.focus()}} id={`chapter-tab-${i}`} aria-controls="chapter-panel" onClick={()=>selectChapter(i)}><span>{String(i+1).padStart(2,'0')}</span><span className="tab-title">{c.title}<small>{c.ready??c.sentences.filter(s=>s.ready).length}/{c.total??c.sentences.length} {t.chapterReady}</small></span></button>)}</div>
+              <ListeningPlayer state={listenState} t={t} title={selectedChapter?.title} disabled={listenDisabled}
+                onStart={()=>beginListening()} onPause={()=>listener.current?.pause()} onResume={()=>listener.current?.resume()}
+                onStop={()=>listener.current?.reset()}/>
+              <div className="reading-sheet" id="chapter-panel" role="tabpanel" aria-labelledby={`chapter-tab-${chapter}`}><div className="chapter-heading"><span className="chapter-number">{String(chapter+1).padStart(2,'0')}</span><div><h2>{selectedChapter?.title}</h2><p className="small muted">{selectedChapter?.sentences.length} {t.sentences}</p></div><button className="icon-button" disabled={listenDisabled} onClick={()=>beginListening()} aria-label={t.listenNow} title={t.listenNow}><Play size={20}/></button></div>
+                <ol className="sentence-list">{selectedChapter?.sentences.map((row,i)=><li key={row.id} className={listenState.status==='playing'&&listenState.row?.id===row.id?'speaking':''} aria-current={listenState.status==='playing'&&listenState.row?.id===row.id?'true':undefined}><span className="sentence-number" aria-hidden="true">{i+1}</span><p>{row.speaker&&row.speaker!=='Narrator'&&<span className="speaker-label">{row.speaker==='Dialogue'?t.dialogue:row.speaker}</span>}{row.text}</p><div className="sentence-actions"><button className="icon-button" onClick={()=>setEditor(row)} disabled={busy} aria-label={`${t.edit} ${i+1}`} title={t.edit}><Pencil size={16}/></button><button className="icon-button" disabled={!row.ready} onClick={()=>play(row.audio,`${t.chapter} ${chapter+1} / ${i+1}`)} aria-label={`${t.listen} ${i+1}`} title={t.listen}><Volume2 size={16}/></button><span className={`sentence-state ${row.ready?'ready':''}`} aria-label={row.ready?t.complete:t.reviewing}>{row.ready?<Check size={12}/>:null}</span></div></li>)}</ol>
               </div>
-              <section className="player-panel"><div className="player-label"><Headphones size={21}/><div><strong>{playing?.label||t.playback}</strong><span>{playing?t.chapterPreview:project.output?t.finalAudio:t.noAudio}</span></div></div>{playing?<audio key={playing.src} ref={audio} controls autoPlay src={playing.src} preload="metadata" onError={()=>setError('audioError')} aria-label={t.playback}/>:project.output?<audio controls src={project.output+'?v='+project.job?.id} preload="metadata" aria-label={t.finalAudio}/>:<button className="secondary" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('preview',{chapter})}><Play size={17}/>{t.preview}</button>}</section>
+
+              {playing&&<section className="player-panel"><div className="player-label"><Headphones size={18}/><strong>{playing.label}</strong></div><audio key={playing.src} ref={audio} controls autoPlay src={playing.src} onError={()=>setError('audioError')} aria-label={t.playback}/></section>}
+              {project.output&&listenState.status==='idle'&&!playing&&<details className="completed-player"><summary>{t.finalAudio}</summary><audio controls src={project.output+'?v='+project.job?.id} preload="none" aria-label={t.finalAudio} onPlay={()=>listener.current?.reset()}/></details>}
+
             </section>
             <aside className="settings-panel"><div className="section-title"><Settings2 size={19}/><h2>{t.settings}</h2></div>
               <fieldset disabled={busy} className="form-stack"><label>{t.engine}<select value={settings?.engine||'xtts'} onChange={e=>updateSettings('engine',e.target.value)}>{engines.map(e=><option key={e.id} value={e.id} disabled={!e.installed}>{e.id==='say'?t.localVoice:e.id==='xtts'?t.neural:t.edge}{!e.installed?' — '+t.unavailable:''}</option>)}</select></label>
@@ -163,11 +197,12 @@ export default function App() {
               {dirty&&<p className="small muted" role="status">{t.unsaved}</p>}
               {settings?.engine==='xtts'&&!selectedEngine?.model_ready&&<div className="setup-note"><p><AlertCircle size={17}/><strong>{t.modelMissing}</strong></p><details><summary>{t.models}</summary><p>{t.modelHelp}</p><code>.venv/bin/pip install -e '.[xtts]'</code><code>.venv/bin/pagevoice setup-xtts</code><button className="text-button" onClick={()=>api('/api/engines').then(setEngines).catch(e=>setError(e.message))}><RefreshCw size={15}/>{t.retry}</button></details></div>}
               {settings?.engine==='edge'&&<div className="online-note"><p className="small">{t.onlineNotice}</p><label className="check-field"><input type="checkbox" checked={allowNetwork} onChange={e=>setAllowNetwork(e.target.checked)}/><span>{t.onlineConsent}</span></label></div>}
-              <Casting project={project} voices={voiceOptions} busy={busy||dirty} t={t} onChange={changeCasting}/><div className="render-section"><div className="progress-caption"><span>{t.progress}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
-                <button className="primary full" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('render')}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:t.render}</button>
+              <Casting project={project} voices={voiceOptions} busy={busy||dirty} t={t} onChange={changeCasting}/><div className="render-section"><div className="progress-caption"><span>{t.wholeBook}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><p className="small muted">{t.progress}</p><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
+                <button className="primary full" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('listen',{chapter})}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:project.status==='paused'?t.resumePreparation:t.render}</button>
+                {busy&&canListenDuringJob&&project.status!=='assembling'&&<button className="secondary full" disabled={project.listening?.pausing||pending} onClick={()=>runJob('pause')}>{project.listening?.pausing?t.pausingPreparation:t.pausePreparation}</button>}
                 {project.output&&!busy&&<a className="secondary full" href={project.output} download><Download size={18}/>{t.download}</a>}
                 {!busy&&project.status==='failed'&&<button className="secondary full" onClick={()=>runJob('resume')}>{t.resume}</button>}
-                <p className="small muted">{busy?t.jobsHint:t.engineHint}</p>
+                <p className="small muted">{busy?t.backgroundHint:t.engineHint}</p>{busy&&project.status==='synthesizing'&&project.progress.current_chapter!=null&&<p className="preparing-chapter">{t.preparingChapter} {project.progress.current_chapter+1}</p>}<p className="small muted">{t.forwardHint}</p>
               </div>
               {hardware&&<p className="hardware-note small muted">{t.detected}: <strong>{hardware.device.includes('unverified')?'CPU / ?':hardware.device.toUpperCase()}</strong><br/>{t.deviceHint}</p>}
             </aside>

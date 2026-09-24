@@ -48,3 +48,13 @@ The supplied Sites skill was applied to working-surface layout, typography,
 local preview and validation. Existing local React/Vite/FastAPI architecture
 and local-only instructions take precedence over hosted scaffolding/deployment.
 No cloud Site is registered. No external reference audiobook code is copied.
+
+## Progressive listening refinement
+
+The reader now leads with an accessible listening panel above a bounded manuscript.
+Chapter tabs expose real readiness counts; the current spoken sentence is highlighted
+and chapter selection follows forward playback. A contiguous buffer indicator answers
+when listening can begin, while the separate whole-book progress explains the export.
+Pausing playback and pausing preparation are visibly distinct. Natural narration
+speed/pitch are preserved; no decorative waveform or fabricated time estimate is shown.
+Controls remain available while completed audio is playing and future chunks synthesize.
