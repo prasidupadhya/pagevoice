@@ -106,8 +106,6 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
     def flush():
         if parts:
             text = clean(' '.join(parts))
-            if re.search(r'\[(?:pause|voice)[:\]]', text):
-                raise ValueError('Inline pause/voice markup is not implemented yet.')
             chapters.append(Chapter(current_title, sentences(text, lang)))
     for index, entry in enumerate(pages):
         text = entry['text']

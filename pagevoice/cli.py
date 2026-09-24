@@ -23,7 +23,7 @@ def main():
     conversion.add_argument('source', type=Path)
     conversion.add_argument('--data-dir', type=Path, default=Path(os.environ.get('PAGEVOICE_DATA', '.')))
     conversion.add_argument('--engine', choices=REGISTRY, default='xtts')
-    conversion.add_argument('--voice', help='Built-in engine speaker name (cloning comes in phase 4)')
+    conversion.add_argument('--voice', help='Built-in speaker name or consent-based clone:<profile-id>')
     conversion.add_argument('--language', choices=['en', 'es'], help='Override EPUB language, e.g. en or es')
     conversion.add_argument('--format', choices=['m4b', 'mp3'], default='m4b')
     conversion.add_argument('--device', choices=['auto', 'cpu', 'mps', 'cuda', 'rocm'], default='auto')
