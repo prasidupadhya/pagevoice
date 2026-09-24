@@ -35,7 +35,7 @@ def clean(text: str) -> str:
     return re.sub(r'\s+', ' ', unicodedata.normalize('NFC', text).replace('\u00ad', '')).strip()
 
 
-def sentences(text: str, language: str) -> list[str]:
+def plain_sentences(text: str, language: str) -> list[str]:
     language = language_code(language)
     try:
         segmenter = pysbd.Segmenter(language=language, clean=False)
@@ -53,6 +53,30 @@ def sentences(text: str, language: str) -> list[str]:
             remaining = remaining[cut:].strip()
         if remaining:
             result.append(remaining)
+    return result
+
+
+def sentences(text: str, language: str) -> list[str]:
+    from .narration import events
+    language = language_code(language)
+    result = []
+    for kind, value, voice in events(text):
+        if kind == 'pause':
+            result.append(f'[pause:{value:g}]')
+        else:
+            for part in plain_sentences(value, language):
+                if voice:
+                    # Keep editable chunks within the same 220-character bound.
+                    limit = 220 - len(voice) - len('[voice:][/voice]')
+                    while part:
+                        cut = min(limit, len(part))
+                        if cut < len(part):
+                            cut = part.rfind(' ', 0, cut + 1) or cut
+                            if cut < 1: cut = limit
+                        result.append(f'[voice:{voice}]{part[:cut].strip()}[/voice]')
+                        part = part[cut:].strip()
+                else:
+                    result.append(part)
     return result
 
 
@@ -103,8 +127,6 @@ def read_epub(path: Path, language: str | None = None) -> Book:
             title = clean(heading.get_text(' ', strip=True)) if heading else f'Chapter {len(chapters) + 1}'
             text = clean(body.get_text(' ', strip=True))
             if text:
-                if re.search(r'\[(?:pause|voice)[:\]]', text):
-                    raise ValueError('Inline pause/voice markup is not implemented in phase 1.')
                 chapters.append(Chapter(title, sentences(text, lang)))
         if not chapters:
             raise ValueError('EPUB has no readable linear chapters.')

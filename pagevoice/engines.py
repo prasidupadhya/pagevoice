@@ -107,3 +107,41 @@ def xtts_ready():
         return all((folder / name).is_file() for name in ('model.pth', 'config.json', 'vocab.json', 'speakers_xtts.pth'))
     except ImportError:
         return False
+
+
+def builtin_voices(engine):
+    if engine == 'say':
+        if not shutil.which('say'):
+            return []
+        import re
+        import unicodedata
+        result = []
+        for line in run(['say', '-v', '?'], timeout=10).splitlines():
+            match = re.match(r'(.+?)\s+(en|es)_[A-Z]+\s', line)
+            if match:
+                name = match[1].strip()
+                # The system accepts the unaccented aliases used by our defaults.
+                if name in ('Mónica',):
+                    name = ''.join(c for c in unicodedata.normalize('NFD', name) if not unicodedata.combining(c))
+                result.append({'id': name, 'language': match[2]})
+        return result
+    if engine == 'edge':
+        return [{'id': voice, 'language': language} for language, voices in (
+            ('en', ['en-US-AriaNeural', 'en-US-GuyNeural']),
+            ('es', ['es-ES-ElviraNeural', 'es-ES-AlvaroNeural'])) for voice in voices]
+    return [{'id': 'Ana Florence', 'language': language} for language in ('en','es')]
+
+
+def validate_voice(engine, voice, language, voices_dir):
+    from .voices import reference, catalogue
+    if voice.startswith('clone:'):
+        if engine != 'xtts':
+            raise ValueError('Cloned voices require XTTS.')
+        try:
+            reference(voices_dir, voice)
+        except (OSError, KeyError) as exc:
+            raise ValueError('Voice profile is missing or invalid.') from exc
+        if not any(v['id'] == voice and v['language'] == language for v in catalogue(voices_dir)):
+            raise ValueError('Voice profile language must match the book.')
+    elif not any(v['id'] == voice and v['language'] == language for v in builtin_voices(engine)):
+        raise ValueError('Choose an available voice for the selected engine and language.')

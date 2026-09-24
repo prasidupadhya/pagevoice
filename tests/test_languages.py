@@ -39,4 +39,17 @@ def test_spanish_real_synthesis(tmp_path):
     state=json.loads((tmp_path/'sessions'/output.stem/'session.json').read_text())
     assert state['voice']=='Monica'
     assert state['book']['language']=='es'
+    probe=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-of','json',str(output)]))
+    assert probe['streams'][0]['tags']['language']=='spa'
     subprocess.run(['ffmpeg','-v','error','-i',str(output),'-f','null','-'],check=True,capture_output=True)
+
+
+def test_spanish_scanned_pdf(tmp_path):
+    from pdf_sample import make_pdf
+    from pagevoice.pdf import read_pdf
+    result=subprocess.run(['tesseract','--list-langs'],capture_output=True,text=True)
+    if 'spa' not in result.stdout.split():pytest.skip('Install Tesseract spa data for Spanish OCR')
+    book=read_pdf(make_pdf(tmp_path/'spanish-scan.pdf',scanned=True,language='es'),language='es')
+    assert book.language=='es'
+    assert 'María abrió el libro' in ' '.join(book.chapters[-1].sentences)
+    assert any(page['method']=='ocr' for page in book.source_pages)

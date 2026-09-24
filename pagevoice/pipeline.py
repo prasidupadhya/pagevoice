@@ -15,6 +15,7 @@ from .engines import REGISTRY, create
 from .pdf import read_pdf
 from .storage import digest, save
 from .languages import language_code, default_voice
+from .narration import events, synthesize, effective_voice, voice_plan
 
 
 def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
@@ -28,7 +29,8 @@ def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
 def signature(state, identifier, text):
     settings = {k: state[k] for k in ('engine', 'voice', 'device')}
     settings.update(language=state['book']['language'], text=text,
-                    revision=state.get('revisions', {}).get(identifier, 0), pipeline=2)
+                    revision=state.get('revisions', {}).get(identifier, 0), pipeline=3,
+                    narration=voice_plan(state, identifier, text))
     return hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()
 
 
@@ -142,7 +144,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                     generation = uuid.uuid4().hex[:12]
                     target = session / 'chunks' / f'{identifier}-{generation}.wav'
                     raw = target.with_suffix('.raw.wav')
-                    adapter.synthesize(text, raw, state['voice'], book.language)
+                    synthesize(adapter, text, raw, effective_voice(state, identifier), book.language, state.get('cast'))
                     normalize(raw, target)
                     raw.unlink()
                     records[identifier] = {'id': identifier, 'chapter': chapter_index,
@@ -240,8 +242,7 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
             replacement = clean(text) if text is not None else old
             if not replacement or len(replacement) > 220:
                 raise ValueError('Replacement text must contain 1–220 characters.')
-            if re.search(r'\[(?:pause|voice)[:\]]', replacement):
-                raise ValueError('Inline pause/voice markup is not implemented yet.')
+            events(replacement)
             state['book']['chapters'][chapter]['sentences'][sentence] = replacement
             state['revisions'][identifier] = state['revisions'].get(identifier, 0) + 1
             if request_id:
