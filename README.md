@@ -33,8 +33,12 @@ Linux/Windows require XTTS; the built-in `say` engine is macOS-only.
 ## Reader workflow
 
 1. Drop an EPUB/PDF, select **English or Spanish**, and review extracted chapters.
-2. Choose an installed engine and voice, then save settings. Preview a chapter.
-3. Edit individual sentences or ask for a fresh take. Each completed chunk is saved.
+2. Choose an installed engine and voice, then save settings. Select a chapter and
+   **Listen from here**: playback starts with 20 ready sentences while the rest
+   prepares in the background. Chapter 3 gets priority before chapter 4; earlier
+   chapters are completed afterward for the full export.
+3. Pause listening independently, or **Pause preparation** to change voices and edit
+   sentences. Completed chunks are saved and reused.
 4. Optionally find dialogue, correct a sentence's speaker in its editor, and assign
    voices in the casting board using selects or drag-and-drop.
 5. Create and download a chaptered **M4B** or **MP3**, with title/author/language metadata.
@@ -135,7 +139,8 @@ Do not expose the server to the Internet. Upload limits apply after multipart pa
 
 ## Verification and known limits
 
-See [broken-pipe repair and regression results](docs/broken-pipe-repair.md),
+See [progressive listening and real timing results](docs/progressive-listening.md),
+[broken-pipe repair and regression results](docs/broken-pipe-repair.md),
 [final verification](docs/final-verification.md), [UI/design notes](docs/design.md),
 and earlier [pipeline](docs/verification.md), [PDF/recovery](docs/phase2-verification.md)
 and [UI](docs/ui-verification.md) checkpoints for actual commands and results.

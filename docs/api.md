@@ -82,3 +82,22 @@ curl http://127.0.0.1:8765/v1/audio/speech \
 The request shape was checked against the official [OpenAI speech API reference](https://developers.openai.com/api/reference/cli/resources/audio/subresources/speech/methods/create).
 This is a compatible local subset, not an implementation of OpenAI model names,
 style instructions, custom voice objects, or streaming speech events.
+
+## Progressive listening
+
+`POST /api/projects/{id}/listen`, JSON `{"chapter":2,"allow_network":false}`,
+prioritizes the zero-based chapter and schedules the whole book. When a render,
+listening, or regeneration job is already active, it updates priority without
+creating another job. A completed audiobook needs no new job. Earlier chapters
+are prepared after the forward section, preserving a complete export in original
+book order. Priority persists separately from the locked synthesis manifest.
+
+`POST /api/projects/{id}/pause` pauses background preparation at a sentence
+boundary. Paused job/session status is `paused`; completed WAVs remain available.
+Calling `/listen` or `/resume` clears the pause and starts the remaining work.
+
+Project/SSE data includes `listening` (chapter, buffer=20, pausing), per-chapter
+`ready`, `total`, `contiguous_ready`, and `progress.current_chapter`. Ready sentences
+have versioned WAV URLs and remain accessible while synthesis is running.
+The client enforces a 20-consecutive-sentence initial buffer and plays only forward.
+See [progressive listening verification](progressive-listening.md).

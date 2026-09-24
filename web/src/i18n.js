@@ -1,5 +1,11 @@
 export const messages = {
   en: {
+    finishingExport:'Finishing the audiobook file', pausePreparation:'Pause preparation', resumePreparation:'Resume preparation', preparationPaused:'Preparation paused', pausingPreparation:'Finishing the current sentence…', listenNow:'Listen from here', pauseListening:'Pause listening', resumeListening:'Continue listening', stopListening:'Stop listening',
+    buffering:'Building your listening buffer', listeningReady:'Ready to listen', listeningNow:'Listening now', listeningEnded:'You reached the end',
+    buffered:'sentences ready ahead', bufferHint:'Listening starts after 20 consecutive sentences are ready, or all remaining sentences for a shorter book.',
+    backgroundHint:'The rest of your audiobook keeps preparing in the background.', forwardHint:'Your selected chapter and the following chapters come first. Earlier chapters finish afterward for the full export.',
+    playbackSpeed:'Listening speed', continueAudio:'Tap to enable audio', preparingChapter:'Preparing chapter', wholeBook:'Whole audiobook',
+    sentencePosition:'Sentence', chapterReady:'ready', fillingBuffer:'Waiting for the next sentence. Preparation continues.',
     library:'Your library', local:'On your computer', newBook:'Add a book', intro:'A little more time for your books.',
     empty:'Bring a book. Find its voice.', emptyHint:'Drop an English or Spanish PDF or EPUB here, or choose a file.', choose:'Choose a book',
     books:'Books', noBooks:'Your books will appear here.', chapters:'Chapters', sentences:'sentences',
@@ -38,6 +44,12 @@ export const messages = {
     confidence:'Suggested', narrationDefault:'Narrator', dialogue:'Dialogue', models:'Model setup',
   },
   es: {
+    finishingExport:'Terminando el archivo del audiolibro', pausePreparation:'Pausar preparación', resumePreparation:'Reanudar preparación', preparationPaused:'Preparación pausada', pausingPreparation:'Terminando la frase actual…', listenNow:'Escuchar desde aquí', pauseListening:'Pausar escucha', resumeListening:'Continuar escuchando', stopListening:'Detener escucha',
+    buffering:'Preparando el audio para escuchar', listeningReady:'Listo para escuchar', listeningNow:'Escuchando', listeningEnded:'Has llegado al final',
+    buffered:'frases preparadas por delante', bufferHint:'La escucha comienza con 20 frases consecutivas listas, o todas las restantes si quedan menos.',
+    backgroundHint:'El resto del audiolibro se sigue preparando en segundo plano.', forwardHint:'Primero se prepara el capítulo seleccionado y los siguientes. Los anteriores se completan después para la descarga íntegra.',
+    playbackSpeed:'Velocidad de escucha', continueAudio:'Toca para activar el audio', preparingChapter:'Preparando capítulo', wholeBook:'Audiolibro completo',
+    sentencePosition:'Frase', chapterReady:'listas', fillingBuffer:'Esperando la siguiente frase. La preparación continúa.',
     library:'Tu biblioteca', local:'En tu ordenador', newBook:'Añadir un libro', intro:'Un poco más de tiempo para tus libros.',
     empty:'Trae un libro. Encuentra su voz.', emptyHint:'Arrastra aquí un PDF o EPUB en inglés o español, o elige un archivo.', choose:'Elegir un libro',
     books:'Libros', noBooks:'Tus libros aparecerán aquí.', chapters:'Capítulos', sentences:'frases',
