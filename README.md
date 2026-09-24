@@ -135,7 +135,8 @@ Do not expose the server to the Internet. Upload limits apply after multipart pa
 
 ## Verification and known limits
 
-See [final verification](docs/final-verification.md), [UI/design notes](docs/design.md),
+See [broken-pipe repair and regression results](docs/broken-pipe-repair.md),
+[final verification](docs/final-verification.md), [UI/design notes](docs/design.md),
 and earlier [pipeline](docs/verification.md), [PDF/recovery](docs/phase2-verification.md)
 and [UI](docs/ui-verification.md) checkpoints for actual commands and results.
 
