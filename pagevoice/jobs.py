@@ -4,6 +4,7 @@ from threading import RLock, Event, Thread
 from queue import Queue, Empty
 import json
 import time
+import traceback
 import uuid
 from filelock import FileLock
 
@@ -85,7 +86,7 @@ class Jobs:
                                chapter_index_only=options.get('chapter') if record['kind'] == 'preview' else None)
                 record['status'] = 'complete'
             except Exception as exc:
-                record.update(status='failed', error=str(exc))
+                record.update(status='failed', error=str(exc), traceback=traceback.format_exc())
             finally:
                 with self.guard:
                     record['finished'] = time.time()

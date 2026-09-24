@@ -369,4 +369,6 @@ def create_app(data=None):
 
 def serve():
     import uvicorn
-    uvicorn.run(create_app(), host='127.0.0.1', port=int(os.environ.get('PAGEVOICE_PORT', '8765')))
+    # An open progress stream must not keep a stopped server alive forever.
+    uvicorn.run(create_app(), host='127.0.0.1', port=int(os.environ.get('PAGEVOICE_PORT', '8765')),
+                timeout_graceful_shutdown=5)

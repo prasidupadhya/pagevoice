@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 import re
 import shutil
 import uuid
@@ -16,6 +17,9 @@ from .pdf import read_pdf
 from .storage import digest, save
 from .languages import language_code, default_voice
 from .narration import events, synthesize, effective_voice, voice_plan
+
+
+logger = logging.getLogger(__name__)
 
 
 def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
@@ -154,7 +158,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                     save(manifest, state)
                     generated += 1
                 paths.append(target)
-                print(f'[{reused + generated}/{total}] {chapter.title}', flush=True)
+                logger.info('[%s/%s] %s', reused + generated, total, chapter.title)
             chapter_paths.append(paths)
         state['status'] = 'assembling'
         save(manifest, state)
@@ -169,8 +173,8 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                      output_sha256=digest(output), duration=probe['format']['duration'],
                      last_run={'reused': reused, 'synthesized': generated})
         save(manifest, state)
-        print(f'Output: {output}\nChapters: {len(probe["chapters"])}; duration: {state["duration"]} seconds\n'
-              f'Reused: {reused}; synthesized: {generated}', flush=True)
+        logger.info('Output: %s\nChapters: %s; duration: %s seconds\nReused: %s; synthesized: %s',
+                    output, len(probe['chapters']), state['duration'], reused, generated)
         return output
     except BaseException as exc:
         state.update(status='interrupted' if isinstance(exc, KeyboardInterrupt) else 'failed',
@@ -200,7 +204,7 @@ def new_session(source: Path, data: Path, engine='xtts', voice=None, language=No
              'device': device, 'format': output_format, 'status': 'pending', 'chunks': [], 'revisions': {}}
     with FileLock(str(session / '.lock'), timeout=0):
         save(session / 'session.json', state)
-        print(f'Session: {session}', flush=True)
+        logger.info('Session: %s', session)
         return session
 
 
