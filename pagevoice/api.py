@@ -20,6 +20,7 @@ from .jobs import Jobs
 from .pipeline import new_session, load, signature
 from .storage import save
 from .languages import default_voice
+from .voices import register, reference, catalogue
 
 
 class Settings(BaseModel):
@@ -137,6 +138,29 @@ def create_app(data=None):
                  'voices': [{'id': default_voice(key, lang), 'language': lang} for lang in ('en', 'es')]}
                 for key, info in REGISTRY.items()]
 
+    @app.get('/api/voices')
+    def voices():
+        return catalogue(root / 'voices')
+
+    @app.post('/api/voices', status_code=201)
+    def upload_voice(file: UploadFile = File(...), name: str = Form(...),
+                     language: Literal['en','es'] = Form('en'), consent: bool = Form(False)):
+        if not consent:
+            raise HTTPException(400, 'Speaker consent is required.')
+        with tempfile.TemporaryDirectory(prefix='pagevoice-voice-') as folder:
+            path = Path(folder) / 'sample'
+            size = 0
+            with path.open('wb') as stream:
+                while chunk := file.file.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > 20 * 1024 * 1024:
+                        raise HTTPException(413, 'Voice sample exceeds 20 MB.')
+                    stream.write(chunk)
+            try:
+                return register(root / 'voices', path, name, language, consent)
+            except (RuntimeError, KeyError) as exc:
+                raise HTTPException(400, 'Could not read the recording. Use a clean WAV or MP3 sample.') from exc
+
     @app.get('/api/projects')
     def projects():
         result = []
@@ -186,6 +210,13 @@ def create_app(data=None):
                 raise HTTPException(409, 'Book is still being prepared.')
             values = settings.model_dump()
             values['voice'] = values['voice'] or default_voice(values['engine'], state['book']['language'])
+            if values['voice'].startswith('clone:'):
+                if values['engine'] != 'xtts':
+                    raise HTTPException(400, 'Cloned voices require XTTS.')
+                try:
+                    reference(root / 'voices', values['voice'])
+                except (OSError, ValueError) as exc:
+                    raise HTTPException(400, 'Voice profile is missing or invalid.') from exc
             if any(state.get(key) != value for key, value in values.items()):
                 state.update(values, output_current=False, status='ready', previews={})
                 save(path / 'session.json', state)
