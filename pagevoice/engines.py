@@ -72,7 +72,8 @@ class EdgeSpeech:
 
 
 class XttsSpeech:
-    def __init__(self, device):
+    def __init__(self, device, voices_dir=None):
+        self.voices_dir = voices_dir or Path("voices")
         if not xtts_ready():
             raise ValueError('XTTS model is not installed. Run .venv/bin/pagevoice setup-xtts and review the model terms, or select a built-in local voice.')
         try:
@@ -85,15 +86,16 @@ class XttsSpeech:
         self.model = TTS(model_name='tts_models/multilingual/multi-dataset/xtts_v2', progress_bar=False).to(selected)
 
     def synthesize(self, text, destination, voice, language):
-        self.model.tts_to_file(text=text, file_path=str(destination), speaker=voice,
-                               language='zh-cn' if language == 'zh' else language, split_sentences=False)
+        from .voices import reference
+        options = {'speaker_wav': str(reference(self.voices_dir, voice))} if voice.startswith('clone:') else {'speaker': voice}
+        self.model.tts_to_file(text=text, file_path=str(destination), language=language, split_sentences=False, **options)
 
 
-def create(name, device='auto', allow_network=False) -> Engine:
+def create(name, device='auto', allow_network=False, voices_dir=None) -> Engine:
     if REGISTRY[name].online and not allow_network:
         raise ValueError('Edge sends book text to Microsoft. Pass --allow-network to opt in.')
     if name == 'xtts':
-        return XttsSpeech(device)
+        return XttsSpeech(device, voices_dir)
     return {'say': MacSpeech, 'edge': EdgeSpeech}[name]()
 
 
@@ -105,3 +107,41 @@ def xtts_ready():
         return all((folder / name).is_file() for name in ('model.pth', 'config.json', 'vocab.json', 'speakers_xtts.pth'))
     except ImportError:
         return False
+
+
+def builtin_voices(engine):
+    if engine == 'say':
+        if not shutil.which('say'):
+            return []
+        import re
+        import unicodedata
+        result = []
+        for line in run(['say', '-v', '?'], timeout=10).splitlines():
+            match = re.match(r'(.+?)\s+(en|es)_[A-Z]+\s', line)
+            if match:
+                name = match[1].strip()
+                # The system accepts the unaccented aliases used by our defaults.
+                if name in ('Mónica',):
+                    name = ''.join(c for c in unicodedata.normalize('NFD', name) if not unicodedata.combining(c))
+                result.append({'id': name, 'language': match[2]})
+        return result
+    if engine == 'edge':
+        return [{'id': voice, 'language': language} for language, voices in (
+            ('en', ['en-US-AriaNeural', 'en-US-GuyNeural']),
+            ('es', ['es-ES-ElviraNeural', 'es-ES-AlvaroNeural'])) for voice in voices]
+    return [{'id': 'Ana Florence', 'language': language} for language in ('en','es')]
+
+
+def validate_voice(engine, voice, language, voices_dir):
+    from .voices import reference, catalogue
+    if voice.startswith('clone:'):
+        if engine != 'xtts':
+            raise ValueError('Cloned voices require XTTS.')
+        try:
+            reference(voices_dir, voice)
+        except (OSError, KeyError) as exc:
+            raise ValueError('Voice profile is missing or invalid.') from exc
+        if not any(v['id'] == voice and v['language'] == language for v in catalogue(voices_dir)):
+            raise ValueError('Voice profile language must match the book.')
+    elif not any(v['id'] == voice and v['language'] == language for v in builtin_voices(engine)):
+        raise ValueError('Choose an available voice for the selected engine and language.')

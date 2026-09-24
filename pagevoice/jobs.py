@@ -4,11 +4,13 @@ from threading import RLock, Event, Thread
 from queue import Queue, Empty
 import json
 import time
+import traceback
 import uuid
 from filelock import FileLock
 
 from .pipeline import resume, regenerate
 from .storage import save
+from .listening import next_priority, PreparationPaused
 
 ACTIVE = {'queued', 'running'}
 
@@ -75,16 +77,20 @@ class Jobs:
             try:
                 session = self.root / 'sessions' / record['project']
                 options = record['options']
-                if record['kind'] == 'regen':
-                    regenerate(session, options['sentence_id'], options.get('text'),
-                               options.get('allow_network', False), request_id=identifier)
-                else:
-                    resume(session, options.get('allow_network', False),
-                           prepare_only=record['kind'] == 'prepare',
-                           chapter_index_only=options.get('chapter') if record['kind'] == 'preview' else None)
+                with FileLock(str(self.folder / '.synthesis.lock')):
+                    if record['kind'] == 'regen':
+                        regenerate(session, options['sentence_id'], options.get('text'),
+                                   options.get('allow_network', False), request_id=identifier, priority=lambda: next_priority(session))
+                    else:
+                        resume(session, options.get('allow_network', False),
+                               prepare_only=record['kind'] == 'prepare',
+                               chapter_index_only=options.get('chapter') if record['kind'] == 'preview' else None,
+                                   priority=lambda: next_priority(session))
                 record['status'] = 'complete'
+            except PreparationPaused:
+                record['status'] = 'paused'
             except Exception as exc:
-                record.update(status='failed', error=str(exc))
+                record.update(status='failed', error=str(exc), traceback=traceback.format_exc())
             finally:
                 with self.guard:
                     record['finished'] = time.time()

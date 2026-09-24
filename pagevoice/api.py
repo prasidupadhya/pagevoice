@@ -10,16 +10,20 @@ import re
 import tempfile
 
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from filelock import FileLock, Timeout
 
-from .engines import REGISTRY, hardware, xtts_ready
+from .engines import REGISTRY, hardware, xtts_ready, builtin_voices, validate_voice
 from .jobs import Jobs
-from .pipeline import new_session, load, signature
+from .pipeline import new_session, load, signature, reusable
+from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
 from .storage import save
 from .languages import default_voice
+from .voices import register, reference, catalogue
+from .narration import detect
+from .speech import SpeechRequest, render as speech_render
 
 
 class Settings(BaseModel):
@@ -41,6 +45,12 @@ class PreviewRequest(RenderRequest):
 class RegenRequest(RenderRequest):
     sentence_id: str = Field(pattern=r'^\d{4}-\d{5}$')
     text: str | None = Field(default=None, min_length=1, max_length=220)
+
+
+class CastingRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    cast: dict[str, str] = Field(default_factory=dict, max_length=100)
+    tags: dict[str, str] = Field(default_factory=dict, max_length=100000)
 
 
 def create_app(data=None):
@@ -92,34 +102,43 @@ def create_app(data=None):
 
     def present(project):
         path = session(project)
+        # Snapshot the job first: a completed job must never accompany an older
+        # manifest that still says the output is unavailable.
+        with jobs.guard:
+            latest = sorted((dict(r) for r in jobs.records.values() if r['project'] == project), key=lambda r: r['created'], reverse=True)
         state = load(path)
         records = {r['id']: r for r in state['chunks']}
         chapters = []
         ready = total = 0
         for ci, chapter in enumerate((state.get('book') or {}).get('chapters', [])):
             rows = []
+            contiguous = 0
             for si, text in enumerate(chapter['sentences']):
                 identifier = f'{ci:04d}-{si:05d}'
                 record = records.get(identifier)
                 complete = bool(record and record.get('signature') == signature(state, identifier, text) and (path / record['audio']).is_file())
+                if complete and contiguous == si:
+                    contiguous += 1
                 ready += int(complete)
                 total += 1
                 rows.append({'id': identifier, 'text': text, 'ready': complete,
-                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio' if complete else None})
+                             'speaker': state.get('speaker_tags', {}).get(identifier, 'Narrator'),
+                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio?v={record.get("sha256", "")[:16]}' if complete else None})
             chapters.append({'index': ci, 'title': chapter['title'], 'sentences': rows,
+                             'ready': sum(row['ready'] for row in rows), 'total': len(rows), 'contiguous_ready': contiguous,
                              'preview': f'/api/projects/{project}/previews/{ci}' if str(ci) in state.get('previews', {}) else None})
-        with jobs.guard:
-            latest = sorted((dict(r) for r in jobs.records.values() if r['project'] == project), key=lambda r: r['created'], reverse=True)
         return {'id': project, 'title': (state.get('book') or {}).get('title', state.get('original_name', 'Book')),
                 'author': (state.get('book') or {}).get('author', ''),
                 'language': (state.get('book') or {}).get('language', state.get('parse_options', {}).get('language', 'en')),
                 'status': state['status'], 'error': state.get('error'),
                 'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'],
-                'chapters': chapters, 'progress': {'complete': ready, 'total': total},
+                'chapters': chapters, 'progress': {'complete': ready, 'total': total, 'current_chapter': state.get('current_chapter')},
+                'listening': {'chapter': priority(path), 'buffer': BUFFER_SENTENCES, 'pausing': paused(path)},
                 'source_pages': (state.get('book') or {}).get('source_pages', []),
                 'output': f'/api/projects/{project}/download' if state.get('output_current') else None,
                 'duration': state.get('duration'), 'job': dict(latest[0]) if latest else None,
-                'last_run': state.get('last_run')}
+                'last_run': state.get('last_run'), 'cast': state.get('cast', {}),
+                'speakers': sorted({'Narrator'} | set(state.get('speaker_tags', {}).values()) | set(state.get('cast', {})))}
 
     @app.get('/api/health')
     def health():
@@ -134,8 +153,31 @@ def create_app(data=None):
         import importlib.util
         return [{'id': key, 'name': info.name, 'online': info.online, 'model_ready': xtts_ready() if key=='xtts' else True,
                  'installed': (bool(__import__('shutil').which('say')) if key == 'say' else importlib.util.find_spec('TTS' if key == 'xtts' else 'edge_tts') is not None),
-                 'voices': [{'id': default_voice(key, lang), 'language': lang} for lang in ('en', 'es')]}
+                 'voices': builtin_voices(key)}
                 for key, info in REGISTRY.items()]
+
+    @app.get('/api/voices')
+    def voices():
+        return catalogue(root / 'voices')
+
+    @app.post('/api/voices', status_code=201)
+    def upload_voice(file: UploadFile = File(...), name: str = Form(...),
+                     language: Literal['en','es'] = Form('en'), consent: bool = Form(False)):
+        if not consent:
+            raise HTTPException(400, 'Speaker consent is required.')
+        with tempfile.TemporaryDirectory(prefix='pagevoice-voice-') as folder:
+            path = Path(folder) / 'sample'
+            size = 0
+            with path.open('wb') as stream:
+                while chunk := file.file.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > 20 * 1024 * 1024:
+                        raise HTTPException(413, 'Voice sample exceeds 20 MB.')
+                    stream.write(chunk)
+            try:
+                return register(root / 'voices', path, name, language, consent)
+            except (RuntimeError, KeyError) as exc:
+                raise HTTPException(400, 'Could not read the recording. Use a clean WAV or MP3 sample.') from exc
 
     @app.get('/api/projects')
     def projects():
@@ -186,10 +228,66 @@ def create_app(data=None):
                 raise HTTPException(409, 'Book is still being prepared.')
             values = settings.model_dump()
             values['voice'] = values['voice'] or default_voice(values['engine'], state['book']['language'])
+            validate_voice(values['engine'], values['voice'], state['book']['language'], root / 'voices')
+            if values['engine'] != state['engine']:
+                state['cast'] = {}
             if any(state.get(key) != value for key, value in values.items()):
                 state.update(values, output_current=False, status='ready', previews={})
                 save(path / 'session.json', state)
         return present(project)
+
+    @app.post('/api/projects/{project}/speakers/detect')
+    def detect_speakers(project: str):
+        path = session(project)
+        with jobs.guard, FileLock(str(path / '.lock'), timeout=0):
+            if jobs.busy(project):
+                raise HTTPException(409, 'Wait for the current job to finish.')
+            state = load(path)
+            if not state.get('book'):
+                raise HTTPException(409, 'Prepare the book first.')
+            suggestions = detect(state['book'])
+            # Preserve manual corrections when detection is repeated.
+            suggestions.update(state.get('speaker_tags', {}))
+            state.update(speaker_tags=suggestions, output_current=False, previews={})
+            save(path / 'session.json', state)
+        return present(project)
+
+    @app.patch('/api/projects/{project}/casting')
+    def casting(project: str, request: CastingRequest):
+        path = session(project)
+        with jobs.guard, FileLock(str(path / '.lock'), timeout=0):
+            if jobs.busy(project):
+                raise HTTPException(409, 'Wait for the current job to finish.')
+            state = load(path)
+            if not state.get('book'):
+                raise HTTPException(409, 'Prepare the book first.')
+            identifiers = {f'{ci:04d}-{si:05d}' for ci,c in enumerate(state['book']['chapters']) for si,_ in enumerate(c['sentences'])}
+            for identifier, speaker in request.tags.items():
+                if identifier not in identifiers:
+                    raise ValueError('Sentence ID does not exist.')
+            for speaker in [*request.cast, *request.tags.values()]:
+                if not speaker.strip() or speaker != speaker.strip() or len(speaker)>80 or any(c in speaker for c in '[]'):
+                    raise ValueError('Speaker names must contain 1–80 characters without brackets.')
+            for voice in request.cast.values():
+                validate_voice(state['engine'], voice, state['book']['language'], root / 'voices')
+            state.setdefault('cast', {}).update(request.cast)
+            state.setdefault('speaker_tags', {}).update(request.tags)
+            state.update(output_current=False, previews={})
+            save(path / 'session.json', state)
+        return present(project)
+
+    @app.get('/v1/models')
+    def models():
+        return {'object':'list', 'data':[{'id':key,'object':'model','created':0,'owned_by':'local'} for key in REGISTRY]}
+
+    @app.post('/v1/audio/speech')
+    def speech(request: SpeechRequest):
+        with FileLock(str(root / 'jobs' / '.synthesis.lock'), timeout=0):
+            try:
+                data, mime = speech_render(request, root)
+            except RuntimeError as exc:
+                raise HTTPException(400, str(exc)) from exc
+        return Response(data, media_type=mime)
 
     def enqueue(project, kind, values):
         path = session(project)
@@ -200,9 +298,38 @@ def create_app(data=None):
             if state['engine'] == 'edge' and not values.get('allow_network'):
                 raise HTTPException(400, 'Edge sends text to Microsoft; explicit network consent is required.')
             try:
+                if not jobs.busy(project):
+                    set_priority(path, priority(path))
                 return jobs.submit(project, kind, **values)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
+
+    @app.post('/api/projects/{project}/pause', status_code=202)
+    def pause_preparation(project: str):
+        path = session(project)
+        with jobs.guard:
+            active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
+            if not active or active['kind'] not in ('listen','render','regen'):
+                raise HTTPException(409, 'There is no background preparation to pause.')
+            pause(path)
+        return present(project)
+
+    @app.post('/api/projects/{project}/listen', status_code=202)
+    def listen(project: str, options: PreviewRequest):
+        path = session(project)
+        with jobs.guard:
+            state = load(path)
+            if not state.get('book') or options.chapter >= len(state['book']['chapters']):
+                raise HTTPException(404, 'Chapter not found.')
+            active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
+            if active and active['kind'] not in ('render','listen','regen'):
+                raise HTTPException(409, 'Finish parsing or the chapter preview before starting progressive listening.')
+            if not active and not state.get('output_current') and state['engine'] == 'edge' and not options.allow_network:
+                raise HTTPException(400, 'Edge requires explicit permission to send text to Microsoft.')
+            set_priority(path, options.chapter)
+            if not active and not state.get('output_current'):
+                jobs.submit(project, 'listen', allow_network=options.allow_network)
+        return present(project)
 
     @app.post('/api/projects/{project}/render', status_code=202)
     def render(project: str, options: RenderRequest):
@@ -259,15 +386,15 @@ def create_app(data=None):
         return FileResponse(path / 'previews' / f'chapter-{chapter}.mp3', media_type='audio/mpeg')
 
     @app.get('/api/projects/{project}/sentences/{identifier}/audio')
-    def sentence_audio(project: str, identifier: str):
+    def sentence_audio(project: str, identifier: str, v: str | None = None):
         path = session(project)
         state = load(path)
         record = next((r for r in state['chunks'] if r['id'] == identifier), None)
         if not record:
             raise HTTPException(404, 'Sentence audio not ready.')
         text = state['book']['chapters'][record['chapter']]['sentences'][record['sentence']]
-        if record.get('signature') != signature(state, identifier, text):
-            raise HTTPException(409, 'Sentence audio is out of date.')
+        if (v and v != record.get('sha256', '')[:16]) or not reusable(path, record, signature(state, identifier, text)):
+            raise HTTPException(409, 'Sentence audio is missing, damaged or out of date. Resume preparation.')
         from .pipeline import chunk_path
         return FileResponse(chunk_path(path, record), media_type='audio/wav')
 
@@ -279,4 +406,6 @@ def create_app(data=None):
 
 def serve():
     import uvicorn
-    uvicorn.run(create_app(), host='127.0.0.1', port=int(os.environ.get('PAGEVOICE_PORT', '8765')))
+    # An open progress stream must not keep a stopped server alive forever.
+    uvicorn.run(create_app(), host='127.0.0.1', port=int(os.environ.get('PAGEVOICE_PORT', '8765')),
+                timeout_graceful_shutdown=5)

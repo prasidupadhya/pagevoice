@@ -3,18 +3,25 @@ from pathlib import Path
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 import re
 import shutil
 import uuid
+from collections import deque
 
 from filelock import FileLock, Timeout
 
 from .audio import assemble, normalize, frames
+from .listening import chapter_order, PreparationPaused
 from .book import Book, Chapter, read_epub, clean
 from .engines import REGISTRY, create
 from .pdf import read_pdf
 from .storage import digest, save
 from .languages import language_code, default_voice
+from .narration import events, synthesize, effective_voice, voice_plan
+
+
+logger = logging.getLogger(__name__)
 
 
 def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
@@ -28,7 +35,8 @@ def read_book(source, language=None, ocr='auto', ocr_language=None, cache=None):
 def signature(state, identifier, text):
     settings = {k: state[k] for k in ('engine', 'voice', 'device')}
     settings.update(language=state['book']['language'], text=text,
-                    revision=state.get('revisions', {}).get(identifier, 0), pipeline=2)
+                    revision=state.get('revisions', {}).get(identifier, 0), pipeline=3,
+                    narration=voice_plan(state, identifier, text))
     return hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()
 
 
@@ -80,7 +88,7 @@ def load(session):
     return state
 
 
-def _execute(session, state, allow_network=False, prepare_only=False, chapter_index_only=None):
+def _execute(session, state, allow_network=False, prepare_only=False, chapter_index_only=None, priority=None):
     manifest = session / 'session.json'
     output = session.parent.parent / 'outputs' / f'{state["id"]}.{state["format"]}'
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -119,41 +127,47 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
         save(manifest, state)
         total = sum(len(c.sentences) for c in book.chapters)
         records = {record['id']: record for record in state['chunks']}
-        chapter_paths = []
         adapter = None
+        remaining = {ci: deque(enumerate(chapter.sentences)) for ci, chapter in enumerate(book.chapters)
+                     if chapter_index_only is None or ci == chapter_index_only}
+        paths_by_chapter = {ci: {} for ci in remaining}
         if chapter_index_only is not None:
             total = len(book.chapters[chapter_index_only].sentences)
-        for chapter_index, chapter in enumerate(book.chapters):
-            if chapter_index_only is not None and chapter_index != chapter_index_only:
-                continue
-            paths = []
-            for sentence_index, text in enumerate(chapter.sentences):
-                identifier = f'{chapter_index:04d}-{sentence_index:05d}'
-                fingerprint = signature(state, identifier, text)
-                record = records.get(identifier)
-                if reusable(session, record, fingerprint):
-                    target = chunk_path(session, record)
-                    reused += 1
-                else:
-                    if adapter is None:
-                        adapter = create(state['engine'], state['device'], allow_network)
-                    # Unique generations ensure a crash cannot overwrite previously
-                    # committed audio before the replacement record is durable.
-                    generation = uuid.uuid4().hex[:12]
-                    target = session / 'chunks' / f'{identifier}-{generation}.wav'
-                    raw = target.with_suffix('.raw.wav')
-                    adapter.synthesize(text, raw, state['voice'], book.language)
-                    normalize(raw, target)
-                    raw.unlink()
-                    records[identifier] = {'id': identifier, 'chapter': chapter_index,
-                        'sentence': sentence_index, 'text': text, 'audio': str(target.relative_to(session)),
-                        'signature': fingerprint, 'sha256': digest(target), 'status': 'complete'}
-                    state['chunks'] = list(records.values())
-                    save(manifest, state)
-                    generated += 1
-                paths.append(target)
-                print(f'[{reused + generated}/{total}] {chapter.title}', flush=True)
-            chapter_paths.append(paths)
+        # Check listener priority at each sentence boundary; keep one loaded engine.
+        # Export order is reconstructed separately, never the synthesis order.
+        while any(remaining.values()):
+            order = chapter_order(len(book.chapters), priority() if priority else 0)
+            chapter_index = next(ci for ci in order if remaining.get(ci))
+            sentence_index, text = remaining[chapter_index].popleft()
+            chapter = book.chapters[chapter_index]
+            identifier = f'{chapter_index:04d}-{sentence_index:05d}'
+            fingerprint = signature(state, identifier, text)
+            record = records.get(identifier)
+            if reusable(session, record, fingerprint):
+                target = chunk_path(session, record)
+                reused += 1
+            else:
+                if adapter is None:
+                    adapter = create(state['engine'], state['device'], allow_network, session.parent.parent / 'voices')
+                generation = uuid.uuid4().hex[:12]
+                target = session / 'chunks' / f'{identifier}-{generation}.wav'
+                raw = target.with_suffix('.raw.wav')
+                synthesize(adapter, text, raw, effective_voice(state, identifier), book.language, state.get('cast'))
+                normalize(raw, target)
+                raw.unlink()
+                records[identifier] = {'id': identifier, 'chapter': chapter_index,
+                    'sentence': sentence_index, 'text': text, 'audio': str(target.relative_to(session)),
+                    'signature': fingerprint, 'sha256': digest(target), 'status': 'complete',
+                    'duration': frames(target) / 24000}
+                state['chunks'] = list(records.values())
+                state['current_chapter'] = chapter_index
+                save(manifest, state)
+                generated += 1
+            paths_by_chapter[chapter_index][sentence_index] = target
+            logger.info('[%s/%s] %s', reused + generated, total, chapter.title)
+        chapter_paths = [[rows[si] for si in sorted(rows)] for ci, rows in sorted(paths_by_chapter.items())]
+        if priority:
+            priority()  # Honor a pause requested during the final sentence.
         state['status'] = 'assembling'
         save(manifest, state)
         assembled_book = book if chapter_index_only is None else Book(book.title, book.author, book.language, [book.chapters[chapter_index_only]])
@@ -167,9 +181,14 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                      output_sha256=digest(output), duration=probe['format']['duration'],
                      last_run={'reused': reused, 'synthesized': generated})
         save(manifest, state)
-        print(f'Output: {output}\nChapters: {len(probe["chapters"])}; duration: {state["duration"]} seconds\n'
-              f'Reused: {reused}; synthesized: {generated}', flush=True)
+        logger.info('Output: %s\nChapters: %s; duration: %s seconds\nReused: %s; synthesized: %s',
+                    output, len(probe['chapters']), state['duration'], reused, generated)
         return output
+    except PreparationPaused:
+        state.pop('error', None)
+        state.update(status='paused', output_current=False, last_run={'reused': reused, 'synthesized': generated})
+        save(manifest, state)
+        raise
     except BaseException as exc:
         state.update(status='interrupted' if isinstance(exc, KeyboardInterrupt) else 'failed',
                      error=str(exc), output_current=False, last_run={'reused': reused, 'synthesized': generated})
@@ -198,7 +217,7 @@ def new_session(source: Path, data: Path, engine='xtts', voice=None, language=No
              'device': device, 'format': output_format, 'status': 'pending', 'chunks': [], 'revisions': {}}
     with FileLock(str(session / '.lock'), timeout=0):
         save(session / 'session.json', state)
-        print(f'Session: {session}', flush=True)
+        logger.info('Session: %s', session)
         return session
 
 
@@ -208,18 +227,18 @@ def convert(source: Path, data: Path, engine='xtts', voice=None, language=None,
     return resume(session, allow_network)
 
 
-def resume(session: Path, allow_network=False, prepare_only=False, chapter_index_only=None):
+def resume(session: Path, allow_network=False, prepare_only=False, chapter_index_only=None, priority=None):
     session = session.resolve()
     if not (session / 'session.json').is_file():
         raise ValueError('Session not found; pass the session directory.')
     try:
         with FileLock(str(session / '.lock'), timeout=0):
-            return _execute(session, load(session), allow_network, prepare_only, chapter_index_only)
+            return _execute(session, load(session), allow_network, prepare_only, chapter_index_only, priority)
     except Timeout as exc:
         raise ValueError('This session is already being modified by another process.') from exc
 
 
-def regenerate(session: Path, identifier: str, text=None, allow_network=False, request_id=None):
+def regenerate(session: Path, identifier: str, text=None, allow_network=False, request_id=None, priority=None):
     session = session.resolve()
     if not (session / 'session.json').is_file():
         raise ValueError('Session not found; pass the session directory.')
@@ -229,7 +248,7 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
         with FileLock(str(session / '.lock'), timeout=0):
             state = load(session)
             if request_id and request_id in state.get('applied_requests', []):
-                return _execute(session, state, allow_network)
+                return _execute(session, state, allow_network, priority=priority)
             if not state.get('book'):
                 raise ValueError('Resume parsing before regenerating a sentence.')
             chapter, sentence = map(int, identifier.split('-'))
@@ -240,8 +259,7 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
             replacement = clean(text) if text is not None else old
             if not replacement or len(replacement) > 220:
                 raise ValueError('Replacement text must contain 1–220 characters.')
-            if re.search(r'\[(?:pause|voice)[:\]]', replacement):
-                raise ValueError('Inline pause/voice markup is not implemented yet.')
+            events(replacement)
             state['book']['chapters'][chapter]['sentences'][sentence] = replacement
             state['revisions'][identifier] = state['revisions'].get(identifier, 0) + 1
             if request_id:
@@ -251,6 +269,6 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
             # Persist the request before synthesis, so resume honors the edit even
             # if the process is killed while the selected sentence is rendering.
             save(session / 'session.json', state)
-            return _execute(session, state, allow_network)
+            return _execute(session, state, allow_network, priority=priority)
     except Timeout as exc:
         raise ValueError('This session is already being modified by another process.') from exc

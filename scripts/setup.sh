@@ -7,3 +7,6 @@ command -v ffprobe >/dev/null
 .venv/bin/python -m pip install 'pip==25.0.1'
 .venv/bin/python -m pip install -c requirements-core.lock -e '.[api,test]'
 .venv/bin/pagevoice doctor
+command -v npm >/dev/null || { echo 'Node 22.12+ and npm are required for the reader interface.'; exit 1; }
+npm --prefix web ci
+npm --prefix web run build
