@@ -65,7 +65,9 @@ def assemble(book, chunks: list[list[Path]], session: Path, output: Path):
     codec = ['-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-f', 'ipod'] if output.suffix == '.m4b' else ['-c:a', 'libmp3lame', '-b:a', '128k']
     run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', str(RATE), '-ac', '1',
          '-i', str(pcm), '-i', str(meta), '-map', '0:a:0', '-map_metadata', '1',
-         '-map_chapters', '1', *codec, str(temporary)])
+         '-map_chapters', '1', '-metadata:s:a:0',
+         'language=' + {'en': 'eng', 'es': 'spa'}.get(book.language, book.language),
+         *codec, str(temporary)])
     probe = json.loads(run(['ffprobe', '-v', 'error', '-show_format', '-show_chapters', '-of', 'json', str(temporary)]))
     if len(probe['chapters']) != len(book.chapters):
         raise RuntimeError('Encoded chapter count does not match the book.')

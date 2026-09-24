@@ -27,7 +27,7 @@ describe('reader interactions',()=>{
   it('edits and saves exactly the selected sentence',async()=>{
     const saved=vi.fn();render(<SentenceEditor row={{text:'Original sentence.'}} t={messages.en} onClose={()=>{}} onSave={saved} busy={false}/>);const user=userEvent.setup()
     await user.clear(screen.getByLabelText('Narration text'));await user.type(screen.getByLabelText('Narration text'),'Updated sentence.')
-    await user.click(screen.getByRole('button',{name:'Save & regenerate'}));expect(saved).toHaveBeenCalledWith('Updated sentence.')
+    await user.click(screen.getByRole('button',{name:'Save & regenerate'}));expect(saved).toHaveBeenCalledWith('Updated sentence.','Narrator')
   })
   it('uploads with explicit Spanish book language',async()=>{
     server();const created=vi.fn();render(<UploadDialog t={messages.en} locale="en" onCreated={created} onClose={()=>{}}/>);const user=userEvent.setup()

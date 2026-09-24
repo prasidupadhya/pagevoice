@@ -12,3 +12,4 @@ jobs/
 web/node_modules/
 web/dist/
 web/test-results/
+logs/

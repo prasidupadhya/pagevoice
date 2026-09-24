@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 from pathlib import Path
 import sys
@@ -23,7 +24,7 @@ def main():
     conversion.add_argument('source', type=Path)
     conversion.add_argument('--data-dir', type=Path, default=Path(os.environ.get('PAGEVOICE_DATA', '.')))
     conversion.add_argument('--engine', choices=REGISTRY, default='xtts')
-    conversion.add_argument('--voice', help='Built-in engine speaker name (cloning comes in phase 4)')
+    conversion.add_argument('--voice', help='Built-in speaker name or consent-based clone:<profile-id>')
     conversion.add_argument('--language', choices=['en', 'es'], help='Override EPUB language, e.g. en or es')
     conversion.add_argument('--format', choices=['m4b', 'mp3'], default='m4b')
     conversion.add_argument('--device', choices=['auto', 'cpu', 'mps', 'cuda', 'rocm'], default='auto')
@@ -41,6 +42,15 @@ def main():
     regeneration.add_argument('sentence_id', help='Zero-based ID, e.g. 0000-00001')
     regeneration.add_argument('--text', help='Optional replacement text (1–220 characters)')
     args = parser.parse_args()
+    # Only the CLI writes progress to a terminal. The web worker uses durable
+    # manifests/SSE and must never depend on the launcher's stdout remaining open.
+    progress = logging.getLogger('pagevoice.pipeline')
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    progress.addHandler(handler)
+    previous_level, previous_propagate = progress.level, progress.propagate
+    progress.setLevel(logging.INFO)
+    progress.propagate = False
     try:
         if args.command == 'setup-xtts':
             from TTS.api import TTS
@@ -73,4 +83,9 @@ def main():
     except Exception as exc:
         print(f'pagevoice: {exc}', file=sys.stderr)
         return 1
+    finally:
+        progress.removeHandler(handler)
+        handler.close()
+        progress.setLevel(previous_level)
+        progress.propagate = previous_propagate
     return 0

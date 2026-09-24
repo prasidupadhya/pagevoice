@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react'
 import {BookOpen, Headphones, Plus, Upload, Sun, Moon, Globe, Play, Download, Settings2, Mic, X, Check, RefreshCw, Pencil, Volume2, AlertCircle, ChevronRight, AudioLines, ShieldCheck, LoaderCircle} from 'lucide-react'
 import {api} from './api'
+import {Casting} from './Casting'
 import {registerProjectTools} from './webmcp'
 import {messages, preference, persist} from './i18n'
 
@@ -49,11 +50,11 @@ export function CloneDialog({onClose,onCreated,t,locale}) {
   </form></Modal>
 }
 
-export function SentenceEditor({row,onClose,onSave,t,busy}) {
-  const [text,setText]=useState(row.text)
-  return <Modal title={t.edit} onClose={onClose} t={t}><form className="form-stack" onSubmit={e=>{e.preventDefault();onSave(text)}}>
+export function SentenceEditor({row,onClose,onSave,t,busy,speakers=[]}) {
+  const [text,setText]=useState(row.text),[speaker,setSpeaker]=useState(row.speaker||'Narrator')
+  return <Modal title={t.edit} onClose={onClose} t={t}><form className="form-stack" onSubmit={e=>{e.preventDefault();onSave(text,speaker)}}>
     <p className="muted">{t.editHint}</p><label>{t.text}<textarea autoFocus rows={6} value={text} onChange={e=>setText(e.target.value)} maxLength={220}/></label>
-    <p className="small muted character-count">{text.length}/220 {t.characters}</p><div className="actions"><button className="secondary" type="button" onClick={onClose}>{t.cancel}</button><button className="primary" disabled={busy||!text.trim()}>{t.regenerate}</button></div>
+    <label>{t.speaker}<input list="speaker-options" value={speaker} onChange={e=>setSpeaker(e.target.value)} maxLength={80} required/><datalist id="speaker-options">{speakers.map(name=><option key={name} value={name}/>)}</datalist></label><p className="small muted">{t.pauseHint}</p><p className="small muted character-count">{text.length}/220 {t.characters}</p><div className="actions"><button className="secondary" type="button" onClick={onClose}>{t.cancel}</button><button className="primary" disabled={busy||!text.trim()}>{t.regenerate}</button></div>
   </form></Modal>
 }
 
@@ -115,6 +116,17 @@ export default function App() {
     setPending(true);setError('');setNotice('');intent.current={project:activeId,kind,chapter}
     try{await api(`/api/projects/${activeId}/${kind}`,{method:'POST',body:JSON.stringify({allow_network:allowNetwork,...extra})});setEditor(null);const p=await api('/api/projects/'+activeId);setProject(p)}catch(e){setError(e.message);intent.current=null}finally{setPending(false)}
   }
+  async function changeCasting(path,body,method) {
+    setPending(true);setError('')
+    try{const p=await api(`/api/projects/${activeId}/${path}`,{method,body:JSON.stringify(body)});setProject(p);setNotice(t.castSaved);return true}
+    catch(e){setError(e.message);return false}finally{setPending(false)}
+  }
+  async function saveSentence(text,speaker) {
+    if(speaker!==(editor.speaker||'Narrator')) {
+      const saved=await changeCasting('casting',{tags:{[editor.id]:speaker}},'PATCH');if(!saved)return
+    }
+    await runJob('regen',{sentence_id:editor.id,text})
+  }
   function play(src,label){setPlaying({src:src+'?v='+(project?.job?.id||''),label})}
   return <>
     <a className="skip-link" href="#reading-area">{t.skip}</a>
@@ -137,7 +149,7 @@ export default function App() {
           {!project.chapters.length?<section className="preparing-panel"><BookOpen size={35}/><h2>{busy?t.preparing:t.prepareError}</h2><p>{t.preparingHint}</p>{!busy&&<button className="primary" onClick={()=>runJob('resume')}>{t.resume}</button>}</section>:<div className="workspace">
             <section className="manuscript"><div className="chapter-tabs" role="tablist" aria-label={t.chapters}>{project.chapters.map((c,i)=><button key={i} role="tab" aria-selected={chapter===i} tabIndex={chapter===i?0:-1} onKeyDown={e=>{let next=i;if(e.key==='ArrowRight')next=(i+1)%project.chapters.length;else if(e.key==='ArrowLeft')next=(i+project.chapters.length-1)%project.chapters.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=project.chapters.length-1;else return;e.preventDefault();setChapter(next);document.getElementById('chapter-tab-'+next)?.focus()}} id={`chapter-tab-${i}`} aria-controls="chapter-panel" onClick={()=>{setChapter(i);setPlaying(null)}}><span>{String(i+1).padStart(2,'0')}</span>{c.title}</button>)}</div>
               <div className="reading-sheet" id="chapter-panel" role="tabpanel" aria-labelledby={`chapter-tab-${chapter}`}><div className="chapter-heading"><span className="chapter-number">{String(chapter+1).padStart(2,'0')}</span><div><h2>{selectedChapter?.title}</h2><p className="small muted">{selectedChapter?.sentences.length} {t.sentences}</p></div><button className="icon-button" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('preview',{chapter})} aria-label={t.preview} title={t.preview}><Play size={20}/></button></div>
-                <ol className="sentence-list">{selectedChapter?.sentences.map((row,i)=><li key={row.id}><span className="sentence-number" aria-hidden="true">{i+1}</span><p>{row.text}</p><div className="sentence-actions"><button className="icon-button" onClick={()=>setEditor(row)} disabled={busy} aria-label={`${t.edit} ${i+1}`} title={t.edit}><Pencil size={16}/></button><button className="icon-button" disabled={!row.ready||busy} onClick={()=>play(row.audio,`${t.chapter} ${chapter+1} / ${i+1}`)} aria-label={`${t.listen} ${i+1}`} title={t.listen}><Volume2 size={16}/></button><span className={`sentence-state ${row.ready?'ready':''}`} aria-label={row.ready?t.complete:t.reviewing}>{row.ready?<Check size={12}/>:null}</span></div></li>)}</ol>
+                <ol className="sentence-list">{selectedChapter?.sentences.map((row,i)=><li key={row.id}><span className="sentence-number" aria-hidden="true">{i+1}</span><p>{row.speaker&&row.speaker!=='Narrator'&&<span className="speaker-label">{row.speaker==='Dialogue'?t.dialogue:row.speaker}</span>}{row.text}</p><div className="sentence-actions"><button className="icon-button" onClick={()=>setEditor(row)} disabled={busy} aria-label={`${t.edit} ${i+1}`} title={t.edit}><Pencil size={16}/></button><button className="icon-button" disabled={!row.ready||busy} onClick={()=>play(row.audio,`${t.chapter} ${chapter+1} / ${i+1}`)} aria-label={`${t.listen} ${i+1}`} title={t.listen}><Volume2 size={16}/></button><span className={`sentence-state ${row.ready?'ready':''}`} aria-label={row.ready?t.complete:t.reviewing}>{row.ready?<Check size={12}/>:null}</span></div></li>)}</ol>
               </div>
               <section className="player-panel"><div className="player-label"><Headphones size={21}/><div><strong>{playing?.label||t.playback}</strong><span>{playing?t.chapterPreview:project.output?t.finalAudio:t.noAudio}</span></div></div>{playing?<audio key={playing.src} ref={audio} controls autoPlay src={playing.src} preload="metadata" onError={()=>setError('audioError')} aria-label={t.playback}/>:project.output?<audio controls src={project.output+'?v='+project.job?.id} preload="metadata" aria-label={t.finalAudio}/>:<button className="secondary" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('preview',{chapter})}><Play size={17}/>{t.preview}</button>}</section>
             </section>
@@ -151,7 +163,7 @@ export default function App() {
               {dirty&&<p className="small muted" role="status">{t.unsaved}</p>}
               {settings?.engine==='xtts'&&!selectedEngine?.model_ready&&<div className="setup-note"><p><AlertCircle size={17}/><strong>{t.modelMissing}</strong></p><details><summary>{t.models}</summary><p>{t.modelHelp}</p><code>.venv/bin/pip install -e '.[xtts]'</code><code>.venv/bin/pagevoice setup-xtts</code><button className="text-button" onClick={()=>api('/api/engines').then(setEngines).catch(e=>setError(e.message))}><RefreshCw size={15}/>{t.retry}</button></details></div>}
               {settings?.engine==='edge'&&<div className="online-note"><p className="small">{t.onlineNotice}</p><label className="check-field"><input type="checkbox" checked={allowNetwork} onChange={e=>setAllowNetwork(e.target.checked)}/><span>{t.onlineConsent}</span></label></div>}
-              <div className="render-section"><div className="progress-caption"><span>{t.progress}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
+              <Casting project={project} voices={voiceOptions} busy={busy||dirty} t={t} onChange={changeCasting}/><div className="render-section"><div className="progress-caption"><span>{t.progress}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
                 <button className="primary full" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('render')}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:t.render}</button>
                 {project.output&&!busy&&<a className="secondary full" href={project.output} download><Download size={18}/>{t.download}</a>}
                 {!busy&&project.status==='failed'&&<button className="secondary full" onClick={()=>runJob('resume')}>{t.resume}</button>}
@@ -165,6 +177,6 @@ export default function App() {
     </div>
     {upload&&<UploadDialog initialFile={uploadFile} locale={locale} t={t} onClose={()=>setUpload(false)} onCreated={p=>{setProjects(all=>[p,...all]);setActiveId(p.id);setUpload(false)}}/>}
     {clone&&<CloneDialog locale={project?.language||locale} t={t} onClose={()=>setClone(false)} onCreated={v=>{setVoices(all=>[...all,v]);setClone(false);setNotice(t.cloneSaved)}}/>}
-    {editor&&<SentenceEditor row={editor} t={t} busy={busy} onClose={()=>setEditor(null)} onSave={text=>runJob('regen',{sentence_id:editor.id,text})}/>}
+    {editor&&<SentenceEditor row={editor} t={t} busy={busy} onClose={()=>setEditor(null)} speakers={project?.speakers} onSave={saveSentence}/>}
   </>
 }

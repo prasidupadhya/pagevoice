@@ -4,6 +4,7 @@ from threading import RLock, Event, Thread
 from queue import Queue, Empty
 import json
 import time
+import traceback
 import uuid
 from filelock import FileLock
 
@@ -75,16 +76,17 @@ class Jobs:
             try:
                 session = self.root / 'sessions' / record['project']
                 options = record['options']
-                if record['kind'] == 'regen':
-                    regenerate(session, options['sentence_id'], options.get('text'),
-                               options.get('allow_network', False), request_id=identifier)
-                else:
-                    resume(session, options.get('allow_network', False),
-                           prepare_only=record['kind'] == 'prepare',
-                           chapter_index_only=options.get('chapter') if record['kind'] == 'preview' else None)
+                with FileLock(str(self.folder / '.synthesis.lock')):
+                    if record['kind'] == 'regen':
+                        regenerate(session, options['sentence_id'], options.get('text'),
+                                   options.get('allow_network', False), request_id=identifier)
+                    else:
+                        resume(session, options.get('allow_network', False),
+                               prepare_only=record['kind'] == 'prepare',
+                               chapter_index_only=options.get('chapter') if record['kind'] == 'preview' else None)
                 record['status'] = 'complete'
             except Exception as exc:
-                record.update(status='failed', error=str(exc))
+                record.update(status='failed', error=str(exc), traceback=traceback.format_exc())
             finally:
                 with self.guard:
                     record['finished'] = time.time()
