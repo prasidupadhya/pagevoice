@@ -15,11 +15,12 @@ def run(args, **kwargs):
     return result.stdout
 
 
-def normalize(source: Path, target: Path):
+def normalize(source: Path, target: Path, pace: float = 1.0):
     temporary = target.with_suffix('.part.wav')
     # Most local engines already return our exact PCM format. Avoid a process
     # launch for every sentence while retaining full validation and atomic publish.
     try:
+        if pace != 1.0: raise ValueError("Pace conversion required")
         frames(source)
     except (OSError, ValueError, EOFError):
         pass
@@ -28,7 +29,7 @@ def normalize(source: Path, target: Path):
         temporary.replace(target)
         return
     run(['ffmpeg', '-v', 'error', '-y', '-i', str(source), '-ac', '1', '-ar', str(RATE),
-         '-c:a', 'pcm_s16le', str(temporary)])
+         '-af', f'atempo={pace}', '-c:a', 'pcm_s16le', str(temporary)])
     frames(temporary)
     temporary.replace(target)
 

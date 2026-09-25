@@ -3,6 +3,7 @@ import {BookOpen, Headphones, Plus, Upload, Sun, Moon, Globe, Play, Download, Se
 import {api} from './api'
 import {Casting} from './Casting'
 import {Listener,forwardRows,bufferStatus} from './listener'
+import {BookAnalysis} from './BookAnalysis'
 import {ListeningPlayer} from './ListeningPlayer'
 import {registerProjectTools} from './webmcp'
 import {messages, preference, persist} from './i18n'
@@ -55,8 +56,8 @@ export function CloneDialog({onClose,onCreated,t,locale}) {
 export function SentenceEditor({row,onClose,onSave,t,busy,speakers=[]}) {
   const [text,setText]=useState(row.text),[speaker,setSpeaker]=useState(row.speaker||'Narrator')
   return <Modal title={t.edit} onClose={onClose} t={t}><form className="form-stack" onSubmit={e=>{e.preventDefault();onSave(text,speaker)}}>
-    <p className="muted">{t.editHint}</p><label>{t.text}<textarea autoFocus rows={6} value={text} onChange={e=>setText(e.target.value)} maxLength={220}/></label>
-    <label>{t.speaker}<input list="speaker-options" value={speaker} onChange={e=>setSpeaker(e.target.value)} maxLength={80} required/><datalist id="speaker-options">{speakers.map(name=><option key={name} value={name}/>)}</datalist></label><p className="small muted">{t.pauseHint}</p><p className="small muted character-count">{text.length}/220 {t.characters}</p><div className="actions"><button className="secondary" type="button" onClick={onClose}>{t.cancel}</button><button className="primary" disabled={busy||!text.trim()}>{t.regenerate}</button></div>
+    <p className="muted">{t.editHint}</p><label>{t.text}<textarea autoFocus rows={6} value={text} onChange={e=>setText(e.target.value)} maxLength={10000}/></label>
+    <label>{t.speaker}<input list="speaker-options" value={speaker} onChange={e=>setSpeaker(e.target.value)} maxLength={80} required/><datalist id="speaker-options">{speakers.map(name=><option key={name} value={name}/>)}</datalist></label><p className="small muted">{t.pauseHint}</p><p className="small muted character-count">{text.length}/10000 {t.characters}</p><div className="actions"><button className="secondary" type="button" onClick={onClose}>{t.cancel}</button><button className="primary" disabled={busy||!text.trim()}>{t.regenerate}</button></div>
   </form></Modal>
 }
 
@@ -108,11 +109,11 @@ export default function App() {
     events.onopen=()=>setDisconnected(false);events.onerror=()=>setDisconnected(true)
     return()=>{closed=true;events.close()}
   },[activeId])
-  useEffect(()=>{if(project&&!dirty)setSettings({engine:project.engine,voice:project.voice||'',format:project.format,device:project.device})},[project?.engine,project?.voice,project?.format,project?.device,dirty])
+  useEffect(()=>{if(project&&!dirty)setSettings({engine:project.engine,voice:project.voice||'',format:project.format,device:project.device,pace:project.pace||1})},[project?.engine,project?.voice,project?.format,project?.device,project?.pace,dirty])
   useEffect(()=>{if(playing&&audio.current)audio.current.load()},[playing])
   const busy=pending||['queued','running'].includes(project?.job?.status)
   const selectedEngine=engines.find(e=>e.id===settings?.engine)
-  const voiceOptions=(selectedEngine?.voices||[]).filter(v=>v.language===project?.language).map(v=>({id:v.id,name:v.id}))
+  const voiceOptions=(selectedEngine?.voices||[]).filter(v=>v.language===project?.language).map(v=>({...v,name:v.style?`${t[v.gender]} · ${t[v.style]}`:v.id}))
   if(settings?.engine==='xtts')voiceOptions.push(...voices.filter(v=>v.language===project?.language))
   const readyEngine=selectedEngine?.installed && (selectedEngine.id!=='xtts'||selectedEngine.model_ready)
   const selectedChapter=project?.chapters[chapter]
@@ -152,9 +153,18 @@ export default function App() {
     catch(e){if(request!==listenRequest.current)return;setError(e.message);if(!bufferStatus(rows).canStart)listener.current?.reset()}
   }
   function selectChapter(next) {
-    setChapter(next);setPlaying(null)
+    setChapter(next);setListenStart(next);setPlaying(null)
     if((canListenDuringJob&&busy)||['playing','buffering','paused'].includes(listenState.status))beginListening(next)
   }
+  async function previewVoice() {
+    setPending(true);setError('');listener.current?.reset()
+    try {
+      const response=await fetch('/v1/audio/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:settings.engine,voice:settings.voice,language:project.language,speed:settings.pace||1,response_format:'wav',allow_network:allowNetwork,input:project.language==='es'?'Abre tu libro. Cada página es el comienzo de una nueva aventura.':'Open your book. Every page is the beginning of a new adventure.'})})
+      if(!response.ok){const problem=await response.json();throw Error(problem.detail||'Audio unavailable')}
+      const src=URL.createObjectURL(await response.blob());setPlaying({src,label:t.voicePreview})
+    }catch(e){setError(e.message)}finally{setPending(false)}
+  }
+  useEffect(()=>()=>{if(playing?.src?.startsWith('blob:'))URL.revokeObjectURL(playing.src)},[playing])
   function play(src,label){listener.current?.reset();setPlaying({src,label})}
   return <>
     <a className="skip-link" href="#reading-area">{t.skip}</a>
@@ -169,6 +179,7 @@ export default function App() {
         <div className="rail-bottom"><button className="text-button" onClick={()=>setShowProfiles(!showProfiles)} aria-expanded={showProfiles}><Mic size={17}/>{t.profiles}</button>{showProfiles&&<div className="voice-list">{voices.length?voices.map(v=><p key={v.id}>{v.name}<small>{v.language==='es'?'Español':'English'}</small></p>):<p className="small muted">{t.noProfiles}</p>}<button className="text-button" onClick={()=>setClone(true)}><Plus size={16}/>{t.clone}</button></div>}<p className="small muted privacy-note"><ShieldCheck size={16}/>{t.localHint}</p></div>
       </aside>
       <main id="reading-area" className="main-area" tabIndex={-1}>
+        <ol className="workflow" aria-label={t.workflow}><li className={!project?'current':'done'}><span>1</span>{t.stepUpload}</li><li className={project&&!busy&&!project.output?'current':''}><span>2</span>{t.stepVoice}</li><li className={busy||project?.output?'current':''}><span>3</span>{t.stepListen}</li></ol>
         <ErrorNotice error={error} t={t}/>{notice&&<div className="notice success" role="status"><Check size={18}/>{notice}</div>}{disconnected&&<div className="notice" role="status"><RefreshCw size={17}/>{t.reconnecting}</div>}
         {loading?<div className="loading-state"><LoaderCircle className="spin"/>{t.loading}</div>:!project?<section className="empty-library"><span className="empty-symbol"><Headphones size={40}/></span><h1>{t.empty}</h1><p>{t.emptyHint}</p><button className="dropzone" onClick={()=>openUpload()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();openUpload(e.dataTransfer.files[0])}}><Upload size={28}/><strong>{t.choose}</strong><span>PDF / EPUB</span></button>{error&&<button className="secondary" onClick={refresh}>{t.retry}</button>}</section>:<>
           <section className="book-heading"><div><p className="book-author">{project.author||t.library}</p><h1>{project.title}</h1><p className="book-meta"><span>{project.language==='es'?'Español':'English'}</span><span>{project.chapters.length} {t.chapters.toLowerCase()}</span><span className={`status-label ${busy?'active':''}`}>{busy?<LoaderCircle className="spin" size={14}/>:project.output?<Check size={14}/>:<BookOpen size={14}/>} {statusText(project,t)}</span></p></div><button className="secondary compact" onClick={()=>openUpload()}><Plus size={18}/>{t.newBook}</button></section>
@@ -176,6 +187,7 @@ export default function App() {
           {project.source_pages?.some(p=>p.warning)&&<details className="notice"><summary>{t.pageWarning}</summary>{project.source_pages.filter(p=>p.warning).map(p=><p key={p.page}>{p.page}: {p.warning}</p>)}</details>}
           {!project.chapters.length?<section className="preparing-panel"><BookOpen size={35}/><h2>{busy?t.preparing:t.prepareError}</h2><p>{t.preparingHint}</p>{!busy&&<button className="primary" onClick={()=>runJob('resume')}>{t.resume}</button>}</section>:<div className="workspace">
             <section className="manuscript"><div className="chapter-tabs" role="tablist" aria-label={t.chapters}>{project.chapters.map((c,i)=><button key={i} role="tab" aria-selected={chapter===i} tabIndex={chapter===i?0:-1} onKeyDown={e=>{let next=i;if(e.key==='ArrowRight')next=(i+1)%project.chapters.length;else if(e.key==='ArrowLeft')next=(i+project.chapters.length-1)%project.chapters.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=project.chapters.length-1;else return;e.preventDefault();selectChapter(next);document.getElementById('chapter-tab-'+next)?.focus()}} id={`chapter-tab-${i}`} aria-controls="chapter-panel" onClick={()=>selectChapter(i)}><span>{String(i+1).padStart(2,'0')}</span><span className="tab-title">{c.title}<small>{c.ready??c.sentences.filter(s=>s.ready).length}/{c.total??c.sentences.length} {t.chapterReady}</small></span></button>)}</div>
+              <BookAnalysis key={project.id} project={project} locale={locale} t={t} onChapter={selectChapter} onReanalyze={async()=>{try{const p=await api(`/api/projects/${activeId}/reanalyze`,{method:"POST"});setProjects(all=>[p,...all]);chooseProject(p.id)}catch(e){setError(e.message)}}} disabled={pending}/>
               <ListeningPlayer state={listenState} t={t} title={selectedChapter?.title} disabled={listenDisabled}
                 onStart={()=>beginListening()} onPause={()=>listener.current?.pause()} onResume={()=>listener.current?.resume()}
                 onStop={()=>listener.current?.reset()}/>
@@ -189,8 +201,10 @@ export default function App() {
             </section>
             <aside className="settings-panel"><div className="section-title"><Settings2 size={19}/><h2>{t.settings}</h2></div>
               <fieldset disabled={busy} className="form-stack"><label>{t.engine}<select value={settings?.engine||'xtts'} onChange={e=>updateSettings('engine',e.target.value)}>{engines.map(e=><option key={e.id} value={e.id} disabled={!e.installed}>{e.id==='say'?t.localVoice:e.id==='xtts'?t.neural:t.edge}{!e.installed?' — '+t.unavailable:''}</option>)}</select></label>
-                <label>{t.voice}<select value={settings?.voice||''} onChange={e=>updateSettings('voice',e.target.value)}>{voiceOptions.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
+                <fieldset className="voice-cards"><legend>{t.voice}</legend>{voiceOptions.map(v=><label key={v.id} className={settings?.voice===v.id?'chosen':''}><input type="radio" name="narrator" value={v.id} checked={settings?.voice===v.id} onChange={()=>updateSettings('voice',v.id)}/><span><strong>{v.name}</strong><small>{v.id.replace(/ \(.*\)/,'')}</small></span></label>)}</fieldset>
+                <button type="button" className="secondary" disabled={pending||busy||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={previewVoice}><Play size={16}/>{t.voicePreview}</button>
                 <button className="text-button" onClick={()=>setClone(true)}><Plus size={16}/>{t.clone}</button>
+                <label>{t.pace} <strong>{settings?.pace||1}×</strong><input type="range" min="0.5" max="2" step="0.05" value={settings?.pace||1} onChange={e=>updateSettings('pace',Number(e.target.value))}/><span className="small muted">{t.paceHint}</span></label>
                 <div className="field-row"><label>{t.output}<select value={settings?.format||'m4b'} onChange={e=>updateSettings('format',e.target.value)}><option value="m4b">M4B</option><option value="mp3">MP3</option></select></label><label>{t.device}<select value={settings?.device||'auto'} onChange={e=>updateSettings('device',e.target.value)}><option value="auto">{t.automatic}</option><option value="cpu">CPU</option>{hardware?.device==='mps'&&<option value="mps">MPS</option>}{['cuda','rocm'].includes(hardware?.device)&&<option value={hardware.device}>{hardware.device.toUpperCase()}</option>}</select></label></div>
                 {dirty&&<button className="secondary full" onClick={saveSettings}><Check size={17}/>{t.save}</button>}
               </fieldset>
@@ -198,13 +212,13 @@ export default function App() {
               {settings?.engine==='xtts'&&!selectedEngine?.model_ready&&<div className="setup-note"><p><AlertCircle size={17}/><strong>{t.modelMissing}</strong></p><details><summary>{t.models}</summary><p>{t.modelHelp}</p><code>.venv/bin/pip install -e '.[xtts]'</code><code>.venv/bin/pagevoice setup-xtts</code><button className="text-button" onClick={()=>api('/api/engines').then(setEngines).catch(e=>setError(e.message))}><RefreshCw size={15}/>{t.retry}</button></details></div>}
               {settings?.engine==='edge'&&<div className="online-note"><p className="small">{t.onlineNotice}</p><label className="check-field"><input type="checkbox" checked={allowNetwork} onChange={e=>setAllowNetwork(e.target.checked)}/><span>{t.onlineConsent}</span></label></div>}
               <Casting project={project} voices={voiceOptions} busy={busy||dirty} t={t} onChange={changeCasting}/><div className="render-section"><div className="progress-caption"><span>{t.wholeBook}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><p className="small muted">{t.progress}</p><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
-                <button className="primary full" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>runJob('listen',{chapter})}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:project.status==='paused'?t.resumePreparation:t.render}</button>
+                <button className="primary full" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>beginListening(chapter)}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:project.status==='paused'?t.resumePreparation:t.render}</button>
                 {busy&&canListenDuringJob&&project.status!=='assembling'&&<button className="secondary full" disabled={project.listening?.pausing||pending} onClick={()=>runJob('pause')}>{project.listening?.pausing?t.pausingPreparation:t.pausePreparation}</button>}
                 {project.output&&!busy&&<a className="secondary full" href={project.output} download><Download size={18}/>{t.download}</a>}
                 {!busy&&project.status==='failed'&&<button className="secondary full" onClick={()=>runJob('resume')}>{t.resume}</button>}
                 <p className="small muted">{busy?t.backgroundHint:t.engineHint}</p>{busy&&project.status==='synthesizing'&&project.progress.current_chapter!=null&&<p className="preparing-chapter">{t.preparingChapter} {project.progress.current_chapter+1}</p>}<p className="small muted">{t.forwardHint}</p>
               </div>
-              {hardware&&<p className="hardware-note small muted">{t.detected}: <strong>{hardware.device.includes('unverified')?'CPU / ?':hardware.device.toUpperCase()}</strong><br/>{t.deviceHint}</p>}
+              {hardware&&<p className="hardware-note small muted">{t.detected}: <strong>{hardware.device?.includes('unverified')?'CPU / ?':(hardware.device||'CPU').toUpperCase()}</strong><br/>{t.deviceHint}</p>}
             </aside>
           </div>}
         </>}

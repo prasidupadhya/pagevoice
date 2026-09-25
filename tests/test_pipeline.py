@@ -28,7 +28,7 @@ def test_bounded_multilingual_text():
     text = 'á' * 650
     pieces = sentences(text, 'es')
     assert ''.join(pieces) == text
-    assert max(map(len, pieces)) <= 220
+    assert pieces == [text]  # Display sentences are independent of engine windows.
     with pytest.raises(ValueError, match='Only English'):
         sentences('Hello.', 'zz')
 

@@ -20,7 +20,7 @@ pagevoice = "pagevoice.cli:main"
 pagevoice-server = "pagevoice.api:serve"
 
 [tool.setuptools.packages.find]
-include = ["pagevoice*"]
+include = ["pagevoice*", "rag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

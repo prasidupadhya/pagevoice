@@ -91,7 +91,7 @@ GPT-SoVITS is **deferred from v1** because of its separate weights/setup require
 Use `--format mp3` for MP3, `--voice` for a built-in name or `clone:<profile-id>`,
 `--data-dir` for a library root, and `--allow-network` to opt into Edge.
 Sentence IDs are zero-based chapter/sentence indexes. Text edits are limited to
-220 characters; long source sentences are split automatically.
+10,000 characters; synthesis windows are split internally at word boundaries.
 
 Supported inline controls: `[pause:1.5]` inserts silence in seconds (greater than
 zero, at most 30); `[voice:Mira]Hello.[/voice]` uses Mira's casting assignment or
@@ -166,3 +166,37 @@ cloned, copied, vendored or wrapped. Standard library dependencies are used norm
 `main` began with only this README. Four feature branches cover the whole project:
 `feat/pipeline`, `feat/api`, `feat/reader-ui`, `feat/voices-engines`.
 Each stays within four unique feature commits and lands through a squash-merged PR.
+
+### Book analysis, voices and listening
+
+**Create audiobook** now arms progressive listening directly. Playback begins when
+20 consecutive natural sentences from the selected chapter are ready (or the
+remaining text when shorter). If the browser suspends sound, use **Tap to enable
+audio**. Preparation continues independently of playback and prioritizes the
+selected chapter, then subsequent chapters, then earlier material for the complete
+export.
+
+**Explore your book** shows an evidence-backed section map and searches the local
+book knowledge base with chapter/sentence/source citations. The original `rag/`
+module uses SQLite FTS5; it requires no model downloads or cloud calls. Existing
+projects can use **Reanalyze into a new project** to apply improved parsing while
+keeping their current audio and edits intact. EPUB 2 NCX / EPUB 3 navigation,
+fragment headings, Roman numerals, PDF nested bookmarks and mid-page chapter
+headings are supported. Front matter is retained; the first explicit chapter is
+the suggested listening start.
+
+The macOS picker offers eight curated voices: two male and two female styles per
+language, with young/older presentation. **Preview this voice** auditions the
+selection. **Narration pace** (0.5–2×) changes previews and exports while preserving
+pitch. Save settings before rendering; a pace change invalidates affected audio.
+Cloned profiles and neural/online adapters remain subject to their own availability.
+
+Natural sentences remain whole in the editor. Internal synthesis windows split
+only at word boundaries and are joined into one durable sentence WAV. Decimals
+and common abbreviations are preserved. Headings are chapter metadata, not prose.
+
+Known limits: layout/OCR and section classification can require review; source
+retrieval is not an LLM answering questions. XTTS weights/cloning remain unverified
+until installed. The visual reference is adapted for the local workflow, not a
+pixel-identical copy. See [TTS research](docs/tts-research.md) and
+[book knowledge base](rag/README.md).

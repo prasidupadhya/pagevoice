@@ -101,3 +101,16 @@ Project/SSE data includes `listening` (chapter, buffer=20, pausing), per-chapter
 have versioned WAV URLs and remain accessible while synthesis is running.
 The client enforces a 20-consecutive-sentence initial buffer and plays only forward.
 See [progressive listening verification](progressive-listening.md).
+
+## Source-grounded book analysis
+
+- `GET /api/projects/{id}/analysis?q=...`: structure evidence, suggested start,
+  review flags and up to eight cited local FTS5 search passages. Query length ≤500.
+- `POST /api/projects/{id}/reanalyze`: creates a separately prepared project from
+  the checksum-verified stored source. Keeps original audio, edits and project.
+- `PATCH /api/projects/{id}/settings`: adds `pace` (0.5–2.0, default1); changes
+  invalidate affected audio. The audio fingerprint includes non-default pace.
+- Regeneration text limit is now10,000 characters. Natural sentences stay intact;
+  model-sized word windows are synthesized and joined internally.
+- Sentence/chapter source anchors and section classification live in the project's
+  `analysis`; retrieval storage is `sessions/{id}/rag/book.sqlite`.

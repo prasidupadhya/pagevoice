@@ -61,7 +61,7 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
     ocr_lang = ocr_language or OCR_LANGUAGES[lang]
     if set(ocr_lang.split('+')) - {'eng', 'spa'}:
         raise ValueError('Only English and Spanish OCR data (eng, spa, eng+spa) are supported.')
-    key = {'source': digest(path), 'language': lang, 'ocr': ocr, 'ocr_language': ocr_lang, 'parser': 1}
+    key = {'source': digest(path), 'language': lang, 'ocr': ocr, 'ocr_language': ocr_lang, 'parser': 2}
     if cache:
         cache.mkdir(parents=True, exist_ok=True)
     pages = []
@@ -91,40 +91,46 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
                 save(cached, entry)
         pages.append(entry)
 
-    # Prefer top-level bookmarks. Their page boundary is reviewable; intra-page
-    # destinations and nested section bookmarks are intentionally not inferred.
+    # Flatten nested bookmarks in document order; page anchors remain reviewable.
     starts = {}
-    for item in reader.outline:
-        if isinstance(item, list):
-            continue
+    def outlines(items):
+        for item in items:
+            if isinstance(item, list): yield from outlines(item)
+            else: yield item
+    for item in outlines(reader.outline):
         number = reader.get_destination_page_number(item)
         if number is not None and 0 <= number < len(pages):
             starts.setdefault(number, clean(item.title))
     use_outline = bool(starts)
     chapters = []
-    current_title, parts = None, []
+    current_title, parts, start_page = None, [], 1
     def flush():
         if parts:
             text = clean(' '.join(parts))
-            chapters.append(Chapter(current_title, sentences(text, lang)))
+            chapters.append(Chapter(current_title, sentences(text, lang), f'page:{start_page}', 'outline' if use_outline else 'heading' if not current_title.startswith('Page ') else 'page-fallback'))
     for index, entry in enumerate(pages):
-        text = entry['text']
-        if not clean(text):
-            if index in starts:
-                flush()
-                parts = []
-                current_title = starts[index]
-            continue
+        text = re.sub(r'(?<=[a-záéíóúñ])-\s*\n\s*(?=[a-záéíóúñ])', '', entry['text'])
         lines = [clean(line) for line in text.splitlines() if clean(line)]
-        heading = next((line for line in lines[:3] if re.match(r'^(chapter|part|prologue|epilogue|capítulo|capitulo|parte|prólogo|prólogo|epílogo)\b', line, re.I)), None)
-        title = starts.get(index) if use_outline else heading
-        # No outline: chapter/part headings delimit chapters; before any heading,
-        # use page groups. The deterministic fallback is one chapter per page.
-        if title or current_title is None or (not use_outline and not heading and current_title.startswith('Page ')):
-            flush()
-            parts = []
-            current_title = title or f'Page {index + 1}'
-        parts.append(text)
+        if use_outline:
+            if index in starts or current_title is None:
+                flush(); parts = []
+                current_title = starts.get(index, f'Page {index + 1}')
+                start_page = index + 1
+            parts.extend(lines)
+            continue
+        def is_heading(line):
+            if len(line) > 100: return False
+            return bool(re.fullmatch(r'[IVXLCDM]+[.]?', line) or
+                        re.match(r'^(?:chapter|capítulo|capitulo|part|parte)\s+(?:\d+|[IVXLCDM]+|one|two|three|four|five|six|seven|eight|nine|ten|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b', line, re.I) or
+                        re.fullmatch(r'(?:prologue|epilogue|prólogo|prologo|epílogo|epilogo|preface|introduction|introducción|biografía|author biography)', line, re.I))
+        # A heading can appear midway down a page, after a biography or preface.
+        if current_title is None or current_title.startswith('Page '):
+            flush(); parts = []; current_title = f'Page {index + 1}'; start_page = index + 1
+        for line in lines:
+            if is_heading(line):
+                flush(); parts = []; current_title = line; start_page = index + 1
+            else:
+                parts.append(line)
     flush()
     if not chapters:
         raise ValueError('PDF contains no readable text, including after OCR.')

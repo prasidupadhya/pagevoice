@@ -58,3 +58,22 @@ when listening can begin, while the separate whole-book progress explains the ex
 Pausing playback and pausing preparation are visibly distinct. Natural narration
 speed/pitch are preserved; no decorative waveform or fabricated time estimate is shown.
 Controls remain available while completed audio is playing and future chunks synthesize.
+
+## Requested AudiobookGen reference update
+
+Reviewed https://audiobookgen.com/ and https://audiobookgen.com/upload on
+25 September 2026. The reference uses a centered upload card, generous spacing,
+rounded controls, warm charcoal surfaces and amber accents. PageVoice now applies
+that direction with original CSS, a three-step upload/voice/listen guide, curated
+voice cards and a voice preview action. It retains the local library, sentence
+review, English/Spanish and light/dark controls required by this project.
+No reference branding, copy, images or application implementation was copied.
+This is an adaptation of the visual direction and workflow, not a claim of
+pixel-identical reproduction of inaccessible post-upload screens.
+
+Updated tokens: light paper #faf8f4, sheet #ffffff, ink #29241e, muted #6a6054,
+accent #925400; dark paper #1a1714, sheet #2a2622, ink #fffbf5, muted #c4baad,
+accent #fbbf24. Reading prose retains Georgia; controls/headings use local system
+sans. Visible focus, reduced motion, narrow-screen stacking and keyboard radio
+selection remain available. The chapter map starts collapsed to keep the immediate
+listening action near the reader; uncertain source boundaries remain inspectable.

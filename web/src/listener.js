@@ -22,14 +22,20 @@ export class Listener {
   async start(rows) {
     this.reset();this.rows=rows;this.intent=true;const version=this.version
     try {
-      this.context ||= this.contextFactory()
+      if(!this.context||this.context.state==='closed')this.context=this.contextFactory()
+      this.context.onstatechange=()=>{if(this.intent&&this.context.state!=='running')this.emit('blocked')}
       // Called synchronously from the click handler to unlock audio before buffering.
       const resumed=this.context.resume()
-      this.emit('buffering');await resumed
-      if(version!==this.version)return
-      if(this.context.state==='suspended'){this.emit('blocked');return}
+      this.emit('buffering');await this.unlock(resumed)
+      if(version!==this.version||!this.intent)return
+      if(this.context.state!=='running'){this.emit('blocked');return}
       await this.pump()
     } catch(e) {if(version===this.version)this.emit('error')}
+  }
+  async unlock(promise) {
+    let timer
+    try { await Promise.race([promise,new Promise(resolve=>{timer=setTimeout(resolve,1200)})]) }
+    finally {clearTimeout(timer)}
   }
   reset() {
     this.version++;this.abort?.abort();this.abort=new AbortController()
@@ -39,9 +45,9 @@ export class Listener {
   }
   async pause() {this.intent=false;await this.context?.suspend();this.emit('paused')}
   async resume() {
-    this.intent=true
-    try{await this.context?.resume();if(this.context?.state==='suspended'){this.emit('blocked');return};this.emit(this.nodes.length?'playing':'buffering');this.pump()}
-    catch{this.emit('blocked')}
+    this.intent=true;const version=this.version
+    try{await this.unlock(this.context?.resume());if(version!==this.version||!this.intent)return;if(this.context?.state!=='running'){this.emit('blocked');return};this.emit(this.nodes.length?'playing':'buffering');this.pump()}
+    catch{if(version===this.version&&this.intent)this.emit('blocked')}
   }
   tick() {
     const current=this.nodes.find(n=>n.start<=this.context.currentTime&&n.end>this.context.currentTime)

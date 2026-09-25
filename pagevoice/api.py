@@ -19,7 +19,7 @@ from .engines import REGISTRY, hardware, xtts_ready, builtin_voices, validate_vo
 from .jobs import Jobs
 from .pipeline import new_session, load, signature, reusable
 from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
-from .storage import save
+from .storage import save, digest
 from .languages import default_voice
 from .voices import register, reference, catalogue
 from .narration import detect
@@ -32,6 +32,7 @@ class Settings(BaseModel):
     voice: str | None = Field(default=None, max_length=120)
     format: Literal['m4b', 'mp3'] = 'm4b'
     device: Literal['auto', 'cpu', 'mps', 'cuda', 'rocm'] = 'auto'
+    pace: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
 class RenderRequest(BaseModel):
@@ -44,7 +45,7 @@ class PreviewRequest(RenderRequest):
 
 class RegenRequest(RenderRequest):
     sentence_id: str = Field(pattern=r'^\d{4}-\d{5}$')
-    text: str | None = Field(default=None, min_length=1, max_length=220)
+    text: str | None = Field(default=None, min_length=1, max_length=10000)
 
 
 class CastingRequest(BaseModel):
@@ -131,7 +132,8 @@ def create_app(data=None):
                 'author': (state.get('book') or {}).get('author', ''),
                 'language': (state.get('book') or {}).get('language', state.get('parse_options', {}).get('language', 'en')),
                 'status': state['status'], 'error': state.get('error'),
-                'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'],
+                'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'], 'pace': state.get('pace', 1.0),
+                'analysis': state.get('analysis'),
                 'chapters': chapters, 'progress': {'complete': ready, 'total': total, 'current_chapter': state.get('current_chapter')},
                 'listening': {'chapter': priority(path), 'buffer': BUFFER_SENTENCES, 'pausing': paused(path)},
                 'source_pages': (state.get('book') or {}).get('source_pages', []),
@@ -139,6 +141,30 @@ def create_app(data=None):
                 'duration': state.get('duration'), 'job': dict(latest[0]) if latest else None,
                 'last_run': state.get('last_run'), 'cast': state.get('cast', {}),
                 'speakers': sorted({'Narrator'} | set(state.get('speaker_tags', {}).values()) | set(state.get('cast', {})))}
+
+    @app.post('/api/projects/{project}/reanalyze', status_code=202)
+    def reanalyze(project: str):
+        state = load(session(project))
+        source = root / 'uploads' / state['source_name']
+        if digest(source) != state['source_sha256']: raise HTTPException(409, 'Source checksum mismatch.')
+        path = new_session(source, root, engine=state['engine'], voice=state['voice'],
+                           language=(state.get('book') or {}).get('language'), output_format=state['format'],
+                           device=state['device'], ocr=state['parse_options'].get('ocr', 'auto'),
+                           ocr_language=state['parse_options'].get('ocr_language'))
+        fresh = load(path)
+        fresh.update(original_name=state.get('original_name', source.name), pace=state.get('pace', 1.0))
+        save(path / 'session.json', fresh)
+        jobs.submit(path.name, 'prepare')
+        return present(path.name)
+
+    @app.get('/api/projects/{project}/analysis')
+    def book_analysis(project: str, q: str = ''):
+        from rag import analyze, search
+        path = session(project)
+        state = load(path)
+        if not state.get('book'): raise HTTPException(409, 'Book is still being prepared.')
+        if len(q) > 500: raise HTTPException(422, 'Search is limited to 500 characters.')
+        return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q) if q.strip() else []}
 
     @app.get('/api/health')
     def health():
