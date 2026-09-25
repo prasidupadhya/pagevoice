@@ -58,7 +58,18 @@ def voice_plan(state, identifier, text):
 
 def synthesize(adapter, text, destination, voice, language, cast=None):
     """Join speech and silence as normalized PCM without speaking control tags."""
-    plan = events(text)
+    plan = []
+    for kind, value, override in events(text):
+        if kind == 'pause':
+            plan.append((kind, value, override))
+            continue
+        # Internal synthesis windows never leak into the sentence editor.
+        words, chunk = value.split(), ''
+        for word in words:
+            if chunk and len(chunk) + len(word) + 1 > 220:
+                plan.append(('text', chunk, override)); chunk = ''
+            chunk = (chunk + ' ' + word).strip()
+        if chunk: plan.append(('text', chunk, override))
     if len(plan) == 1 and plan[0][0] == 'text' and plan[0][2] is None:
         adapter.synthesize(plan[0][1], destination, voice, language)
         return

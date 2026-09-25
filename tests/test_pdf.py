@@ -86,3 +86,17 @@ def test_parse_recovery_reuses_finished_pages(tmp_path, monkeypatch):
     pipeline.resume(session)
     assert calls == [1]
     assert json.loads((session / 'session.json').read_text())['status'] == 'complete'
+
+
+def test_chapter_begins_after_biography_mid_page(tmp_path):
+    from reportlab.pdfgen.canvas import Canvas
+    from rag import analyze
+    path=tmp_path/'late-chapter.pdf'
+    canvas=Canvas(str(path));text=canvas.beginText(72,760)
+    for line in ['Author biography','The author lived by the sea.','Chapter One','An extraor-','dinary voyage began.','Chapter Two','A new morning arrived.']:
+        text.textLine(line)
+    canvas.drawText(text);canvas.save()
+    book=read_pdf(path,ocr='never')
+    assert [c.title for c in book.chapters]==['Author biography','Chapter One','Chapter Two']
+    assert book.chapters[1].sentences==['An extraordinary voyage began.']
+    assert analyze(book.to_dict())['start_chapter']==1

@@ -1,5 +1,9 @@
 export const messages = {
   en: {
+    workflow:'Create an audiobook', stepUpload:'Upload your book', stepVoice:'Choose a voice', stepListen:'Listen & download', voicePreview:'Preview this voice',
+    pace:'Narration pace', paceHint:'Applied to previews and exports. Pitch stays natural.', female:'Female', male:'Male', young:'Young style', older:'Older style',
+    analysis:'Explore your book', analysisHint:'Source-backed chapter map and local text search.', searchBook:'Search this book', search:'Search', noResults:'No matching passages.', front_matter:'Introduction / front matter', back_matter:'Notes / back matter', chapter:'Chapter', reviewBoundary:'Review boundary', openChapter:'Open chapter', reanalyze:'Reanalyze into a new project', reanalyzeHint:'Refresh chapter detection and sentence boundaries. Your current audio and edits stay in this project.',
+
     finishingExport:'Finishing the audiobook file', pausePreparation:'Pause preparation', resumePreparation:'Resume preparation', preparationPaused:'Preparation paused', pausingPreparation:'Finishing the current sentence…', listenNow:'Listen from here', pauseListening:'Pause listening', resumeListening:'Continue listening', stopListening:'Stop listening',
     buffering:'Building your listening buffer', listeningReady:'Ready to listen', listeningNow:'Listening now', listeningEnded:'You reached the end',
     buffered:'sentences ready ahead', bufferHint:'Listening starts after 20 consecutive sentences are ready, or all remaining sentences for a shorter book.',
@@ -44,6 +48,10 @@ export const messages = {
     confidence:'Suggested', narrationDefault:'Narrator', dialogue:'Dialogue', models:'Model setup',
   },
   es: {
+    workflow:'Crear un audiolibro', stepUpload:'Sube tu libro', stepVoice:'Elige una voz', stepListen:'Escucha y descarga', voicePreview:'Escuchar esta voz',
+    pace:'Ritmo de narración', paceHint:'Se aplica a las vistas previas y al archivo final. Conserva el tono natural.', female:'Femenina', male:'Masculina', young:'Estilo joven', older:'Estilo mayor',
+    analysis:'Explora tu libro', analysisHint:'Mapa de capítulos con fuentes y búsqueda local.', searchBook:'Buscar en este libro', search:'Buscar', noResults:'No hay pasajes coincidentes.', front_matter:'Introducción / preliminares', back_matter:'Notas / material final', chapter:'Capítulo', reviewBoundary:'Revisar límite', openChapter:'Abrir capítulo', reanalyze:'Analizar de nuevo en otro proyecto', reanalyzeHint:'Actualiza los capítulos y las frases. El audio y las ediciones actuales se conservan en este proyecto.',
+
     finishingExport:'Terminando el archivo del audiolibro', pausePreparation:'Pausar preparación', resumePreparation:'Reanudar preparación', preparationPaused:'Preparación pausada', pausingPreparation:'Terminando la frase actual…', listenNow:'Escuchar desde aquí', pauseListening:'Pausar escucha', resumeListening:'Continuar escuchando', stopListening:'Detener escucha',
     buffering:'Preparando el audio para escuchar', listeningReady:'Listo para escuchar', listeningNow:'Escuchando', listeningEnded:'Has llegado al final',
     buffered:'frases preparadas por delante', bufferHint:'La escucha comienza con 20 frases consecutivas listas, o todas las restantes si quedan menos.',

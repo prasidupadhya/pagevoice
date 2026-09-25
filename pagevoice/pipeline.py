@@ -37,6 +37,7 @@ def signature(state, identifier, text):
     settings.update(language=state['book']['language'], text=text,
                     revision=state.get('revisions', {}).get(identifier, 0), pipeline=3,
                     narration=voice_plan(state, identifier, text))
+    if state.get('pace', 1.0) != 1.0: settings['pace'] = state['pace']
     return hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()
 
 
@@ -113,6 +114,12 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
             state['book'] = read_book(source, cache=session / 'pages', **options).to_dict()
             if state['book']['title'] == source.stem:
                 state['book']['title'] = Path(state.get('original_name', source.name)).stem
+        from rag import analyze, index_book
+        state['analysis'] = analyze(state['book'])
+        index_book(session / 'rag', state['book'])
+        if not (session / 'listening.json').exists():
+            from .listening import set_priority
+            set_priority(session, state['analysis']['start_chapter'])
         book = session_book(state)
         book.language = language_code(book.language)
         state['voice'] = state['voice'] or default_voice(state['engine'], book.language)
@@ -153,7 +160,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                 target = session / 'chunks' / f'{identifier}-{generation}.wav'
                 raw = target.with_suffix('.raw.wav')
                 synthesize(adapter, text, raw, effective_voice(state, identifier), book.language, state.get('cast'))
-                normalize(raw, target)
+                normalize(raw, target, state.get("pace", 1.0))
                 raw.unlink()
                 records[identifier] = {'id': identifier, 'chapter': chapter_index,
                     'sentence': sentence_index, 'text': text, 'audio': str(target.relative_to(session)),
@@ -257,8 +264,8 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
             except IndexError as exc:
                 raise ValueError('Sentence ID does not exist.') from exc
             replacement = clean(text) if text is not None else old
-            if not replacement or len(replacement) > 220:
-                raise ValueError('Replacement text must contain 1–220 characters.')
+            if not replacement or len(replacement) > 10000:
+                raise ValueError('Replacement text must contain 1–10000 characters.')
             events(replacement)
             state['book']['chapters'][chapter]['sentences'][sentence] = replacement
             state['revisions'][identifier] = state['revisions'].get(identifier, 0) + 1

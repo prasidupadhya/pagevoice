@@ -109,7 +109,7 @@ def xtts_ready():
         return False
 
 
-def builtin_voices(engine):
+def builtin_voices(engine, curated=True):
     if engine == 'say':
         if not shutil.which('say'):
             return []
@@ -124,7 +124,13 @@ def builtin_voices(engine):
                 if name in ('Mónica',):
                     name = ''.join(c for c in unicodedata.normalize('NFD', name) if not unicodedata.combining(c))
                 result.append({'id': name, 'language': match[2]})
-        return result
+        if not curated: return result
+        choices = [('Samantha','en','female','young'), ('Grandma (English (US))','en','female','older'),
+                   ('Eddy (English (US))','en','male','young'), ('Grandpa (English (US))','en','male','older'),
+                   ('Monica','es','female','young'), ('Grandma (Spanish (Spain))','es','female','older'),
+                   ('Eddy (Spanish (Spain))','es','male','young'), ('Grandpa (Spanish (Spain))','es','male','older')]
+        available = {v['id'] for v in result}
+        return [{'id':name,'language':lang,'gender':gender,'style':style} for name,lang,gender,style in choices if name in available]
     if engine == 'edge':
         return [{'id': voice, 'language': language} for language, voices in (
             ('en', ['en-US-AriaNeural', 'en-US-GuyNeural']),
@@ -143,5 +149,5 @@ def validate_voice(engine, voice, language, voices_dir):
             raise ValueError('Voice profile is missing or invalid.') from exc
         if not any(v['id'] == voice and v['language'] == language for v in catalogue(voices_dir)):
             raise ValueError('Voice profile language must match the book.')
-    elif not any(v['id'] == voice and v['language'] == language for v in builtin_voices(engine)):
+    elif not any(v['id'] == voice and v['language'] == language for v in builtin_voices(engine, curated=False)):
         raise ValueError('Choose an available voice for the selected engine and language.')

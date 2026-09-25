@@ -60,3 +60,11 @@ it('calls browser fetch with its correct global receiver',async()=>{
  const engine=new Listener(()=>{},{contextFactory:()=>context});engines.push(engine)
  await engine.start(rows());expect(engine.status).toBe('playing');expect(engine.nodes.length).toBe(4)
 })
+
+it('offers a user-gesture recovery when AudioContext resume never settles',async()=>{
+ const {engine,context}=setup();context.state='suspended';context.resume=()=>new Promise(()=>{})
+ await engine.start(rows(20))
+ expect(engine.status).toBe('blocked');expect(engine.nodes).toHaveLength(0)
+ context.resume=async()=>{context.state='running'}
+ await engine.resume();await waitFor(()=>expect(engine.nodes.length).toBe(4))
+})

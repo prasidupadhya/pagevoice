@@ -40,7 +40,7 @@ def main():
     for command in (recovery, regeneration):
         command.add_argument('--allow-network', action='store_true')
     regeneration.add_argument('sentence_id', help='Zero-based ID, e.g. 0000-00001')
-    regeneration.add_argument('--text', help='Optional replacement text (1–220 characters)')
+    regeneration.add_argument('--text', help='Optional replacement text (1–10000 characters)')
     args = parser.parse_args()
     # Only the CLI writes progress to a terminal. The web worker uses durable
     # manifests/SSE and must never depend on the launcher's stdout remaining open.

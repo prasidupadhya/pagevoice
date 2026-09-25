@@ -7,7 +7,7 @@ import re
 import unicodedata
 import zipfile
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Comment
 from defusedxml import ElementTree as ET
 import pysbd
 from .languages import language_code
@@ -17,6 +17,8 @@ from .languages import language_code
 class Chapter:
     title: str
     sentences: list[str]
+    source: str = ""
+    evidence: str = "spine"
 
 
 @dataclass
@@ -41,19 +43,9 @@ def plain_sentences(text: str, language: str) -> list[str]:
         segmenter = pysbd.Segmenter(language=language, clean=False)
     except ValueError as exc:
         raise ValueError(f'Unsupported sentence language {language!r}; use --language.') from exc
-    result = []
-    for sentence in segmenter.segment(text):
-        # Bound model input, including languages without spaces. No text is dropped.
-        remaining = sentence.strip()
-        while len(remaining) > 220:
-            cut = remaining.rfind(' ', 0, 221)
-            if cut < 80:
-                cut = 220
-            result.append(remaining[:cut].strip())
-            remaining = remaining[cut:].strip()
-        if remaining:
-            result.append(remaining)
-    return result
+    # A manuscript row is a linguistic sentence, never an engine token window.
+    text = re.sub(r'(?<=[a-záéíóúñ])\.\s*(?=[A-ZÁÉÍÓÚÑ¿¡])', '. ', text)
+    return [part.strip() for part in segmenter.segment(text) if part.strip()]
 
 
 def sentences(text: str, language: str) -> list[str]:
@@ -64,19 +56,8 @@ def sentences(text: str, language: str) -> list[str]:
         if kind == 'pause':
             result.append(f'[pause:{value:g}]')
         else:
-            for part in plain_sentences(value, language):
-                if voice:
-                    # Keep editable chunks within the same 220-character bound.
-                    limit = 220 - len(voice) - len('[voice:][/voice]')
-                    while part:
-                        cut = min(limit, len(part))
-                        if cut < len(part):
-                            cut = part.rfind(' ', 0, cut + 1) or cut
-                            if cut < 1: cut = limit
-                        result.append(f'[voice:{voice}]{part[:cut].strip()}[/voice]')
-                        part = part[cut:].strip()
-                else:
-                    result.append(part)
+            result.extend(f'[voice:{voice}]{part}[/voice]' if voice else part
+                          for part in plain_sentences(value, language))
     return result
 
 
@@ -112,6 +93,25 @@ def read_epub(path: Path, language: str | None = None) -> Book:
             return clean(element.text or '') if element is not None else default
         lang = language_code(language or meta('language', 'en'))
         manifest = {e.attrib['id']: e.attrib for e in root.findall('./{*}manifest/{*}item')}
+        # Resolve both EPUB 3 navigation and nested EPUB 2 NCX destinations.
+        navigation = {}
+        for item in manifest.values():
+            if 'nav' not in item.get('properties', '').split() and item.get('media-type') != 'application/x-dtbncx+xml': continue
+            nav_path = member(posixpath.dirname(package), item['href'])
+            if 'nav' in item.get('properties', '').split():
+                nav = BeautifulSoup(archive.read(nav_path), 'html.parser')
+                toc = next((n for n in nav.find_all('nav') if 'toc' in n.get('epub:type', '').split() or n.get('role') == 'doc-toc'), nav.find('nav'))
+                for link in toc.select('a[href]') if toc else []:
+                    if urlsplit(link['href']).scheme or urlsplit(link['href']).netloc: continue
+                    target = member(posixpath.dirname(nav_path), link['href'])
+                    navigation[(target, unquote(urlsplit(link['href']).fragment))] = clean(link.get_text(' ', strip=True))
+            elif item.get('media-type') == 'application/x-dtbncx+xml':
+                nav = ET.fromstring(archive.read(nav_path))
+                for point in nav.findall('.//{*}navPoint'):
+                    content, label = point.find('{*}content'), point.find('{*}navLabel/{*}text')
+                    if content is not None and label is not None:
+                        href = content.attrib['src']
+                        navigation.setdefault((member(posixpath.dirname(nav_path), href), unquote(urlsplit(href).fragment)), clean(label.text or ''))
         chapters = []
         for ref in root.findall('./{*}spine/{*}itemref'):
             item = manifest[ref.attrib['idref']]
@@ -119,15 +119,57 @@ def read_epub(path: Path, language: str | None = None) -> Book:
                 continue
             if item.get('media-type') not in ('application/xhtml+xml', 'text/html'):
                 continue
-            html = BeautifulSoup(archive.read(member(posixpath.dirname(package), item['href'])), 'html.parser')
+            resource = member(posixpath.dirname(package), item['href'])
+            html = BeautifulSoup(archive.read(resource), 'html.parser')
+            # EPUB 2 often puts an HTML contents page in the linear spine.
+            guide_toc = {member(posixpath.dirname(package), e.attrib.get('href', '')) for e in root.findall('./{*}guide/{*}reference') if e.attrib.get('type') == 'toc'}
+            if resource in guide_toc: continue
             for unwanted in html.select('script, style, nav, head, [hidden]'):
                 unwanted.decompose()
             body = html.body or html
-            heading = body.find(re.compile('^h[12]$'))
-            title = clean(heading.get_text(' ', strip=True)) if heading else f'Chapter {len(chapters) + 1}'
-            text = clean(body.get_text(' ', strip=True))
-            if text:
-                chapters.append(Chapter(title, sentences(text, lang)))
+            title = navigation.get((resource, ''), '')
+            evidence = 'table-of-contents' if title else 'spine'
+            parts, anchor, heading_seen = [], resource, False
+            def flush():
+                if parts:
+                    text = clean(' '.join(parts))
+                    if text:
+                        chapters.append(Chapter(title or f'Chapter {len(chapters) + 1}', sentences(text, lang), anchor, evidence))
+            # Read blocks in document order; concatenate inline tags without inserting
+            # spaces inside words, but retain paragraph boundaries between blocks.
+            for br in body.find_all('br'): br.replace_with(' ')
+            block_names = {'h1','h2','h3','p','li','blockquote','pre','td','th','dt','dd','div','section','body'}
+            blocks = []
+            for leaf in body.descendants:
+                if not isinstance(leaf, NavigableString) or isinstance(leaf, Comment): continue
+                parent = next((x for x in leaf.parents if x.name in block_names), body)
+                if blocks and blocks[-1][0] is parent:
+                    blocks[-1][1].append(str(leaf))
+                else:
+                    blocks.append((parent, [str(leaf)]))
+            seen_anchors = set()
+            for node, fragments in blocks:
+                value = clean(''.join(fragments))
+                if not value: continue
+                ids = [node.get('id', '')] + [x.get('id', '') for x in node.find_all(id=True)] + [x.get('id', '') for x in node.parents if getattr(x, 'attrs', None)]
+                nav_id = next((i for i in ids if i and i not in seen_anchors and (resource, i) in navigation), None)
+                label = navigation.get((resource, nav_id)) if nav_id else None
+                seen_anchors.update(i for i in ids if i)
+                heading = node.name in ('h1', 'h2', 'h3') or bool(re.fullmatch(r'(?:[IVXLCDM]+|(?:Chapter|Capítulo|Capitulo)\s+\S+)', value, re.I))
+                if label or heading:
+                    had_parts = bool(parts)
+                    if parts: flush(); parts = []
+                    use_toc = not heading_seen and not had_parts and evidence == 'table-of-contents'
+                    title = label or (title if use_toc else value)
+                    evidence = 'table-of-contents' if label or use_toc else 'heading'
+                    heading_seen = True
+                    source_id = nav_id or ids[0]
+                    anchor = resource + ('#' + source_id if source_id else '')
+                    # Chapter titles live in metadata rather than interrupting prose.
+                    if not heading: parts.append(value)
+                else:
+                    parts.append(value)
+            flush()
         if not chapters:
             raise ValueError('EPUB has no readable linear chapters.')
         return Book(meta('title', path.stem), meta('creator', 'Unknown author'), lang, chapters)
