@@ -61,7 +61,7 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
     ocr_lang = ocr_language or OCR_LANGUAGES[lang]
     if set(ocr_lang.split('+')) - {'eng', 'spa'}:
         raise ValueError('Only English and Spanish OCR data (eng, spa, eng+spa) are supported.')
-    key = {'source': digest(path), 'language': lang, 'ocr': ocr, 'ocr_language': ocr_lang, 'parser': 2}
+    key = {'source': digest(path), 'language': lang, 'ocr': ocr, 'ocr_language': ocr_lang, 'parser': 3}
     if cache:
         cache.mkdir(parents=True, exist_ok=True)
     pages = []
@@ -91,6 +91,19 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
                 save(cached, entry)
         pages.append(entry)
 
+    # Detect repeated margin lines without modifying the cached source text.
+    from collections import Counter
+    tops, bottoms = Counter(), Counter()
+    for entry in pages:
+        lines = [clean(line) for line in entry['text'].splitlines() if clean(line)]
+        if len(lines)>2:
+            if len(lines[0])<=80: tops[lines[0]] += 1
+            if len(lines[-1])<=80: bottoms[lines[-1]] += 1
+    threshold = max(3, (len(pages)*3+4)//5)
+    repeated_top = {s for s,count in tops.items() if count>=threshold}
+    repeated_bottom = {s for s,count in bottoms.items() if count>=threshold}
+    seen_headers = set()
+
     # Flatten nested bookmarks in document order; page anchors remain reviewable.
     starts = {}
     def outlines(items):
@@ -106,11 +119,19 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
     current_title, parts, start_page = None, [], 1
     def flush():
         if parts:
-            text = clean(' '.join(parts))
+            text = clean(re.sub(r'(?<=[a-záéíóúñ])-\s*\n\s*(?=[a-záéíóúñ])', '', '\n'.join(parts)))
             chapters.append(Chapter(current_title, sentences(text, lang), f'page:{start_page}', 'outline' if use_outline else 'heading' if not current_title.startswith('Page ') else 'page-fallback'))
     for index, entry in enumerate(pages):
         text = re.sub(r'(?<=[a-záéíóúñ])-\s*\n\s*(?=[a-záéíóúñ])', '', entry['text'])
         lines = [clean(line) for line in text.splitlines() if clean(line)]
+        removed = []
+        if len(lines)>2 and lines[0] in repeated_top:
+            header = lines[0]
+            if header in seen_headers: removed.append(lines.pop(0))
+            seen_headers.add(header)
+        if len(lines)>=2 and (lines[-1] in repeated_bottom or (len(pages)>=3 and re.fullmatch(r'(?:Page|Página|Pagina)?\s*\d+',lines[-1],re.I))):
+            removed.append(lines.pop())
+        entry['removed_margins'] = removed
         if use_outline:
             if index in starts or current_title is None:
                 flush(); parts = []
@@ -124,7 +145,7 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
                         re.match(r'^(?:chapter|capítulo|capitulo|part|parte)\s+(?:\d+|[IVXLCDM]+|one|two|three|four|five|six|seven|eight|nine|ten|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b', line, re.I) or
                         re.fullmatch(r'(?:prologue|epilogue|prólogo|prologo|epílogo|epilogo|preface|introduction|introducción|biografía|author biography)', line, re.I))
         # A heading can appear midway down a page, after a biography or preface.
-        if current_title is None or current_title.startswith('Page '):
+        if current_title is None:
             flush(); parts = []; current_title = f'Page {index + 1}'; start_page = index + 1
         for line in lines:
             if is_heading(line):
@@ -138,4 +159,5 @@ def read_pdf(path: Path, language=None, ocr='auto', ocr_language=None, cache=Non
     return Book(clean(meta.title or path.stem) if meta else path.stem,
                 clean(meta.author or 'Unknown author') if meta else 'Unknown author', lang, chapters,
                 [{'page': p['page'], 'method': p['method'], 'characters': len(clean(p['text'])),
-                  'warning': 'No text recognized; inspect this page.' if not clean(p['text']) else None} for p in pages])
+                  'removed_margins': p.get('removed_margins', []),
+                  'warning': 'No text recognized; inspect this page.' if not clean(p['text']) else 'Repeated margin text or page number suppressed; review this page.' if p.get('removed_margins') else None} for p in pages])

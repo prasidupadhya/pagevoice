@@ -1,30 +1,107 @@
-# TTS evaluation and implementation decision — 25 September 2026
+# Narration research and decision — 26 September 2026
 
-## What the requested discussion establishes
+## Decision
 
-The [Reddit discussion](https://www.reddit.com/r/MachineLearning/comments/12kjof5/d_what_is_the_best_open_source_text_to_speech/) is a useful research map, not a controlled benchmark. It mixes acoustic models, vocoders, complete narration systems and commercial services. Its recommendations span multiple years, devices and versions. Opinions on cloning quality conflict; no shared English/Spanish audiobook test set or consistent latency measurements establish a winner. The warning about comparing MOS across different papers is particularly relevant. A mention of Whisper should not be treated as a TTS recommendation: transcription is a different task.
+**Keep Edge as the website's only narration engine. Remove XTTSv2 and cloning.**
+The user's listening assessment is the strongest evidence about their preferred
+sound. Replacing it with an untested local model would not address that feedback.
+The measurable application bug was independent of model quality: a universal
+220-character window broke sentences into separate requests with independent
+prosody and trailing silence. We removed that constraint for ordinary sentences.
 
-For this product, a pleasing short demo is insufficient. A candidate must sustain long-form narration, preserve numbers and punctuation, support both languages, recover individual sentences, fit local hardware, and produce audio faster than it is consumed. We therefore retain a small adapter interface rather than expose every model mentioned in the thread.
+## Reading the requested discussion critically
 
-## Primary-source cross-check
+The [MachineLearning discussion](https://www.reddit.com/r/MachineLearning/comments/12kjof5/d_what_is_the_best_open_source_text_to_speech/)
+contains an architectural bibliography, anecdotes about Tortoise/diffusion quality,
+comments favouring Mimic3's ease of use, Coqui suggestions, and later references to
+MARS5. Participants disagree about cloning quality and practical inference speed.
+They use different hardware, settings, voices and versions. The thread does not
+provide a common bilingual audiobook benchmark or establish a best engine.
 
-[Tortoise's own README](https://github.com/neonbjb/tortoise-tts) prioritizes prosody and multiple voices. It contains both historical slow-generation measurements and newer optimization/streaming claims. Those figures use different configurations and are not measurements on this Mac. Its documented Apple Silicon caveats and additional setup make it an optional future evaluation, not a justified replacement for a working local draft engine. We have not installed or benchmarked it, and copied no implementation.
+It also mixes complete speech systems, acoustic models, vocoders and development
+toolkits. Those are not interchangeable application dependencies. The caveat about
+comparing MOS scores across papers matters: a score from a different test set and
+listener population is not a direct ranking. Whisper's mention does not make it
+a narration candidate; transcription and synthesis are different tasks.
 
-The [maintained Coqui fork](https://github.com/idiap/coqui-ai-TTS) distributes `coqui-tts`, supports multiple speech architectures and documents cloning-cache support. We keep the pinned installed package rather than vendor its source. [XTTS documentation](https://coqui-tts.readthedocs.io/en/latest/models/xtts.html) describes multilingual synthesis, cloning, and model-specific inference controls. Its model weights and license are separate from the Python package. Neural output cannot be marked verified until licensed weights are installed and actual speech is evaluated locally.
+## Primary-source comparison
 
-## Product decision and tradeoffs
-
-| Engine | Current role | Evidence / limitations |
+| Candidate | What the primary source supports | Fit for PageVoice |
 |---|---|---|
-| macOS speech | Immediate offline narration and eight curated voice styles | All eight generated valid PCM in this workspace. System voices can sound synthetic; they are not equivalent to a premium neural service. Available on macOS only. |
-| XTTSv2 | Default neural adapter and consent-based cloning | Package present; weights absent. No claim of verified cloning or neural audio quality. Catalogue depends on installed model and uploaded profiles. |
-| Edge | Explicit opt-in online draft | Existing adapter retained; sends narration to Microsoft. It is not local-first synthesis and is not silently used as a fallback. |
-| Tortoise / GPT-SoVITS | Deferred adapters | No local comparison establishing improved bilingual throughput. Adding setup burden without measurements would not solve the playback bug. |
+| Edge through `edge-tts` | Online Microsoft service; voice listing, rate/pitch/volume controls; restricted SSML | Keep. Matches the user's preferred audio and was exercised in this environment. Not open-source model weights and not offline synthesis. |
+| Kokoro82M | Compact82-million-parameter model with Apache-licensed weights; English and Spanish voices | First local built-in-voice candidate to benchmark if offline narration returns. Its published Spanish catalogue has one female and two male voices, so it does not meet the requested two-female Spanish selection as-is. |
+| Chatterbox Multilingual | Multilingual family includes English and Spanish; current docs describe multilingual variants and regional Spanish models | Candidate for a future independently evaluated local neural engine. Turbo/Nano are presented as English-focused; their speed claims cannot be transferred to bilingual narration. Not installed or benchmarked here. |
+| Piper | Local neural engine with a `piper-tts` package and downloadable voices | Candidate when CPU/offline operation is more important. Requires selecting and auditioning specific voice models; no evidence here that its audiobook quality beats the preferred Edge voices. |
+| Tortoise | Focus on multi-voice prosody; README mixes historical slow-generation figures with later optimization claims | No reason to add it merely because it was popular in the older thread. Requires a controlled hardware/version/voice comparison. |
+| MARS5 | Published repository describes an English model and a two-stage architecture | Does not satisfy this product's English-and-Spanish requirement as published. |
+| XTTSv2 | Previously integrated adapter | Removed at the user's request. No fallback to it and no new cloning uploads. |
 
-The eight local choices are one young-style and one older-style voice for each gender/language pair. “Style” describes the intended synthetic presentation, not a verified age of a real speaker. Legacy voice identifiers still validate for saved projects; the picker no longer lists the entire operating-system catalogue.
+Sources: [Edge documentation](https://github.com/rany2/edge-tts),
+[Kokoro model card](https://huggingface.co/hexgrad/Kokoro-82M),
+[Kokoro voice catalogue](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md),
+[Chatterbox documentation](https://github.com/resemble-ai/chatterbox),
+[Piper documentation](https://github.com/OHF-Voice/piper1-gpl),
+[Tortoise README](https://github.com/neonbjb/tortoise-tts),
+[MARS5 README](https://github.com/Camb-ai/MARS5-TTS).
+No reference application code was cloned, copied or vendored.
 
-## Evaluation protocol
+The product-fit column is our engineering judgement, not a published comparative
+quality result. Model-family marketing claims are not measurements on this Mac.
+A model being newer or smaller does not establish better Spanish pronunciation,
+long-form stability or character consistency.
 
-Use original English and Spanish passages with dialogue, abbreviations, decimals, long sentences and names. Measure time to twenty complete *natural sentences*, steady-state real-time factor (synthesis seconds / audio seconds), memory use, recoverability and missing/repeated words. Compare the same text, device and output settings. Conduct listening review for pronunciation, prosody, fatigue and speaker consistency; valid PCM alone does not prove naturalness.
+## Findings in our implementation
 
-Current automated evidence covers speech generation, WAV integrity, exports, pitch-preserving duration changes, natural sentence preservation, twenty-sentence gating, chapter priority, retry and resume. It does not establish a universal “best voice” or perfect OCR. The implementation fixes the product bottleneck directly: conversion arms the browser player, suspended audio exposes an explicit recovery action, and internal model windows no longer fragment the manuscript.
+1. **Mid-sentence segmentation:** the previous synthesis loop split at220
+   characters regardless of engine. A long natural sentence therefore acquired
+   multiple unrelated endings and restarts. Ordinary sentences now use one Edge
+   request. Only exceptionally large text splits, bounded by3500 UTF-8 bytes,
+   preferring clause punctuation and preserving complete words.
+2. **Provider padding:** eight live voice tests found about0.8–0.9seconds of
+   trailing silence before the fix. Near-silent edge padding is now capped at40ms
+   leading/220ms trailing. Interior pauses and explicit `[pause:N]` remain intact.
+   At artificial request joins, guards protect quiet consonants; there is no
+   blanket silence-removal filter over the full audiobook.
+3. **Language boundaries:** the previous splitter kept multiple quoted sentences
+   together and split Spanish honorifics such as `Sr. García`. Original EN/ES
+   rules now cover quoted punctuation, honorifics, decimals, initials, URLs,
+   numbered lists and missing spaces after periods. Ambiguous abbreviations
+   still require review rather than promises of universal correctness.
+4. **Document boundaries:** page-by-page PDF fallback interrupted sentences across
+   page turns. Unstructured pages now form continuous text. Repeated margins are
+   recorded for review instead of being fed repeatedly into narration.
+5. **Retrieval quality:** OR-ing every query word let common words dominate the
+   old search. Stopword filtering, complete-keyword matching, explicit partial
+   labels, context windows and cited sentence targets make results more useful.
+   Retrieval cannot repair a wrong extraction by itself, so source inspection and
+   manual structural corrections are first-class controls.
+
+## Live voice verification
+
+Microsoft's live catalogue confirmed eight choices: Aria, Jenny, Guy, Christopher,
+Elvira, Dalia, Álvaro and Jorge. The English choices are US voices; Spanish choices
+cover Spain and Mexico. Catalogue metadata supports gender/region and voice
+personality descriptions, not reliable young/old age categories. We removed the
+invented age labels.
+
+`scripts/check-edge-quality.py --allow-network` sends original297-character
+English and332-character Spanish sentences, each longer than the removed limit.
+All eight used one synthesis request. After padding normalization, generation plus
+validation took0.61–1.48seconds per sample and produced12.96–17.99seconds of audio
+in this run. FFmpeg's `silencedetect=noise=-45dB:d=0.4` reported no silence event in
+these samples. Network conditions and later service changes can alter timings.
+
+These checks prove request continuity, decodable audio and the absence of detected
+long silence in the test samples. They do **not** prove human-level pronunciation,
+subjective naturalness or perfect word accuracy. We did not benchmark Kokoro,
+Chatterbox, Piper or Tortoise against Edge locally, so no such winner is claimed.
+
+## Gate for any future alternative
+
+Use the same original EN/ES text, hardware and output format. Include dates,
+numbers, abbreviations, dialogue, names, long sentences, accents and chapter
+transitions. Measure first20-sentence readiness, steady-state real-time factor,
+peak memory, missing/repeated words, restart behaviour and export validity.
+Then perform blinded listening comparisons for pronunciation, prosody, fatigue
+and voice consistency. A candidate must improve the actual audiobook experience
+without weakening Spanish support or restoring the setup complexity just removed.

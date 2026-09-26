@@ -13,6 +13,7 @@ def test_natural_sentences_and_internal_chunks(tmp_path):
     assert sentences('Hola.Termina aquí. ¿Vienes? Sí.', 'es') == ['Hola.', 'Termina aquí.', '¿Vienes?', 'Sí.']
     calls=[]
     class Engine:
+        max_text_bytes = 220
         def synthesize(self,text,path,*args):
             calls.append(text)
             with wave.open(str(path),'wb') as w:
@@ -65,7 +66,7 @@ def test_analysis_api_and_nondestructive_reanalysis(tmp_path,monkeypatch):
         result=client.post(f'/api/projects/{original}/reanalyze')
         assert result.status_code==202,result.text
         revised=result.json()['id'];assert revised!=original
-        assert wait(client,revised)['analysis']['version']==1
+        assert wait(client,revised)['analysis']['version']==2
         assert client.get(f'/api/projects/{original}').status_code==200
         assert client.patch(f'/api/projects/{revised}/settings',json={'engine':'say','pace':1.5}).status_code==200
         assert client.post(f'/api/projects/{revised}/render',json={}).status_code==202

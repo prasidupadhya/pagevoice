@@ -9,7 +9,6 @@ import zipfile
 
 from bs4 import BeautifulSoup, NavigableString, Comment
 from defusedxml import ElementTree as ET
-import pysbd
 from .languages import language_code
 
 
@@ -19,6 +18,7 @@ class Chapter:
     sentences: list[str]
     source: str = ""
     evidence: str = "spine"
+    role: str = ""
 
 
 @dataclass
@@ -38,14 +38,8 @@ def clean(text: str) -> str:
 
 
 def plain_sentences(text: str, language: str) -> list[str]:
-    language = language_code(language)
-    try:
-        segmenter = pysbd.Segmenter(language=language, clean=False)
-    except ValueError as exc:
-        raise ValueError(f'Unsupported sentence language {language!r}; use --language.') from exc
-    # A manuscript row is a linguistic sentence, never an engine token window.
-    text = re.sub(r'(?<=[a-záéíóúñ])\.\s*(?=[A-ZÁÉÍÓÚÑ¿¡])', '. ', text)
-    return [part.strip() for part in segmenter.segment(text) if part.strip()]
+    from .text import split_sentences
+    return split_sentences(text, language)
 
 
 def sentences(text: str, language: str) -> list[str]:
@@ -129,12 +123,12 @@ def read_epub(path: Path, language: str | None = None) -> Book:
             body = html.body or html
             title = navigation.get((resource, ''), '')
             evidence = 'table-of-contents' if title else 'spine'
-            parts, anchor, heading_seen = [], resource, False
+            parts, anchor, heading_seen, role = [], resource, False, ""
             def flush():
                 if parts:
                     text = clean(' '.join(parts))
                     if text:
-                        chapters.append(Chapter(title or f'Chapter {len(chapters) + 1}', sentences(text, lang), anchor, evidence))
+                        chapters.append(Chapter(title or f'Section {len(chapters) + 1}', sentences(text, lang), anchor, evidence, role))
             # Read blocks in document order; concatenate inline tags without inserting
             # spaces inside words, but retain paragraph boundaries between blocks.
             for br in body.find_all('br'): br.replace_with(' ')
@@ -155,6 +149,8 @@ def read_epub(path: Path, language: str | None = None) -> Book:
                 nav_id = next((i for i in ids if i and i not in seen_anchors and (resource, i) in navigation), None)
                 label = navigation.get((resource, nav_id)) if nav_id else None
                 seen_anchors.update(i for i in ids if i)
+                semantic = ' '.join(x.get('epub:type','') + ' ' + x.get('role','') for x in [node,*node.parents] if getattr(x,'attrs',None)).split()
+                semantic_role = 'front_matter' if any(v in semantic for v in ('frontmatter','preface','foreword','doc-preface','doc-foreword','dedication','titlepage','copyright-page')) else 'back_matter' if any(v in semantic for v in ('backmatter','endnotes','bibliography','appendix','doc-endnotes','doc-bibliography')) else 'chapter' if any(v in semantic for v in ('chapter','bodymatter','doc-chapter')) else ''
                 heading = node.name in ('h1', 'h2', 'h3') or bool(re.fullmatch(r'(?:[IVXLCDM]+|(?:Chapter|Capítulo|Capitulo)\s+\S+)', value, re.I))
                 if label or heading:
                     had_parts = bool(parts)
@@ -163,11 +159,13 @@ def read_epub(path: Path, language: str | None = None) -> Book:
                     title = label or (title if use_toc else value)
                     evidence = 'table-of-contents' if label or use_toc else 'heading'
                     heading_seen = True
+                    role = semantic_role
                     source_id = nav_id or ids[0]
                     anchor = resource + ('#' + source_id if source_id else '')
                     # Chapter titles live in metadata rather than interrupting prose.
                     if not heading: parts.append(value)
                 else:
+                    if not parts: role = semantic_role or role
                     parts.append(value)
             flush()
         if not chapters:

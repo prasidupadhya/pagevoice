@@ -91,3 +91,30 @@ def assemble(book, chunks: list[list[Path]], session: Path, output: Path):
     pcm.unlink()
     temporary.unlink()
     return probe
+
+
+def speech_bounds(pcm):
+    """Conservative trim of near-digital-silence padding, with 20ms guards."""
+    from array import array
+    import sys
+    samples = array('h'); samples.frombytes(pcm)
+    if sys.byteorder != 'little': samples.byteswap()
+    first = next((i for i,v in enumerate(samples) if abs(v)>16), None)
+    if first is None: return 0, len(pcm)  # Never erase all-silent authored audio.
+    last = len(samples)-next(i for i,v in enumerate(reversed(samples)) if abs(v)>16)
+    guard = round(RATE*.02)
+    return max(0,first-guard)*2, min(len(samples),last+guard)*2
+
+
+def trim_transport_padding(path, leading=.04, trailing=.22):
+    """Cap edge silence, preserving low-level speech and all interior pauses."""
+    with wave.open(str(path),'rb') as source:
+        params=source.getparams();pcm=source.readframes(source.getnframes())
+    start,end=speech_bounds(pcm)
+    # speech_bounds already includes 20ms guards on each side.
+    start=max(0,start-round(max(0,leading-.02)*RATE)*2)
+    end=min(len(pcm),end+round(max(0,trailing-.02)*RATE)*2)
+    temporary=path.with_suffix('.trim.wav')
+    with wave.open(str(temporary),'wb') as output:
+        output.setparams(params);output.writeframes(pcm[start:end])
+    frames(temporary);temporary.replace(path)

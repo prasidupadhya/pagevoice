@@ -2,7 +2,7 @@ import React from 'react'
 import {describe,it,expect,vi} from 'vitest'
 import {render,screen,waitFor,fireEvent} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App,{CloneDialog,SentenceEditor,UploadDialog} from './App'
+import App,{SentenceEditor,UploadDialog} from './App'
 import {messages} from './i18n'
 
 const project={id:'a'.repeat(32),title:'The Quiet Harbour',author:'PageVoice',language:'en',status:'ready',engine:'say',voice:'Samantha',format:'m4b',device:'auto',chapters:[{index:0,title:'Arrival',sentences:[{id:'0000-00000',text:'Mira opened her book.',ready:false}]}],progress:{complete:0,total:1},source_pages:[],job:{status:'complete'},output:null}
@@ -15,14 +15,10 @@ describe('reader interactions',()=>{
     await user.click(screen.getByRole('button',{name:'Tema de color: Oscuro'}));expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('pagevoice-locale')).toBe('es');expect(screen.getAllByText('English').length).toBeGreaterThan(0)
   })
-  it('never prechecks cloning consent and sends it only after user checks it',async()=>{
-    server();const created=vi.fn();render(<CloneDialog t={messages.en} locale="en" onClose={()=>{}} onCreated={created}/>);const user=userEvent.setup()
-    const button=screen.getByRole('button',{name:'Save voice profile'});expect(button.disabled).toBe(true)
-    await user.type(screen.getByLabelText('Voice name'),'My voice');await user.upload(screen.getByLabelText('WAV or MP3 recording'),new File(['audio'],'voice.wav',{type:'audio/wav'}))
-    await user.click(screen.getByRole('checkbox'));expect(button.disabled).toBe(false);expect(screen.getByLabelText('WAV or MP3 recording').files.length).toBe(1);
-    // jsdom does not reconcile user-event's FileList with native file validity.
-    fireEvent.submit(button.form)
-    await waitFor(()=>expect(created).toHaveBeenCalled());expect(fetch.mock.calls.at(-1)[1].body.get('consent')).toBe('true')
+  it('does not offer retired cloning or XTTS controls',async()=>{
+    server();render(<App/>);await screen.findByRole('heading',{name:'The Quiet Harbour'})
+    expect(screen.queryByRole('button',{name:'Add your own voice'})).toBeNull()
+    expect(screen.queryByText(/XTTS/)).toBeNull()
   })
   it('edits and saves exactly the selected sentence',async()=>{
     const saved=vi.fn();render(<SentenceEditor row={{text:'Original sentence.'}} t={messages.en} onClose={()=>{}} onSave={saved} busy={false}/>);const user=userEvent.setup()

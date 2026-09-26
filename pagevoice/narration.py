@@ -58,36 +58,45 @@ def voice_plan(state, identifier, text):
 
 def synthesize(adapter, text, destination, voice, language, cast=None):
     """Join speech and silence as normalized PCM without speaking control tags."""
+    from .text import speech_windows
     plan = []
+    continuations = set()
     for kind, value, override in events(text):
         if kind == 'pause':
             plan.append((kind, value, override))
             continue
-        # Internal synthesis windows never leak into the sentence editor.
-        words, chunk = value.split(), ''
-        for word in words:
-            if chunk and len(chunk) + len(word) + 1 > 220:
-                plan.append(('text', chunk, override)); chunk = ''
-            chunk = (chunk + ' ' + word).strip()
-        if chunk: plan.append(('text', chunk, override))
+        for index, part in enumerate(speech_windows(value, getattr(adapter, 'max_text_bytes', 10000))):
+            if index: continuations.add(len(plan))
+            plan.append(('text', part, override))
     if len(plan) == 1 and plan[0][0] == 'text' and plan[0][2] is None:
         adapter.synthesize(plan[0][1], destination, voice, language)
         return
+    # Retain natural sentence pauses and explicit markup; only artificial
+    # intra-sentence joins shed transport padding. Never trim interior silence.
+    from .audio import speech_bounds
+    segments = []
     with tempfile.TemporaryDirectory(prefix='pagevoice-segments-') as folder:
+        for index, (kind, value, override) in enumerate(plan):
+            if kind == 'pause':
+                segments.append(b'\0\0' * round(value * RATE))
+                continue
+            raw = Path(folder) / f'{index}.raw.wav'
+            normalized = Path(folder) / f'{index}.wav'
+            selected = (cast or {}).get(override, override) if override else voice
+            adapter.synthesize(value, raw, selected, language)
+            normalize(raw, normalized)
+            with wave.open(str(normalized), 'rb') as source:
+                pcm = source.readframes(source.getnframes())
+            if index in continuations:
+                # 20ms guard retains quiet consonant onsets/offsets.
+                previous_end = speech_bounds(segments[-1])[1]
+                current_start = speech_bounds(pcm)[0]
+                segments[-1] = segments[-1][:previous_end]
+                pcm = pcm[current_start:]
+            segments.append(pcm)
         with wave.open(str(destination), 'wb') as output:
             output.setparams((1, 2, RATE, 0, 'NONE', 'not compressed'))
-            for index, (kind, value, override) in enumerate(plan):
-                if kind == 'pause':
-                    output.writeframes(b'\0\0' * round(value * RATE))
-                    continue
-                raw = Path(folder) / f'{index}.raw.wav'
-                normalized = Path(folder) / f'{index}.wav'
-                selected = (cast or {}).get(override, override) if override else voice
-                adapter.synthesize(value, raw, selected, language)
-                normalize(raw, normalized)
-                with wave.open(str(normalized), 'rb') as source:
-                    while chunk := source.readframes(RATE * 10):
-                        output.writeframes(chunk)
+            for pcm in segments: output.writeframes(pcm)
 
 
 def detect(book):
