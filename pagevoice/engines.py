@@ -59,11 +59,31 @@ class EdgeSpeech:
     def synthesize(self, text, destination, voice, language):
         import tempfile
         from .audio import normalize, trim_transport_padding
+        # Older manifests may contain punctuation-only rows. Preserve their IDs
+        # as a short separator instead of asking Edge to pronounce punctuation.
+        if not any(c.isalnum() for c in text):
+            import wave
+            with wave.open(str(destination), 'wb') as output:
+                output.setparams((1, 2, 24000, 0, 'NONE', 'not compressed'))
+                output.writeframes(b'\0\0' * 960)
+            return
+        async def download(raw):
+            from edge_tts.exceptions import NoAudioReceived
+            for attempt in range(3):
+                raw.unlink(missing_ok=True)
+                try:
+                    await asyncio.wait_for(self.module.Communicate(text, voice).save(str(raw)), timeout=180)
+                    return
+                except (NoAudioReceived, asyncio.TimeoutError) as exc:
+                    if attempt == 2:
+                        raise RuntimeError('Edge returned no usable audio after 3 attempts. Completed sentences are saved; resume to retry this sentence.') from exc
+                    await asyncio.sleep(1 + attempt)
         with tempfile.TemporaryDirectory(prefix='pagevoice-edge-') as folder:
             raw = Path(folder) / 'speech.mp3'
-            asyncio.run(asyncio.wait_for(self.module.Communicate(text, voice).save(str(raw)), timeout=180))
+            asyncio.run(download(raw))
             normalize(raw, destination)
             trim_transport_padding(destination)
+
 
 
 def create(name, device='auto', allow_network=False, voices_dir=None) -> Engine:
