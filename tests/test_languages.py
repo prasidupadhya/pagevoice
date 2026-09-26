@@ -53,3 +53,13 @@ def test_spanish_scanned_pdf(tmp_path):
     assert book.language=='es'
     assert 'María abrió el libro' in ' '.join(book.chapters[-1].sentences)
     assert any(page['method']=='ocr' for page in book.source_pages)
+
+
+def test_edge_voice_regions():
+    from pagevoice.engines import builtin_voices, validate_voice
+    voices = builtin_voices('edge')
+    assert len(voices) == 7
+    assert {v['region'] for v in voices if v['language']=='es'} == {'ES'}
+    assert {v['region'] for v in voices if v['language']=='en'} <= {'US','GB'}
+    with pytest.raises(ValueError, match='available voice'):
+        validate_voice('edge', 'es-MX-JorgeNeural', 'es', None)

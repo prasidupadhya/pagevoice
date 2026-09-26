@@ -64,14 +64,15 @@ reanalyzed; XTTS cannot synthesize or be selected in current settings.
 
 ## Voices
 
-Exactly eight Edge voices are offered, filtered to the book's language:
+Seven Edge voices are offered, filtered to the book's language:
 
 | Language | Female voices | Male voices |
 |---|---|---|
 | English (US) | Aria, Jenny | Guy, Christopher |
-| Spanish | Elvira (Spain), Dalia (Mexico) | Álvaro (Spain), Jorge (Mexico) |
+| Spanish | Elvira, Ximena (Spain) | Álvaro (Spain) |
 
-The catalogue and all eight voices were checked against the live service.
+The catalogue was checked against the live service. It currently exposes only one
+male Spain voice, so we do not substitute a Mexican voice to invent a second choice.
 Microsoft does not publish reliable young/old age labels for these voices; the
 app uses names, gender and region instead of inventing ages. Voice quality is
 subjective; audition the voice with **Preview this voice**. No cloned voices or
@@ -134,7 +135,7 @@ See [the module](rag/README.md), [TTS research](docs/tts-research.md) and
 .venv/bin/pagevoice regen sessions/<id> 0000-00001 --text "Una frase corregida." --allow-network
 ```
 
-Use `--format mp3` or `--voice es-MX-JorgeNeural` as needed. `PAGEVOICE_DATA` or
+Use `--format mp3` or `--voice es-ES-AlvaroNeural` as needed. `PAGEVOICE_DATA` or
 `--data-dir` selects the library root. Completed sentence WAVs are immutable
 checksum-verified generations; interrupted jobs resume and reuse valid audio.
 Only one server may own a library's job queue. The macOS `say` adapter remains a
@@ -171,3 +172,11 @@ review. DRM/encrypted books are unsupported. Very large books need disk space fo
 per-sentence WAVs and final assembly. No product can promise perfect narration of
 every document; the app exposes source evidence and corrections rather than hiding
 these limits.
+
+
+“Listen from here” is clickable before online consent and after changing settings.
+It requests explicit Microsoft permission when needed, saves pending settings,
+then prepares audio from the selected chapter. Playback begins at20 consecutive
+ready sentences (or all remaining sentences when fewer remain), while the worker
+continues preparing the audiobook. Existing Mexican voice selections migrate to
+Spain's default when settings are next saved; existing audio is preserved on disk.

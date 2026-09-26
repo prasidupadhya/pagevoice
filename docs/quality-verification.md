@@ -43,3 +43,20 @@ recorded instead of changing unrelated pinned dependencies.
   no synthetic young/old labels are invented.
 - Silence detection and successful decoding do not prove perfect pronunciation,
   absence of every dropped word, or preferred subjective naturalness.
+
+## Follow-up: clickable listening and Spain voices
+
+The listening action no longer silently disables itself for missing network
+permission or unsaved settings. Clicking asks for explicit permission when needed,
+saves pending settings, and arms automatic playback during background preparation.
+The UI regression covers migrating an old Mexican voice, consent, settings PATCH,
+listening POST and the19→20-sentence progress transition. All22 UI tests pass.
+
+The live catalogue now used is four American English voices and three Spanish
+Spain voices (Elvira, Ximena, Álvaro). Microsoft exposed no second male Spain voice
+in the catalogue queried for this change. All seven synthesized original test prose
+successfully. Ximena's sample had a0.43s terminal silence diagnostic at−45dB;
+this is not an interior sentence interruption or a claim of zero natural pauses.
+
+Follow-up full regression:73 Python tests passed (same non-failing Starlette
+warning),22 frontend tests passed, and the production build passed.

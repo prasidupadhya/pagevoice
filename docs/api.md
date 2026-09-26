@@ -11,7 +11,7 @@ prevents two queues from modifying the same local data.
 | --- | --- |
 | GET /api/health | Supported languages and health |
 | GET /api/hardware | Local acceleration/tool detection |
-| GET /api/engines | Edge catalogue and eight built-in voices |
+| GET /api/engines | Edge catalogue and seven built-in voices |
 | GET /api/projects | Saved projects |
 | POST /api/projects | Multipart PDF/EPUB upload; language en/es, OCR auto/always/never |
 | GET /api/projects/{id} | Chapters, sentences, progress, current output |

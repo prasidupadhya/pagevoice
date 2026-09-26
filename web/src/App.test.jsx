@@ -44,19 +44,28 @@ it('exposes a read-only project tool with validated input',async()=>{
   cleanup();expect(registerTool.mock.calls[0][1].signal.aborted).toBe(true)
 })
 
-it('Create audiobook arms playback immediately and SSE starts it at sentence 20',async()=>{
+it('Listen from here requests consent, saves migrated voice settings and starts at sentence 20',async()=>{
  const rows=Array.from({length:25},(_,i)=>({id:`0000-${String(i).padStart(5,'0')}`,text:`Sentence ${i+1}.`,ready:i<19,audio:`/audio/${i}`}))
- const book={...project,chapters:[{index:0,title:'Arrival',sentences:rows}],progress:{complete:19,total:25},job:{status:'complete'}}
+ const book={...project,engine:'edge',voice:'es-MX-JorgeNeural',language:'es',chapters:[{index:0,title:'Arrival',sentences:rows}],progress:{complete:19,total:25},job:{status:'complete'}}
  let progress
  vi.stubGlobal('EventSource',class{addEventListener(name,fn){if(name==='progress')progress=fn}close(){}})
  const start=vi.fn(),resume=vi.fn(async()=>{})
  vi.stubGlobal('AudioContext',class{state='running';currentTime=0;destination={};resume=resume;suspend=async()=>{};close=async()=>{};decodeAudioData=async()=>({duration:2});createBufferSource=()=>({connect(){},disconnect(){},stop(){},start})})
- vi.stubGlobal('fetch',vi.fn(async path=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8),json:async()=>path==='/api/projects'?[book]:path==='/api/engines'?[{id:'say',installed:true,voices:[{id:'Samantha',language:'en'}]}]:path==='/api/voices'?[]:path==='/api/hardware'?{device:'cpu'}:book})))
+ vi.stubGlobal('fetch',vi.fn(async path=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8),json:async()=>path==='/api/projects'?[book]:path==='/api/engines'?[{id:'edge',installed:true,voices:[{id:'es-ES-ElviraNeural',language:'es'}]}]:path==='/api/voices'?[]:path==='/api/hardware'?{device:'cpu'}:(path.endsWith('/settings')||path.endsWith('/listen'))?{...book,voice:'es-ES-ElviraNeural'}:book})))
  render(<App/>);await screen.findByRole('heading',{name:book.title})
- await userEvent.click(screen.getByRole('button',{name:'Create audiobook'}))
+ const buttons=screen.getAllByRole('button',{name:'Listen from here'})
+ expect(buttons[0].disabled).toBe(false)
+ await userEvent.click(buttons[0])
+ expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(false)
+ await userEvent.click(screen.getByRole('button',{name:'Allow and start listening'}))
+ await waitFor(()=>expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(true))
+ const saved=fetch.mock.calls.find(([path])=>path.endsWith('/settings'))
+ expect(JSON.parse(saved[1].body).voice).toBe('es-ES-ElviraNeural')
+ const requested=fetch.mock.calls.find(([path])=>path.endsWith('/listen'))
+ expect(JSON.parse(requested[1].body)).toEqual({chapter:0,allow_network:true})
  expect(resume).toHaveBeenCalled();expect(start).not.toHaveBeenCalled()
  await waitFor(()=>expect(progress).toBeTypeOf('function'))
- const next={...book,chapters:[{...book.chapters[0],sentences:rows.map((r,i)=>({...r,ready:i<20}))}],job:{kind:'listen',status:'running'}}
+ const next={...book,voice:'es-ES-ElviraNeural',chapters:[{...book.chapters[0],sentences:rows.map((r,i)=>({...r,ready:i<20}))}],job:{kind:'listen',status:'running'}}
  const {act}=await import('@testing-library/react');await act(async()=>progress({data:JSON.stringify(next)}))
  await waitFor(()=>expect(start).toHaveBeenCalledTimes(4))
  expect(screen.getByText('Listening now')).toBeTruthy()

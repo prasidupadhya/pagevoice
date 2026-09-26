@@ -32,7 +32,7 @@ export function UploadDialog({initialFile,onClose,onCreated,t,locale}) {
   return <Modal title={t.upload} onClose={onClose} t={t}><form onSubmit={submit} className="form-stack">
     <label className="file-field">{t.file}<input required={!file} type="file" accept=".pdf,.epub" onChange={e=>setFile(e.target.files[0])}/></label>
     {file&&<p className="selected-file"><BookOpen size={18}/>{file.name}</p>}
-    <label>{t.bookLanguage}<select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">English</option><option value="es">Español</option></select></label>
+    <label>{t.bookLanguage}<select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">English</option><option value="es">Español (España)</option></select></label>
     <label>{t.ocr}<select value={ocr} onChange={e=>setOcr(e.target.value)}><option value="auto">{t.auto}</option><option value="always">{t.always}</option><option value="never">{t.never}</option></select></label>
     <ErrorNotice error={error} t={t}/><div className="actions"><button type="button" className="secondary" onClick={onClose}>{t.cancel}</button><button className="primary" disabled={pending}>{pending?<LoaderCircle className="spin" size={18}/>:<Upload size={18}/>} {pending?t.pending:t.import}</button></div>
   </form></Modal>
@@ -64,6 +64,7 @@ export default function App() {
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[disconnected,setDisconnected]=useState(false),[pending,setPending]=useState(false)
   const [upload,setUpload]=useState(false),[uploadFile,setUploadFile]=useState(null),[editor,setEditor]=useState(null),[chapter,setChapter]=useState(0),[playing,setPlaying]=useState(null)
   const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(false)
+  const [listenConsent,setListenConsent]=useState(null)
   const audio=useRef(null),intent=useRef(null),listener=useRef(null),listenRequest=useRef(0)
   const [listenStart,setListenStart]=useState(0),[listenState,setListenState]=useState({status:'idle',cursor:0,ready:0,target:20,total:0})
   useEffect(()=>{const engine=new Listener(setListenState);listener.current=engine;return()=>{engine.onChange=()=>{};engine.dispose()}},[activeId])
@@ -94,7 +95,7 @@ export default function App() {
     events.onopen=()=>setDisconnected(false);events.onerror=()=>setDisconnected(true)
     return()=>{closed=true;events.close()}
   },[activeId])
-  useEffect(()=>{if(project&&!dirty&&engines.length){const retired=!engines.some(e=>e.id===project.engine);setSettings({engine:retired?'edge':project.engine,voice:retired?(project.language==='es'?'es-ES-ElviraNeural':'en-US-AriaNeural'):project.voice||'',format:project.format,device:'auto',pace:project.pace||1});if(retired)setDirty(true)}},[project?.engine,project?.voice,project?.format,project?.device,project?.pace,dirty,engines])
+  useEffect(()=>{if(project&&!dirty&&engines.length){const retired=!engines.some(e=>e.id===project.engine);const unavailable=!engines.find(e=>e.id===project.engine)?.voices.some(v=>v.id===project.voice&&v.language===project.language);setSettings({engine:retired?'edge':project.engine,voice:(retired||unavailable)?(project.language==='es'?'es-ES-ElviraNeural':'en-US-AriaNeural'):project.voice||'',format:project.format,device:'auto',pace:project.pace||1});if(retired||unavailable)setDirty(true)}},[project?.engine,project?.voice,project?.format,project?.device,project?.pace,dirty,engines])
   useEffect(()=>{if(playing&&audio.current)audio.current.load()},[playing])
   const busy=pending||['queued','running'].includes(project?.job?.status)
   const selectedEngine=engines.find(e=>e.id===settings?.engine)
@@ -103,8 +104,8 @@ export default function App() {
   const selectedChapter=project?.chapters[chapter]
   const canListenDuringJob=['render','listen','regen'].includes(project?.job?.kind)
   const cachedListening=bufferStatus(forwardRows(project,chapter)).canStart
-  const listenDisabled=pending||dirty||(!readyEngine&&!cachedListening)||(settings?.engine==='edge'&&!allowNetwork&&!cachedListening&&!canListenDuringJob)||(busy&&!canListenDuringJob)
-  function chooseProject(id){listenRequest.current++;setActiveId(id);setError('');setNotice('')}
+  const listenDisabled=pending||!selectedChapter||(!readyEngine&&!cachedListening)||(busy&&!canListenDuringJob)
+  function chooseProject(id){listenRequest.current++;setListenConsent(null);setActiveId(id);setError('');setNotice('')}
   function openUpload(file=null){setUploadFile(file);setUpload(true)}
   function updateSettings(key,value){setSettings(s=>{const next={...s,[key]:value};if(key==='engine')next.voice=engines.find(e=>e.id===value)?.voices.find(v=>v.language===project.language)?.id||'';return next});setDirty(true)}
   async function saveSettings(){listener.current?.reset();setPending(true);setError('');try{const p=await api(`/api/projects/${activeId}/settings`,{method:'PATCH',body:JSON.stringify(settings)});setProject(p);setDirty(false);setNotice(t.saved)}catch(e){setError(e.message)}finally{setPending(false)}}
@@ -124,17 +125,28 @@ export default function App() {
     }
     await runJob('regen',{sentence_id:editor.id,text})
   }
-  async function beginListening(next=chapter) {
-    if(dirty||pending)return
+  async function beginListening(next=chapter,network=allowNetwork) {
+    if(pending)return
+    const activePreparation=busy&&canListenDuringJob
+    const needsPreparation=dirty||!project.output
+    if(settings?.engine==='edge'&&!network&&!activePreparation&&needsPreparation){setListenConsent(next);return}
     const request=++listenRequest.current
     setPlaying(null);audio.current?.pause();setListenStart(next);setError('')
     const rows=forwardRows(project,next)
-    // Unlock the browser audio context immediately in the user gesture.
-    listener.current?.start(rows)
+    // Unlock audio in the click gesture, before settings/network work.
+    listener.current?.start(dirty?rows.map(r=>({...r,ready:false})):rows)
     if(!readyEngine&&bufferStatus(rows).canStart)return
-    if(settings?.engine==='edge'&&!allowNetwork&&!canListenDuringJob&&bufferStatus(rows).canStart)return
-    try{const p=await api(`/api/projects/${activeId}/listen`,{method:'POST',body:JSON.stringify({chapter:next,allow_network:allowNetwork})});if(request===listenRequest.current)setProject(p)}
-    catch(e){if(request!==listenRequest.current)return;setError(e.message);if(!bufferStatus(rows).canStart)listener.current?.reset()}
+    setPending(true)
+    try{
+      if(dirty){
+        const saved=await api(`/api/projects/${activeId}/settings`,{method:'PATCH',body:JSON.stringify(settings)})
+        if(request!==listenRequest.current)return
+        setProject(saved);setDirty(false)
+      }
+      const p=await api(`/api/projects/${activeId}/listen`,{method:'POST',body:JSON.stringify({chapter:next,allow_network:network})})
+      if(request===listenRequest.current)setProject(p)
+    }catch(e){if(request!==listenRequest.current)return;setError(e.message);listener.current?.reset()}
+    finally{setPending(false)}
   }
   function selectChapter(next,sentence=null) {
     setChapter(next);setListenStart(next);setPlaying(null)
@@ -158,7 +170,7 @@ export default function App() {
   return <>
     <a className="skip-link" href="#reading-area">{t.skip}</a>
     <header className="topbar"><a className="brand" href="#" onClick={e=>e.preventDefault()}><span className="brand-mark"><BookOpen size={23}/></span>PageVoice</a><span className="local-badge"><ShieldCheck size={16}/>{t.local}</span>
-      <div className="top-controls"><label className="language-control"><Globe size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={e=>setLocale(e.target.value)}><option value="en">English</option><option value="es">Español</option></select></label>
+      <div className="top-controls"><label className="language-control"><Globe size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={e=>setLocale(e.target.value)}><option value="en">English</option><option value="es">Español (España)</option></select></label>
       <button className="theme-button" onClick={()=>setTheme(theme==='dark'?'light':'dark')} aria-label={`${t.theme}: ${theme==='dark'?t.light:t.dark}`} title={theme==='dark'?t.light:t.dark}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}<span>{theme==='dark'?t.light:t.dark}</span></button></div>
     </header>
     <div className="app-layout">
@@ -199,7 +211,7 @@ export default function App() {
               {dirty&&<p className="small muted" role="status">{t.unsaved}</p>}
               {settings?.engine==='edge'&&<div className="online-note"><p className="small">{t.onlineNotice}</p><label className="check-field"><input type="checkbox" checked={allowNetwork} onChange={e=>setAllowNetwork(e.target.checked)}/><span>{t.onlineConsent}</span></label></div>}
               <Casting project={project} voices={voiceOptions} busy={busy||dirty} t={t} onChange={changeCasting}/><div className="render-section"><div className="progress-caption"><span>{t.wholeBook}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><p className="small muted">{t.progress}</p><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
-                <button className="primary full" disabled={busy||dirty||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={()=>beginListening(chapter)}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:project.status==='paused'?t.resumePreparation:t.render}</button>
+                <button className="primary full" disabled={busy||!readyEngine} onClick={()=>beginListening(chapter)}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:project.status==='paused'?t.resumePreparation:t.render}</button>
                 {busy&&canListenDuringJob&&project.status!=='assembling'&&<button className="secondary full" disabled={project.listening?.pausing||pending} onClick={()=>runJob('pause')}>{project.listening?.pausing?t.pausingPreparation:t.pausePreparation}</button>}
                 {project.output&&!busy&&<a className="secondary full" href={project.output} download><Download size={18}/>{t.download}</a>}
                 {!busy&&project.status==='failed'&&<button className="secondary full" onClick={()=>runJob('resume')}>{t.resume}</button>}
@@ -211,6 +223,7 @@ export default function App() {
       </main>
     </div>
     {upload&&<UploadDialog initialFile={uploadFile} locale={locale} t={t} onClose={()=>setUpload(false)} onCreated={p=>{setProjects(all=>[p,...all]);setActiveId(p.id);setUpload(false)}}/>}
+    {listenConsent!==null&&<Modal title={t.onlineListening} t={t} onClose={()=>setListenConsent(null)}><p>{t.onlineListeningNotice}</p><div className="actions"><button className="secondary" onClick={()=>setListenConsent(null)}>{t.cancel}</button><button className="primary" onClick={()=>{const next=listenConsent;setListenConsent(null);setAllowNetwork(true);beginListening(next,true)}}>{t.allowAndListen}</button></div></Modal>}
     {editor&&<SentenceEditor row={editor} t={t} busy={busy} onClose={()=>setEditor(null)} speakers={project?.speakers} onSave={saveSentence}/>}
   </>
 }
