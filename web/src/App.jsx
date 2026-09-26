@@ -63,7 +63,7 @@ export default function App() {
   const [projects,setProjects]=useState([]),[activeId,setActiveId]=useState(''),[project,setProject]=useState(null),[engines,setEngines]=useState([])
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[disconnected,setDisconnected]=useState(false),[pending,setPending]=useState(false)
   const [upload,setUpload]=useState(false),[uploadFile,setUploadFile]=useState(null),[editor,setEditor]=useState(null),[chapter,setChapter]=useState(0),[playing,setPlaying]=useState(null)
-  const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(false)
+  const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(true)
   const [listenConsent,setListenConsent]=useState(null)
   const audio=useRef(null),intent=useRef(null),listener=useRef(null),listenRequest=useRef(0)
   const [listenStart,setListenStart]=useState(0),[listenState,setListenState]=useState({status:'idle',cursor:0,ready:0,target:20,total:0})

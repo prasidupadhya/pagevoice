@@ -181,3 +181,9 @@ then prepares audio from the selected chapter. Playback begins at20 consecutive
 ready sentences (or all remaining sentences when fewer remain), while the worker
 continues preparing the audiobook. Existing Mexican voice selections migrate to
 Spain's default when settings are next saved; existing audio is preserved on disk.
+
+
+Edge permission is checked by default in the reader at the user's request. The
+Microsoft text-transfer notice remains visible and permission can be unchecked.
+Starting playback then requests permission again if new online audio is needed.
+CLI/API requests still require their explicit network flag.

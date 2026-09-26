@@ -47,7 +47,7 @@ it('exposes a read-only project tool with validated input',async()=>{
   cleanup();expect(registerTool.mock.calls[0][1].signal.aborted).toBe(true)
 })
 
-it('Listen from here requests consent, saves migrated voice settings and starts at sentence 20',async()=>{
+it('Listen from here uses default online permission, saves settings and starts at sentence 20',async()=>{
  const rows=Array.from({length:25},(_,i)=>({id:`0000-${String(i).padStart(5,'0')}`,text:`Sentence ${i+1}.`,ready:i<19,audio:`/audio/${i}`}))
  const book={...project,engine:'edge',voice:'es-MX-JorgeNeural',language:'es',chapters:[{index:0,title:'Arrival',sentences:rows}],progress:{complete:19,total:25},job:{status:'complete'}}
  let progress
@@ -58,9 +58,9 @@ it('Listen from here requests consent, saves migrated voice settings and starts 
  render(<App/>);await screen.findByRole('heading',{name:book.title})
  const buttons=screen.getAllByRole('button',{name:'Listen from here'})
  await waitFor(()=>expect(buttons[0].disabled).toBe(false))
+ expect(screen.getByRole('checkbox',{name:messages.en.onlineConsent}).checked).toBe(true)
  await userEvent.click(buttons[0])
- expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(false)
- await userEvent.click(screen.getByRole('button',{name:'Allow and start listening'}))
+ expect(screen.queryByRole('dialog',{name:messages.en.onlineListening})).toBeNull()
  await waitFor(()=>expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(true))
  const saved=fetch.mock.calls.find(([path])=>path.endsWith('/settings'))
  expect(JSON.parse(saved[1].body).voice).toBe('es-ES-ElviraNeural')
