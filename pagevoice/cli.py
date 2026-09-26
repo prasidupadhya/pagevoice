@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 from pathlib import Path
 import sys
@@ -10,7 +11,7 @@ from .pipeline import convert, resume, regenerate, read_book, load
 
 
 def main():
-    parser = argparse.ArgumentParser(prog='pagevoice', description='Local-first EPUB/PDF narration')
+    parser = argparse.ArgumentParser(prog='pagevoice', description='Local library with Edge online EPUB/PDF narration')
     parser.add_argument('--version', action='version', version=__version__)
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('doctor', help='Report hardware and dependencies')
@@ -21,8 +22,8 @@ def main():
     conversion = commands.add_parser('convert', help='Convert EPUB/PDF to a chaptered audiobook')
     conversion.add_argument('source', type=Path)
     conversion.add_argument('--data-dir', type=Path, default=Path(os.environ.get('PAGEVOICE_DATA', '.')))
-    conversion.add_argument('--engine', choices=REGISTRY, default='xtts')
-    conversion.add_argument('--voice', help='Built-in engine speaker name (cloning comes in phase 4)')
+    conversion.add_argument('--engine', choices=REGISTRY, default='edge')
+    conversion.add_argument('--voice', help='Edge voice identifier')
     conversion.add_argument('--language', choices=['en', 'es'], help='Override EPUB language, e.g. en or es')
     conversion.add_argument('--format', choices=['m4b', 'mp3'], default='m4b')
     conversion.add_argument('--device', choices=['auto', 'cpu', 'mps', 'cuda', 'rocm'], default='auto')
@@ -38,8 +39,17 @@ def main():
     for command in (recovery, regeneration):
         command.add_argument('--allow-network', action='store_true')
     regeneration.add_argument('sentence_id', help='Zero-based ID, e.g. 0000-00001')
-    regeneration.add_argument('--text', help='Optional replacement text (1–220 characters)')
+    regeneration.add_argument('--text', help='Optional replacement text (1–10000 characters)')
     args = parser.parse_args()
+    # Only the CLI writes progress to a terminal. The web worker uses durable
+    # manifests/SSE and must never depend on the launcher's stdout remaining open.
+    progress = logging.getLogger('pagevoice.pipeline')
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    progress.addHandler(handler)
+    previous_level, previous_propagate = progress.level, progress.propagate
+    progress.setLevel(logging.INFO)
+    progress.propagate = False
     try:
         if args.command == 'doctor':
             print(json.dumps(hardware(), indent=2))
@@ -68,4 +78,9 @@ def main():
     except Exception as exc:
         print(f'pagevoice: {exc}', file=sys.stderr)
         return 1
+    finally:
+        progress.removeHandler(handler)
+        handler.close()
+        progress.setLevel(previous_level)
+        progress.propagate = previous_propagate
     return 0

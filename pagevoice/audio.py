@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import subprocess
 import wave
+import shutil
 
 RATE = 24000
 
@@ -14,10 +15,21 @@ def run(args, **kwargs):
     return result.stdout
 
 
-def normalize(source: Path, target: Path):
+def normalize(source: Path, target: Path, pace: float = 1.0):
     temporary = target.with_suffix('.part.wav')
+    # Most local engines already return our exact PCM format. Avoid a process
+    # launch for every sentence while retaining full validation and atomic publish.
+    try:
+        if pace != 1.0: raise ValueError("Pace conversion required")
+        frames(source)
+    except (OSError, ValueError, EOFError):
+        pass
+    else:
+        shutil.copyfile(source, temporary)
+        temporary.replace(target)
+        return
     run(['ffmpeg', '-v', 'error', '-y', '-i', str(source), '-ac', '1', '-ar', str(RATE),
-         '-c:a', 'pcm_s16le', str(temporary)])
+         '-af', f'atempo={pace}', '-c:a', 'pcm_s16le', str(temporary)])
     frames(temporary)
     temporary.replace(target)
 
@@ -65,7 +77,9 @@ def assemble(book, chunks: list[list[Path]], session: Path, output: Path):
     codec = ['-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', '-f', 'ipod'] if output.suffix == '.m4b' else ['-c:a', 'libmp3lame', '-b:a', '128k']
     run(['ffmpeg', '-v', 'error', '-y', '-f', 's16le', '-ar', str(RATE), '-ac', '1',
          '-i', str(pcm), '-i', str(meta), '-map', '0:a:0', '-map_metadata', '1',
-         '-map_chapters', '1', *codec, str(temporary)])
+         '-map_chapters', '1', '-metadata:s:a:0',
+         'language=' + {'en': 'eng', 'es': 'spa'}.get(book.language, book.language),
+         *codec, str(temporary)])
     probe = json.loads(run(['ffprobe', '-v', 'error', '-show_format', '-show_chapters', '-of', 'json', str(temporary)]))
     if len(probe['chapters']) != len(book.chapters):
         raise RuntimeError('Encoded chapter count does not match the book.')
@@ -77,3 +91,30 @@ def assemble(book, chunks: list[list[Path]], session: Path, output: Path):
     pcm.unlink()
     temporary.unlink()
     return probe
+
+
+def speech_bounds(pcm):
+    """Conservative trim of near-digital-silence padding, with 20ms guards."""
+    from array import array
+    import sys
+    samples = array('h'); samples.frombytes(pcm)
+    if sys.byteorder != 'little': samples.byteswap()
+    first = next((i for i,v in enumerate(samples) if abs(v)>16), None)
+    if first is None: return 0, len(pcm)  # Never erase all-silent authored audio.
+    last = len(samples)-next(i for i,v in enumerate(reversed(samples)) if abs(v)>16)
+    guard = round(RATE*.02)
+    return max(0,first-guard)*2, min(len(samples),last+guard)*2
+
+
+def trim_transport_padding(path, leading=.04, trailing=.22):
+    """Cap edge silence, preserving low-level speech and all interior pauses."""
+    with wave.open(str(path),'rb') as source:
+        params=source.getparams();pcm=source.readframes(source.getnframes())
+    start,end=speech_bounds(pcm)
+    # speech_bounds already includes 20ms guards on each side.
+    start=max(0,start-round(max(0,leading-.02)*RATE)*2)
+    end=min(len(pcm),end+round(max(0,trailing-.02)*RATE)*2)
+    temporary=path.with_suffix('.trim.wav')
+    with wave.open(str(temporary),'wb') as output:
+        output.setparams(params);output.writeframes(pcm[start:end])
+    frames(temporary);temporary.replace(path)

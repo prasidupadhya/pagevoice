@@ -11,5 +11,4 @@ def language_code(value):
 
 def default_voice(engine, language):
     return {'say': {'en': 'Samantha', 'es': 'Monica'},
-            'edge': {'en': 'en-US-AriaNeural', 'es': 'es-ES-ElviraNeural'},
-            'xtts': {'en': 'Ana Florence', 'es': 'Ana Florence'}}[engine][language_code(language)]
+            'edge': {'en': 'en-US-AriaNeural', 'es': 'es-ES-ElviraNeural'}}[engine][language_code(language)]

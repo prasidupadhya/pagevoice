@@ -108,7 +108,7 @@ def test_lock_and_invalid_edits(tmp_path, monkeypatch):
         with pytest.raises(ValueError, match='already being modified'):
             pipeline.regenerate(session, '0000-00000')
     for identifier, text in [('9999-99999', None), ('../bad', None), ('0000-00000', ''),
-                             ('0000-00000', 'x' * 221), ('0000-00000', '[pause:2]')]:
+                             ('0000-00000', 'x' * 10001), ('0000-00000', '[pause:-2]')]:
         with pytest.raises(ValueError):
             pipeline.regenerate(session, identifier, text)
     assert (session / 'session.json').read_bytes() == before
