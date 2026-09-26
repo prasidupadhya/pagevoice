@@ -2,7 +2,7 @@ import React from 'react'
 import {describe,it,expect,vi} from 'vitest'
 import {render,screen,waitFor,fireEvent} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App,{CloneDialog,SentenceEditor,UploadDialog} from './App'
+import App,{SentenceEditor,UploadDialog} from './App'
 import {messages} from './i18n'
 
 const project={id:'a'.repeat(32),title:'The Quiet Harbour',author:'PageVoice',language:'en',status:'ready',engine:'say',voice:'Samantha',format:'m4b',device:'auto',chapters:[{index:0,title:'Arrival',sentences:[{id:'0000-00000',text:'Mira opened her book.',ready:false}]}],progress:{complete:0,total:1},source_pages:[],job:{status:'complete'},output:null}
@@ -15,14 +15,13 @@ describe('reader interactions',()=>{
     await user.click(screen.getByRole('button',{name:'Tema de color: Oscuro'}));expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('pagevoice-locale')).toBe('es');expect(screen.getAllByText('English').length).toBeGreaterThan(0)
   })
-  it('never prechecks cloning consent and sends it only after user checks it',async()=>{
-    server();const created=vi.fn();render(<CloneDialog t={messages.en} locale="en" onClose={()=>{}} onCreated={created}/>);const user=userEvent.setup()
-    const button=screen.getByRole('button',{name:'Save voice profile'});expect(button.disabled).toBe(true)
-    await user.type(screen.getByLabelText('Voice name'),'My voice');await user.upload(screen.getByLabelText('WAV or MP3 recording'),new File(['audio'],'voice.wav',{type:'audio/wav'}))
-    await user.click(screen.getByRole('checkbox'));expect(button.disabled).toBe(false);expect(screen.getByLabelText('WAV or MP3 recording').files.length).toBe(1);
-    // jsdom does not reconcile user-event's FileList with native file validity.
-    fireEvent.submit(button.form)
-    await waitFor(()=>expect(created).toHaveBeenCalled());expect(fetch.mock.calls.at(-1)[1].body.get('consent')).toBe('true')
+  it('does not offer retired cloning or XTTS controls',async()=>{
+    server();render(<App/>);await screen.findByRole('heading',{name:'The Quiet Harbour'})
+    expect(screen.queryByRole('button',{name:'Add your own voice'})).toBeNull()
+    expect(screen.queryByText(/XTTS/)).toBeNull()
+    expect(screen.queryByLabelText(messages.en.engine)).toBeNull()
+    expect([...screen.getByLabelText('Interface language').options].map(o=>o.text)).toEqual(['EN','ES'])
+    expect(screen.getByRole('button',{name:`${messages.en.theme}: ${messages.en.dark}`}).textContent).toBe('')
   })
   it('edits and saves exactly the selected sentence',async()=>{
     const saved=vi.fn();render(<SentenceEditor row={{text:'Original sentence.'}} t={messages.en} onClose={()=>{}} onSave={saved} busy={false}/>);const user=userEvent.setup()
@@ -46,4 +45,31 @@ it('exposes a read-only project tool with validated input',async()=>{
   expect((await tool.execute({}))[0].title).toBe('The Quiet Harbour')
   await expect(tool.execute({render:true})).rejects.toThrow('empty object')
   cleanup();expect(registerTool.mock.calls[0][1].signal.aborted).toBe(true)
+})
+
+it('Listen from here requests consent, saves migrated voice settings and starts at sentence 20',async()=>{
+ const rows=Array.from({length:25},(_,i)=>({id:`0000-${String(i).padStart(5,'0')}`,text:`Sentence ${i+1}.`,ready:i<19,audio:`/audio/${i}`}))
+ const book={...project,engine:'edge',voice:'es-MX-JorgeNeural',language:'es',chapters:[{index:0,title:'Arrival',sentences:rows}],progress:{complete:19,total:25},job:{status:'complete'}}
+ let progress
+ vi.stubGlobal('EventSource',class{addEventListener(name,fn){if(name==='progress')progress=fn}close(){}})
+ const start=vi.fn(),resume=vi.fn(async()=>{})
+ vi.stubGlobal('AudioContext',class{state='running';currentTime=0;destination={};resume=resume;suspend=async()=>{};close=async()=>{};decodeAudioData=async()=>({duration:2});createBufferSource=()=>({connect(){},disconnect(){},stop(){},start})})
+ vi.stubGlobal('fetch',vi.fn(async path=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8),json:async()=>path==='/api/projects'?[book]:path==='/api/engines'?[{id:'edge',installed:true,voices:[{id:'es-ES-ElviraNeural',language:'es'}]}]:path==='/api/voices'?[]:path==='/api/hardware'?{device:'cpu'}:(path.endsWith('/settings')||path.endsWith('/listen'))?{...book,voice:'es-ES-ElviraNeural'}:book})))
+ render(<App/>);await screen.findByRole('heading',{name:book.title})
+ const buttons=screen.getAllByRole('button',{name:'Listen from here'})
+ await waitFor(()=>expect(buttons[0].disabled).toBe(false))
+ await userEvent.click(buttons[0])
+ expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(false)
+ await userEvent.click(screen.getByRole('button',{name:'Allow and start listening'}))
+ await waitFor(()=>expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(true))
+ const saved=fetch.mock.calls.find(([path])=>path.endsWith('/settings'))
+ expect(JSON.parse(saved[1].body).voice).toBe('es-ES-ElviraNeural')
+ const requested=fetch.mock.calls.find(([path])=>path.endsWith('/listen'))
+ expect(JSON.parse(requested[1].body)).toEqual({chapter:0,allow_network:true})
+ expect(resume).toHaveBeenCalled();expect(start).not.toHaveBeenCalled()
+ await waitFor(()=>expect(progress).toBeTypeOf('function'))
+ const next={...book,voice:'es-ES-ElviraNeural',chapters:[{...book.chapters[0],sentences:rows.map((r,i)=>({...r,ready:i<20}))}],job:{kind:'listen',status:'running'}}
+ const {act}=await import('@testing-library/react');await act(async()=>progress({data:JSON.stringify(next)}))
+ await waitFor(()=>expect(start).toHaveBeenCalledTimes(4))
+ expect(screen.getByText('Listening now')).toBeTruthy()
 })

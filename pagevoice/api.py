@@ -15,22 +15,24 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from filelock import FileLock, Timeout
 
-from .engines import REGISTRY, hardware, xtts_ready, builtin_voices, validate_voice
+from .engines import REGISTRY, hardware, builtin_voices, validate_voice
 from .jobs import Jobs
-from .pipeline import new_session, load, signature
-from .storage import save
+from .pipeline import new_session, load, signature, reusable
+from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
+from .storage import save, digest
 from .languages import default_voice
-from .voices import register, reference, catalogue
+from .voices import catalogue
 from .narration import detect
 from .speech import SpeechRequest, render as speech_render
 
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    engine: Literal['xtts', 'say', 'edge'] = 'xtts'
+    engine: Literal['say', 'edge'] = 'edge'
     voice: str | None = Field(default=None, max_length=120)
     format: Literal['m4b', 'mp3'] = 'm4b'
     device: Literal['auto', 'cpu', 'mps', 'cuda', 'rocm'] = 'auto'
+    pace: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
 class RenderRequest(BaseModel):
@@ -43,7 +45,15 @@ class PreviewRequest(RenderRequest):
 
 class RegenRequest(RenderRequest):
     sentence_id: str = Field(pattern=r'^\d{4}-\d{5}$')
-    text: str | None = Field(default=None, min_length=1, max_length=220)
+    text: str | None = Field(default=None, min_length=1, max_length=10000)
+
+
+class AnalysisEdit(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    chapter: int = Field(ge=0)
+    title: str = Field(min_length=1, max_length=200)
+    kind: Literal['chapter','front_matter','back_matter','unclassified']
+    start_here: bool = False
 
 
 class CastingRequest(BaseModel):
@@ -101,36 +111,88 @@ def create_app(data=None):
 
     def present(project):
         path = session(project)
+        # Snapshot the job first: a completed job must never accompany an older
+        # manifest that still says the output is unavailable.
+        with jobs.guard:
+            latest = sorted((dict(r) for r in jobs.records.values() if r['project'] == project), key=lambda r: r['created'], reverse=True)
         state = load(path)
         records = {r['id']: r for r in state['chunks']}
         chapters = []
         ready = total = 0
         for ci, chapter in enumerate((state.get('book') or {}).get('chapters', [])):
             rows = []
+            contiguous = 0
             for si, text in enumerate(chapter['sentences']):
                 identifier = f'{ci:04d}-{si:05d}'
                 record = records.get(identifier)
                 complete = bool(record and record.get('signature') == signature(state, identifier, text) and (path / record['audio']).is_file())
+                if complete and contiguous == si:
+                    contiguous += 1
                 ready += int(complete)
                 total += 1
                 rows.append({'id': identifier, 'text': text, 'ready': complete,
                              'speaker': state.get('speaker_tags', {}).get(identifier, 'Narrator'),
-                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio' if complete else None})
+                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio?v={record.get("sha256", "")[:16]}' if complete else None})
             chapters.append({'index': ci, 'title': chapter['title'], 'sentences': rows,
+                             'ready': sum(row['ready'] for row in rows), 'total': len(rows), 'contiguous_ready': contiguous,
                              'preview': f'/api/projects/{project}/previews/{ci}' if str(ci) in state.get('previews', {}) else None})
-        with jobs.guard:
-            latest = sorted((dict(r) for r in jobs.records.values() if r['project'] == project), key=lambda r: r['created'], reverse=True)
         return {'id': project, 'title': (state.get('book') or {}).get('title', state.get('original_name', 'Book')),
                 'author': (state.get('book') or {}).get('author', ''),
                 'language': (state.get('book') or {}).get('language', state.get('parse_options', {}).get('language', 'en')),
                 'status': state['status'], 'error': state.get('error'),
-                'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'],
-                'chapters': chapters, 'progress': {'complete': ready, 'total': total},
+                'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'], 'pace': state.get('pace', 1.0),
+                'analysis': state.get('analysis'), 'narration_version': state.get('narration_version', 1),
+                'chapters': chapters, 'progress': {'complete': ready, 'total': total, 'current_chapter': state.get('current_chapter')},
+                'listening': {'chapter': priority(path), 'buffer': BUFFER_SENTENCES, 'pausing': paused(path)},
                 'source_pages': (state.get('book') or {}).get('source_pages', []),
                 'output': f'/api/projects/{project}/download' if state.get('output_current') else None,
                 'duration': state.get('duration'), 'job': dict(latest[0]) if latest else None,
                 'last_run': state.get('last_run'), 'cast': state.get('cast', {}),
                 'speakers': sorted({'Narrator'} | set(state.get('speaker_tags', {}).values()) | set(state.get('cast', {})))}
+
+    @app.post('/api/projects/{project}/reanalyze', status_code=202)
+    def reanalyze(project: str):
+        state = load(session(project))
+        source = root / 'uploads' / state['source_name']
+        if digest(source) != state['source_sha256']: raise HTTPException(409, 'Source checksum mismatch.')
+        engine = state['engine'] if state['engine'] in REGISTRY else 'edge'
+        voice = state['voice'] if engine == state['engine'] else None
+        path = new_session(source, root, engine=engine, voice=voice,
+                           language=(state.get('book') or {}).get('language'), output_format=state['format'],
+                           device=state['device'], ocr=state['parse_options'].get('ocr', 'auto'),
+                           ocr_language=state['parse_options'].get('ocr_language'))
+        fresh = load(path)
+        fresh.update(original_name=state.get('original_name', source.name), pace=state.get('pace', 1.0))
+        save(path / 'session.json', fresh)
+        jobs.submit(path.name, 'prepare')
+        return present(path.name)
+
+    @app.get('/api/projects/{project}/analysis')
+    def book_analysis(project: str, q: str = '', chapter: int | None = None):
+        from rag import analyze, search
+        path = session(project)
+        state = load(path)
+        if not state.get('book'): raise HTTPException(409, 'Book is still being prepared.')
+        if len(q) > 500: raise HTTPException(422, 'Search is limited to 500 characters.')
+        if chapter is not None and not 0 <= chapter < len(state['book']['chapters']): raise HTTPException(422, 'Chapter is out of range.')
+        return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q, chapter) if q.strip() else []}
+
+    @app.patch('/api/projects/{project}/analysis')
+    def correct_analysis(project: str, correction: AnalysisEdit):
+        from rag import analyze
+        path = session(project)
+        with jobs.guard, FileLock(str(path / '.lock'), timeout=0):
+            if jobs.busy(project): raise HTTPException(409, 'Pause preparation before editing the chapter map.')
+            state = load(path)
+            chapters = (state.get('book') or {}).get('chapters', [])
+            if correction.chapter >= len(chapters): raise HTTPException(404, 'Chapter not found.')
+            title = correction.title.strip()
+            if not title: raise HTTPException(422, 'A chapter title is required.')
+            chapters[correction.chapter].update(title=title, role=correction.kind, evidence='manual')
+            state.update(analysis=analyze(state['book']), output_current=False, previews={})
+            save(path / 'session.json', state)
+            if correction.start_here: set_priority(path, correction.chapter)
+        return present(project)
 
     @app.get('/api/health')
     def health():
@@ -143,33 +205,18 @@ def create_app(data=None):
     @app.get('/api/engines')
     def engines():
         import importlib.util
-        return [{'id': key, 'name': info.name, 'online': info.online, 'model_ready': xtts_ready() if key=='xtts' else True,
-                 'installed': (bool(__import__('shutil').which('say')) if key == 'say' else importlib.util.find_spec('TTS' if key == 'xtts' else 'edge_tts') is not None),
+        return [{'id': key, 'name': info.name, 'online': info.online, 'model_ready': True,
+                 'installed': (bool(__import__('shutil').which('say')) if key == 'say' else importlib.util.find_spec('edge_tts') is not None),
                  'voices': builtin_voices(key)}
-                for key, info in REGISTRY.items()]
+                for key, info in REGISTRY.items() if key == 'edge']
 
     @app.get('/api/voices')
     def voices():
         return catalogue(root / 'voices')
 
-    @app.post('/api/voices', status_code=201)
-    def upload_voice(file: UploadFile = File(...), name: str = Form(...),
-                     language: Literal['en','es'] = Form('en'), consent: bool = Form(False)):
-        if not consent:
-            raise HTTPException(400, 'Speaker consent is required.')
-        with tempfile.TemporaryDirectory(prefix='pagevoice-voice-') as folder:
-            path = Path(folder) / 'sample'
-            size = 0
-            with path.open('wb') as stream:
-                while chunk := file.file.read(1024 * 1024):
-                    size += len(chunk)
-                    if size > 20 * 1024 * 1024:
-                        raise HTTPException(413, 'Voice sample exceeds 20 MB.')
-                    stream.write(chunk)
-            try:
-                return register(root / 'voices', path, name, language, consent)
-            except (RuntimeError, KeyError) as exc:
-                raise HTTPException(400, 'Could not read the recording. Use a clean WAV or MP3 sample.') from exc
+    @app.post('/api/voices', status_code=410)
+    def upload_voice():
+        raise HTTPException(410, 'Voice cloning was removed with XTTS. Existing recordings remain on disk; choose an Edge voice.')
 
     @app.get('/api/projects')
     def projects():
@@ -290,9 +337,38 @@ def create_app(data=None):
             if state['engine'] == 'edge' and not values.get('allow_network'):
                 raise HTTPException(400, 'Edge sends text to Microsoft; explicit network consent is required.')
             try:
+                if not jobs.busy(project):
+                    set_priority(path, priority(path))
                 return jobs.submit(project, kind, **values)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
+
+    @app.post('/api/projects/{project}/pause', status_code=202)
+    def pause_preparation(project: str):
+        path = session(project)
+        with jobs.guard:
+            active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
+            if not active or active['kind'] not in ('listen','render','regen'):
+                raise HTTPException(409, 'There is no background preparation to pause.')
+            pause(path)
+        return present(project)
+
+    @app.post('/api/projects/{project}/listen', status_code=202)
+    def listen(project: str, options: PreviewRequest):
+        path = session(project)
+        with jobs.guard:
+            state = load(path)
+            if not state.get('book') or options.chapter >= len(state['book']['chapters']):
+                raise HTTPException(404, 'Chapter not found.')
+            active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
+            if active and active['kind'] not in ('render','listen','regen'):
+                raise HTTPException(409, 'Finish parsing or the chapter preview before starting progressive listening.')
+            if not active and not state.get('output_current') and state['engine'] == 'edge' and not options.allow_network:
+                raise HTTPException(400, 'Edge requires explicit permission to send text to Microsoft.')
+            set_priority(path, options.chapter)
+            if not active and not state.get('output_current'):
+                jobs.submit(project, 'listen', allow_network=options.allow_network)
+        return present(project)
 
     @app.post('/api/projects/{project}/render', status_code=202)
     def render(project: str, options: RenderRequest):
@@ -349,15 +425,15 @@ def create_app(data=None):
         return FileResponse(path / 'previews' / f'chapter-{chapter}.mp3', media_type='audio/mpeg')
 
     @app.get('/api/projects/{project}/sentences/{identifier}/audio')
-    def sentence_audio(project: str, identifier: str):
+    def sentence_audio(project: str, identifier: str, v: str | None = None):
         path = session(project)
         state = load(path)
         record = next((r for r in state['chunks'] if r['id'] == identifier), None)
         if not record:
             raise HTTPException(404, 'Sentence audio not ready.')
         text = state['book']['chapters'][record['chapter']]['sentences'][record['sentence']]
-        if record.get('signature') != signature(state, identifier, text):
-            raise HTTPException(409, 'Sentence audio is out of date.')
+        if (v and v != record.get('sha256', '')[:16]) or not reusable(path, record, signature(state, identifier, text)):
+            raise HTTPException(409, 'Sentence audio is missing, damaged or out of date. Resume preparation.')
         from .pipeline import chunk_path
         return FileResponse(chunk_path(path, record), media_type='audio/wav')
 

@@ -12,7 +12,7 @@ from .narration import synthesize, events
 
 class SpeechRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    model: Literal['say', 'xtts', 'edge']
+    model: Literal['say', 'edge']
     input: str = Field(min_length=1, max_length=4096)
     voice: str = Field(min_length=1, max_length=120)
     response_format: Literal['mp3','wav','pcm','flac','aac','opus'] = 'mp3'
