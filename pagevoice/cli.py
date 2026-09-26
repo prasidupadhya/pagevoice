@@ -11,10 +11,9 @@ from .pipeline import convert, resume, regenerate, read_book, load
 
 
 def main():
-    parser = argparse.ArgumentParser(prog='pagevoice', description='Local-first EPUB/PDF narration')
+    parser = argparse.ArgumentParser(prog='pagevoice', description='Local library with Edge online EPUB/PDF narration')
     parser.add_argument('--version', action='version', version=__version__)
     commands = parser.add_subparsers(dest='command', required=True)
-    commands.add_parser('setup-xtts', help='Download XTTS after reviewing its interactive model license prompt')
     commands.add_parser('doctor', help='Report hardware and dependencies')
     commands.add_parser('engines', help='List engine capabilities')
     inspect = commands.add_parser('inspect', help='Parse EPUB/PDF without synthesis')
@@ -23,8 +22,8 @@ def main():
     conversion = commands.add_parser('convert', help='Convert EPUB/PDF to a chaptered audiobook')
     conversion.add_argument('source', type=Path)
     conversion.add_argument('--data-dir', type=Path, default=Path(os.environ.get('PAGEVOICE_DATA', '.')))
-    conversion.add_argument('--engine', choices=REGISTRY, default='xtts')
-    conversion.add_argument('--voice', help='Built-in speaker name or consent-based clone:<profile-id>')
+    conversion.add_argument('--engine', choices=REGISTRY, default='edge')
+    conversion.add_argument('--voice', help='Edge voice identifier')
     conversion.add_argument('--language', choices=['en', 'es'], help='Override EPUB language, e.g. en or es')
     conversion.add_argument('--format', choices=['m4b', 'mp3'], default='m4b')
     conversion.add_argument('--device', choices=['auto', 'cpu', 'mps', 'cuda', 'rocm'], default='auto')
@@ -52,11 +51,7 @@ def main():
     progress.setLevel(logging.INFO)
     progress.propagate = False
     try:
-        if args.command == 'setup-xtts':
-            from TTS.api import TTS
-            TTS(model_name='tts_models/multilingual/multi-dataset/xtts_v2')
-            print('XTTS model ready for local narration and consent-based voice cloning.')
-        elif args.command == 'doctor':
+        if args.command == 'doctor':
             print(json.dumps(hardware(), indent=2))
         elif args.command == 'engines':
             for key, info in REGISTRY.items():

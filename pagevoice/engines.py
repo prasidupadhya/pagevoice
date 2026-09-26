@@ -17,9 +17,8 @@ class EngineInfo:
 
 
 REGISTRY = {
-    'xtts': EngineInfo('XTTSv2', False, 'Ana Florence'),
     'say': EngineInfo('macOS speech', False, 'Samantha'),
-    'edge': EngineInfo('Edge draft', True, 'en-US-AriaNeural'),
+    'edge': EngineInfo('Edge online', True, 'en-US-AriaNeural'),
 }
 
 
@@ -28,22 +27,10 @@ class Engine(Protocol):
 
 
 def hardware():
-    device = 'unverified (install torch to probe accelerators)'
-    torch_version = None
-    try:
-        import torch
-        torch_version = torch.__version__
-        device = 'cpu'
-        if torch.cuda.is_available():
-            device = 'rocm' if torch.version.hip else 'cuda'
-        elif torch.backends.mps.is_available():
-            device = 'mps'
-    except ImportError:
-        pass
     return {'system': platform.system(), 'machine': platform.machine(), 'python': platform.python_version(),
-            'device': device, 'torch': torch_version,
-            'recommendation': 'say for a fast offline draft; xtts for neural narration' if platform.system() == 'Darwin' else 'xtts',
-            'warning': 'Modern neural engines can be very slow on CPU.' if device == 'cpu' else 'Benchmark a chapter before rendering a whole book.',
+            'device': 'cpu', 'torch': None,
+            'recommendation': 'Edge online for narration; no local GPU or model download needed.',
+            'warning': 'Edge requires internet and sends narration text to Microsoft. Parsing and exports stay local.',
             'ffmpeg': shutil.which('ffmpeg'), 'ffprobe': shutil.which('ffprobe'),
             'tesseract': shutil.which('tesseract')}
 
@@ -51,7 +38,7 @@ def hardware():
 class MacSpeech:
     def __init__(self):
         if platform.system() != 'Darwin' or not shutil.which('say'):
-            raise ValueError('The say engine requires macOS. Choose xtts instead.')
+            raise ValueError('The say engine requires macOS. Choose Edge with explicit network consent instead.')
 
     def synthesize(self, text, destination, voice, language):
         # stdin avoids interpreting book text as command-line flags or a shell program.
@@ -60,6 +47,8 @@ class MacSpeech:
 
 
 class EdgeSpeech:
+    # Below the service message limit even for multibyte Spanish text.
+    max_text_bytes = 3500
     def __init__(self):
         try:
             import edge_tts
@@ -68,45 +57,21 @@ class EdgeSpeech:
         self.module = edge_tts
 
     def synthesize(self, text, destination, voice, language):
-        asyncio.run(asyncio.wait_for(self.module.Communicate(text, voice).save(str(destination)), timeout=180))
-
-
-class XttsSpeech:
-    def __init__(self, device, voices_dir=None):
-        self.voices_dir = voices_dir or Path("voices")
-        if not xtts_ready():
-            raise ValueError('XTTS model is not installed. Run .venv/bin/pagevoice setup-xtts and review the model terms, or select a built-in local voice.')
-        try:
-            from TTS.api import TTS
-        except ImportError as exc:
-            raise ValueError("Install XTTS with: .venv/bin/pip install -e '.[xtts]' (large dependencies).") from exc
-        selected = hardware()['device'] if device == 'auto' else device
-        if selected == 'rocm':
-            selected = 'cuda'  # PyTorch's ROCm backend uses this device spelling.
-        self.model = TTS(model_name='tts_models/multilingual/multi-dataset/xtts_v2', progress_bar=False).to(selected)
-
-    def synthesize(self, text, destination, voice, language):
-        from .voices import reference
-        options = {'speaker_wav': str(reference(self.voices_dir, voice))} if voice.startswith('clone:') else {'speaker': voice}
-        self.model.tts_to_file(text=text, file_path=str(destination), language=language, split_sentences=False, **options)
+        import tempfile
+        from .audio import normalize, trim_transport_padding
+        with tempfile.TemporaryDirectory(prefix='pagevoice-edge-') as folder:
+            raw = Path(folder) / 'speech.mp3'
+            asyncio.run(asyncio.wait_for(self.module.Communicate(text, voice).save(str(raw)), timeout=180))
+            normalize(raw, destination)
+            trim_transport_padding(destination)
 
 
 def create(name, device='auto', allow_network=False, voices_dir=None) -> Engine:
+    if name not in REGISTRY:
+        raise ValueError('This engine has been removed. Select Edge online and save settings before rendering.')
     if REGISTRY[name].online and not allow_network:
         raise ValueError('Edge sends book text to Microsoft. Pass --allow-network to opt in.')
-    if name == 'xtts':
-        return XttsSpeech(device, voices_dir)
     return {'say': MacSpeech, 'edge': EdgeSpeech}[name]()
-
-
-def xtts_ready():
-    """No download or license acceptance is performed by this probe."""
-    try:
-        from TTS.utils.manage import ModelManager
-        folder = Path(ModelManager(progress_bar=False).output_prefix) / 'tts_models--multilingual--multi-dataset--xtts_v2'
-        return all((folder / name).is_file() for name in ('model.pth', 'config.json', 'vocab.json', 'speakers_xtts.pth'))
-    except ImportError:
-        return False
 
 
 def builtin_voices(engine, curated=True):
@@ -132,22 +97,22 @@ def builtin_voices(engine, curated=True):
         available = {v['id'] for v in result}
         return [{'id':name,'language':lang,'gender':gender,'style':style} for name,lang,gender,style in choices if name in available]
     if engine == 'edge':
-        return [{'id': voice, 'language': language} for language, voices in (
-            ('en', ['en-US-AriaNeural', 'en-US-GuyNeural']),
-            ('es', ['es-ES-ElviraNeural', 'es-ES-AlvaroNeural'])) for voice in voices]
-    return [{'id': 'Ana Florence', 'language': language} for language in ('en','es')]
+        # Verified with Microsoft's live catalogue; ages are not published.
+        choices = [
+            ('en-US-AriaNeural','Aria','en','female','US','Clear, bright'),
+            ('en-US-JennyNeural','Jenny','en','female','US','Sincere, approachable'),
+            ('en-US-GuyNeural','Guy','en','male','US','Friendly, expressive'),
+            ('en-US-ChristopherNeural','Christopher','en','male','US','Deep, warm'),
+            ('es-ES-ElviraNeural','Elvira','es','female','ES','Bright, clear'),
+            ('es-MX-DaliaNeural','Dalia','es','female','MX','Bright, upbeat'),
+            ('es-ES-AlvaroNeural','Álvaro','es','male','ES','Confident, animated'),
+            ('es-MX-JorgeNeural','Jorge','es','male','MX','Deep, confident')]
+        return [dict(zip(('id','name','language','gender','region','description'),v)) for v in choices]
+    return []
 
 
 def validate_voice(engine, voice, language, voices_dir):
-    from .voices import reference, catalogue
     if voice.startswith('clone:'):
-        if engine != 'xtts':
-            raise ValueError('Cloned voices require XTTS.')
-        try:
-            reference(voices_dir, voice)
-        except (OSError, KeyError) as exc:
-            raise ValueError('Voice profile is missing or invalid.') from exc
-        if not any(v['id'] == voice and v['language'] == language for v in catalogue(voices_dir)):
-            raise ValueError('Voice profile language must match the book.')
-    elif not any(v['id'] == voice and v['language'] == language for v in builtin_voices(engine, curated=False)):
+        raise ValueError('Voice cloning is no longer supported. Choose an Edge voice.')
+    if not any(v['id'] == voice and v['language'] == language for v in builtin_voices(engine, curated=False)):
         raise ValueError('Choose an available voice for the selected engine and language.')

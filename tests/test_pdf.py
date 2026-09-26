@@ -100,3 +100,16 @@ def test_chapter_begins_after_biography_mid_page(tmp_path):
     assert [c.title for c in book.chapters]==['Author biography','Chapter One','Chapter Two']
     assert book.chapters[1].sentences==['An extraordinary voyage began.']
     assert analyze(book.to_dict())['start_chapter']==1
+
+
+def test_pdf_pages_do_not_break_a_continuing_sentence(tmp_path):
+    from reportlab.pdfgen.canvas import Canvas
+    path=tmp_path/'continuous.pdf';canvas=Canvas(str(path))
+    for line in ['The ship crossed the wide','and quiet harbour before','reaching the island. A new day began.']:
+        text=canvas.beginText(72,760);text.textLine('A reader edition');text.textLine(line);text.textLine('');text.textLine(str(canvas.getPageNumber()))
+        canvas.drawText(text);canvas.showPage()
+    canvas.save()
+    book=read_pdf(path,ocr='never')
+    assert len(book.chapters)==1
+    assert 'The ship crossed the wide and quiet harbour before reaching the island.' in book.chapters[0].sentences[0]
+    assert all(p['removed_margins'] for p in book.source_pages)

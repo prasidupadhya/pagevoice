@@ -55,8 +55,7 @@ serve()
                 project = response.json()['id']
                 wait(client, project)
                 base = f'/api/projects/{project}'
-                if engine == 'say':
-                    assert client.patch(base + '/settings', json={'engine':'say'}).status_code == 200
+                assert client.patch(base + '/settings', json={'engine':'say'}).status_code == 200
                 # Exercise both deterministic fake audio and actual system speech.
                 assert client.post(base + '/preview', json={'chapter':0}).status_code == 202
                 preview = wait(client, project)

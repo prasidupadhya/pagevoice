@@ -77,3 +77,16 @@ accent #fbbf24. Reading prose retains Georgia; controls/headings use local syste
 sans. Visible focus, reduced motion, narrow-screen stacking and keyboard radio
 selection remain available. The chapter map starts collapsed to keep the immediate
 listening action near the reader; uncertain source boundaries remain inspectable.
+
+
+## Current refinement — 26 September 2026
+
+Replaced amber with indigo/slate in both themes: light background #f5f6fb,
+ink #20253b, muted #565f78, accent #5143a9; dark background #141827,
+ink #f1f3fc, muted #b9c2dd, accent #b6b0ff. Book analysis now starts open:
+evidence, uncertain classification and corrections are immediately discoverable.
+Search results include neighbouring sentences and navigate to a focusable citation.
+Removed cloning/model installation controls and irrelevant GPU selection from the
+Edge-only website. No age claims are attached to voices without provider evidence.
+Validated React interactions and production build; no new screenshot/visual audit
+was performed for this refinement.
