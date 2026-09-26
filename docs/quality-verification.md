@@ -74,3 +74,17 @@ to EN/ES, and made the theme control icon-only with an accessible name and44px t
 Validation:22 frontend tests, four language tests, production build and live voice
 checks passed. A test now waits for asynchronous settings initialization before
 asserting listening availability; no production delay was introduced.
+
+## Punctuation-only Edge failure recovery
+
+A saved Spanish book stopped after153 completed chunks because the next saved
+sentence was a standalone period. Edge's no-audio response was reproducible from
+the manifest input, not evidence that the selected voice was invalid.
+The splitter now attaches trailing punctuation to the preceding sentence and keeps
+comma-led dialogue attribution with its quoted question. Legacy punctuation-only
+rows render as40ms separators without contacting Edge, preserving stable IDs and
+all prior audio. Actual text requests retry no-audio responses/timeouts up to three
+times, discarding partial downloads; persistent failures report resumable recovery.
+
+Targeted recovery, quality and parsing checks:25 tests passed. The running saved
+project resumed past the failed row with all196 saved chunk-record checksums unchanged (153 were current ready audio).

@@ -37,11 +37,18 @@ def split_sentences(text, language):
             if len(word)==1 and word.isupper() and following and following[0].isupper(): continue
             if word.lower() in {'etc','cf','incl'} and following and (following[0].islower() or following[0] in ',;:'): continue
             if punctuation.startswith('...') and following and following[0].islower(): continue
+        if text[end:].lstrip().startswith((',', ';', ':')): continue
         value = text[start:end].strip()
         if value: result.append(value)
         start = end
     if text[start:].strip(): result.append(text[start:].strip())
-    return result
+    joined = []
+    for part in result:
+        if joined and not any(c.isalnum() for c in part):
+            joined[-1] += part
+        else:
+            joined.append(part)
+    return joined
 
 
 def speech_windows(text, byte_limit):
