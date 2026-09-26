@@ -8,7 +8,7 @@ export function ListeningPlayer({state,t,onStart,onPause,onResume,onStop,disable
     <div className="listening-heading"><span className="listening-symbol"><Headphones size={24}/></span><div><p className="small muted">{status}</p><h3>{state.row?.title||title||t.playback}</h3></div>
       {active&&<button className="icon-button" onClick={onStop} aria-label={t.stopListening}><Square size={18}/></button>}
     </div>
-    {active&&<div className="buffer-progress"><div><span>{Math.min(state.ready,state.target)} / {state.target} {t.buffered}</span><span>{t.sentencePosition} {Math.min(state.cursor+1,state.total)} / {state.total}</span></div><progress max={state.target||20} value={Math.min(state.ready,state.target)} aria-label={t.buffering}/></div>}
+    {state.total>0&&<div className="buffer-progress"><div><span>{Math.min(state.ready,state.target)} / {state.target} {t.buffered}</span><span>{t.sentencePosition} {Math.min(state.cursor+1,state.total)} / {state.total}</span></div><progress max={state.target||20} value={Math.min(state.ready,state.target)} aria-label={t.buffering}/></div>}
     <div className="listening-controls">
       {['playing','buffering'].includes(state.status)?<button className="primary" onClick={onPause}>{state.status==='buffering'?<LoaderCircle size={18} className="spin"/>:<Pause size={18}/>} {t.pauseListening}</button>:
        ['paused','blocked','error'].includes(state.status)?<button className="primary" onClick={onResume}><Play size={18}/>{state.status==='blocked'?t.continueAudio:state.status==='error'?t.retry:t.resumeListening}</button>:

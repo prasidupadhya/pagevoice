@@ -16,7 +16,7 @@ def test_markup_boundaries():
     for invalid in ('[pause:-1]','[pause:nan]','[voice:X]oops','[/voice]oops','[voice:X][voice:Y]nested[/voice][/voice]','[pause:99]','[voice:]empty[/voice]'):
         with pytest.raises(ValueError):events(invalid)
     long=sentences('[voice:Long name]'+('word '*200)+'[/voice]','es')
-    assert all(len(row)<=220 for row in long)
+    assert len(long) == 1  # One editable sentence; synthesis windows are internal.
     assert ' '.join(event[1] for row in long for event in events(row) if event[0]=='text')==('word '*200).strip()
 
 

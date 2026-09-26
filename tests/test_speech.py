@@ -31,7 +31,7 @@ def test_speech_validation_and_lock(client,tmp_path):
     assert client.post('/v1/audio/speech',json=payload|{'instructions':'Whisper'}).status_code==400
     with FileLock(str(tmp_path/'jobs'/'.synthesis.lock')):
         assert client.post('/v1/audio/speech',json=payload).status_code==409
-    assert {m['id'] for m in client.get('/v1/models').json()['data']}=={'say','xtts','edge'}
+    assert {m['id'] for m in client.get('/v1/models').json()['data']}=={'say','edge'}
 
 
 @pytest.mark.smoke
@@ -46,8 +46,9 @@ def test_real_spanish_speech(tmp_path):
         assert client.post('/v1/audio/speech',json={'input':'Hello','model':'edge','voice':'en-US-AriaNeural'}).status_code==400
 
 
-def test_missing_clone_reports_actionable_error(tmp_path):
+def test_removed_xtts_and_cloning_are_rejected(tmp_path):
     with TestClient(create_app(tmp_path)) as client:
-        response=client.post('/v1/audio/speech',json={'model':'xtts','voice':'clone:'+'0'*32,'input':'Hello.'})
-        assert response.status_code==400
-        assert 'profile is missing' in response.json()['detail']
+        assert client.post('/v1/audio/speech',json={'model':'xtts','voice':'Ana Florence','input':'Hello.'}).status_code==422
+        result=client.post('/v1/audio/speech',json={'model':'edge','voice':'clone:'+'0'*32,'input':'Hello.'})
+        assert result.status_code==400 and 'no longer supported' in result.json()['detail']
+        assert [e['id'] for e in client.get('/api/engines').json()]==['edge']

@@ -13,17 +13,12 @@ def recording(seconds=6):
     return stream.getvalue()
 
 
-def test_voice_consent_duration_and_checksum(tmp_path):
+def test_retired_profile_upload_preserves_existing_recordings(tmp_path):
+    from pagevoice.voices import register
+    path=tmp_path/'sample.wav';path.write_bytes(recording())
+    profile=register(tmp_path/'voices',path,'Archived voice','es',True)
+    original=reference(tmp_path/'voices',profile['id']).read_bytes()
     with TestClient(create_app(tmp_path)) as client:
-        files={'file':('sample.wav',recording(),'audio/wav')}
-        assert client.post('/api/voices',files=files,data={'name':'Owned sample'}).status_code==400
-        short=client.post('/api/voices',files={'file':('sample.wav',recording(1),'audio/wav')},data={'name':'Owned sample','consent':'true'})
-        assert short.status_code==400
-        response=client.post('/api/voices',files=files,data={'name':'Owned sample','language':'es','consent':'true'})
-        assert response.status_code==201,response.text
-        record=response.json();assert record['consent'] and record['language']=='es'
-        path=reference(tmp_path/'voices',record['id']);assert path.is_file()
+        assert client.post('/api/voices',files={'file':('sample.wav',recording(),'audio/wav')}).status_code==410
+        assert reference(tmp_path/'voices',profile['id']).read_bytes()==original
         assert len(client.get('/api/voices').json())==1
-        path.write_bytes(b'corrupted')
-        with pytest.raises(ValueError,match='checksum'):reference(tmp_path/'voices',record['id'])
-        assert client.get('/api/voices').json()==[]

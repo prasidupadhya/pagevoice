@@ -37,6 +37,8 @@ def signature(state, identifier, text):
     settings.update(language=state['book']['language'], text=text,
                     revision=state.get('revisions', {}).get(identifier, 0), pipeline=3,
                     narration=voice_plan(state, identifier, text))
+    if state.get('engine') == 'edge' and state.get('narration_version', 1) >= 2: settings['narration_version'] = 2
+    if state.get('pace', 1.0) != 1.0: settings['pace'] = state['pace']
     return hashlib.sha256(json.dumps(settings, sort_keys=True).encode()).hexdigest()
 
 
@@ -70,7 +72,7 @@ def load(session):
         raise ValueError('Unsupported session schema.')
     if state.get('id') != session.name:
         raise ValueError('Session folder must match its recorded ID.')
-    if state.get('format') not in ('m4b', 'mp3') or state.get('engine') not in REGISTRY:
+    if state.get('format') not in ('m4b', 'mp3') or state.get('engine') not in {*REGISTRY, 'xtts'}:
         raise ValueError('Invalid session format or engine.')
     if state['schema'] == 1:
         # Adopt validated phase 1 audio once, then use fingerprints/checksums.
@@ -113,9 +115,17 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
             state['book'] = read_book(source, cache=session / 'pages', **options).to_dict()
             if state['book']['title'] == source.stem:
                 state['book']['title'] = Path(state.get('original_name', source.name)).stem
+        from rag import analyze, index_book
+        state['analysis'] = analyze(state['book'])
+        index_book(session / 'rag', state['book'])
+        if not (session / 'listening.json').exists():
+            from .listening import set_priority
+            set_priority(session, state['analysis']['start_chapter'])
+        if not prepare_only and state['engine'] not in REGISTRY:
+            raise ValueError('XTTS was removed. Select Edge online and save settings first.')
         book = session_book(state)
         book.language = language_code(book.language)
-        state['voice'] = state['voice'] or default_voice(state['engine'], book.language)
+        state['voice'] = state['voice'] or default_voice(state['engine'] if state['engine'] in REGISTRY else 'edge', book.language)
         if prepare_only:
             state['status'] = 'ready'
             state['output_current'] = was_current
@@ -153,7 +163,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                 target = session / 'chunks' / f'{identifier}-{generation}.wav'
                 raw = target.with_suffix('.raw.wav')
                 synthesize(adapter, text, raw, effective_voice(state, identifier), book.language, state.get('cast'))
-                normalize(raw, target)
+                normalize(raw, target, state.get("pace", 1.0))
                 raw.unlink()
                 records[identifier] = {'id': identifier, 'chapter': chapter_index,
                     'sentence': sentence_index, 'text': text, 'audio': str(target.relative_to(session)),
@@ -196,7 +206,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
         raise
 
 
-def new_session(source: Path, data: Path, engine='xtts', voice=None, language=None,
+def new_session(source: Path, data: Path, engine='edge', voice=None, language=None,
             output_format='m4b', device='auto', allow_network=False, ocr='auto', ocr_language=None):
     if source.suffix.lower() not in ('.epub', '.pdf'):
         raise ValueError('Supported book formats: EPUB and PDF.')
@@ -213,7 +223,7 @@ def new_session(source: Path, data: Path, engine='xtts', voice=None, language=No
     state = {'schema': 2, 'id': identifier, 'created': datetime.now(timezone.utc).isoformat(),
              'source_sha256': digest(data / 'uploads' / name), 'source_name': name, 'original_name': source.name,
              'parse_options': {'language': language, 'ocr': ocr, 'ocr_language': ocr_language},
-             'book': None, 'engine': engine, 'voice': voice,
+             'book': None, 'engine': engine, 'voice': voice, 'narration_version': 2,
              'device': device, 'format': output_format, 'status': 'pending', 'chunks': [], 'revisions': {}}
     with FileLock(str(session / '.lock'), timeout=0):
         save(session / 'session.json', state)
@@ -221,7 +231,7 @@ def new_session(source: Path, data: Path, engine='xtts', voice=None, language=No
         return session
 
 
-def convert(source: Path, data: Path, engine='xtts', voice=None, language=None,
+def convert(source: Path, data: Path, engine='edge', voice=None, language=None,
             output_format='m4b', device='auto', allow_network=False, ocr='auto', ocr_language=None):
     session = new_session(source, data, engine, voice, language, output_format, device, allow_network, ocr, ocr_language)
     return resume(session, allow_network)
@@ -257,8 +267,8 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
             except IndexError as exc:
                 raise ValueError('Sentence ID does not exist.') from exc
             replacement = clean(text) if text is not None else old
-            if not replacement or len(replacement) > 220:
-                raise ValueError('Replacement text must contain 1–220 characters.')
+            if not replacement or len(replacement) > 10000:
+                raise ValueError('Replacement text must contain 1–10000 characters.')
             events(replacement)
             state['book']['chapters'][chapter]['sentences'][sentence] = replacement
             state['revisions'][identifier] = state['revisions'].get(identifier, 0) + 1

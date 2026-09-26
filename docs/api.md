@@ -3,7 +3,7 @@
 Install with `./scripts/setup.sh`; run `.venv/bin/pagevoice-server`.
 Default address: http://127.0.0.1:8765. Override with `PAGEVOICE_PORT=8766` if
 occupied. Bind is loopback only. The app rejects foreign Host/Origin and
-cross-site fetch requests. No accounts or cloud service is required.
+cross-site fetch requests. No accounts are required. Edge narration sends text to Microsoft and requires Internet access.
 Use a single server process per data directory; a persistent worker lock
 prevents two queues from modifying the same local data.
 
@@ -11,7 +11,7 @@ prevents two queues from modifying the same local data.
 | --- | --- |
 | GET /api/health | Supported languages and health |
 | GET /api/hardware | Local acceleration/tool detection |
-| GET /api/engines | Engine catalogue, built-in voices, model readiness |
+| GET /api/engines | Edge catalogue and seven built-in voices |
 | GET /api/projects | Saved projects |
 | POST /api/projects | Multipart PDF/EPUB upload; language en/es, OCR auto/always/never |
 | GET /api/projects/{id} | Chapters, sentences, progress, current output |
@@ -37,32 +37,20 @@ receive the latest complete snapshot; no volatile event replay buffer is needed.
 
 Uploads are capped at 100 MB after multipart parsing. This is a trusted local app,
 not an Internet-facing upload service. Stop the server before editing state files.
-The UI never automatically accepts XTTS model terms. Use `pagevoice setup-xtts`
-interactively to install the model after reviewing its prompt. XTTS synthesis
-requests without cached model files fail promptly with setup instructions.
-
-## Verified
-
-- 22 pipeline/language tests passed after API refactoring.
-- 4 API tests passed: prepare→preview→render→regen→download, rejected inputs and
-  origins, durable queue recovery, and idempotent regeneration replay.
-- A real server on port 8766 received a Spanish EPUB over HTTP, emitted an SSE
-  snapshot, synthesized four chunks using Monica, and downloaded 143944 bytes
-  of M4B audio. The normal 8765 port was occupied; no unrelated process was stopped.
-- FastAPI 0.141.1, Uvicorn 0.53.0, python-multipart 0.0.32, Pydantic 2.13.5,
-  httpx 0.28.1. TestClient reports a non-failing httpx deprecation warning.
+XTTS and cloning are removed. Legacy projects/audio remain readable; reanalyze a
+copy and select Edge to prepare new audio. See [quality verification](quality-verification.md)
+for current checks and limitations.
 
 ## Voices, casting and compatible speech
 
-- `GET /api/voices`: consent-based local profiles.
-- `POST /api/voices`: multipart `file`, `name`, `language` (en/es), `consent=true`;
-  validates duration 5–15 seconds, size up to 20 MB, stores normalized PCM + checksum.
+- `GET /api/voices`: archived local profiles, retained for compatibility.
+- `POST /api/voices`: returns410; cloning uploads are removed.
 - `POST /api/projects/{id}/speakers/detect`: suggest sentence speakers while preserving
   existing manual assignments. Dialogue without a name becomes `Dialogue`.
 - `PATCH /api/projects/{id}/casting`: merge `{"cast":{"Mira":"Daniel"},
   "tags":{"0000-00001":"Mira"}}`. Tags refer to stable sentence IDs. Busy projects
   reject edits. Engine changes clear voice assignments but retain speaker tags.
-- `GET /v1/models`: local engine IDs; use `/api/engines` for install/model readiness.
+- `GET /v1/models`: Edge and the legacy macOS `say` diagnostic; the website exposes only Edge.
 - `POST /v1/audio/speech`: `model`, `input` (1–4096 characters), `voice`, optional
   `response_format` (mp3 default, wav, pcm, flac, aac, opus), `speed` (0.25–4),
   `language` (en default or es), `allow_network` (false default).
@@ -75,7 +63,7 @@ requests without cached model files fail promptly with setup instructions.
 ```sh
 curl http://127.0.0.1:8765/v1/audio/speech \
   -H 'Content-Type: application/json' \
-  -d '{"model":"say","voice":"Monica","language":"es","input":"Hola, bienvenidos.","response_format":"mp3"}' \
+  -d '{"model":"edge","voice":"es-ES-ElviraNeural","allow_network":true,"language":"es","input":"Hola, bienvenidos.","response_format":"mp3"}' \
   --output greeting.mp3
 ```
 
@@ -101,3 +89,25 @@ Project/SSE data includes `listening` (chapter, buffer=20, pausing), per-chapter
 have versioned WAV URLs and remain accessible while synthesis is running.
 The client enforces a 20-consecutive-sentence initial buffer and plays only forward.
 See [progressive listening verification](progressive-listening.md).
+
+## Source-grounded book analysis
+
+- `GET /api/projects/{id}/analysis?q=...`: optional zero-based `chapter` filter, structure evidence, suggested start,
+  review flags and up to eight cited local FTS5 search passages. Query length ≤500.
+- `POST /api/projects/{id}/reanalyze`: creates a separately prepared project from
+  the checksum-verified stored source. Keeps original audio, edits and project.
+- `PATCH /api/projects/{id}/settings`: adds `pace` (0.5–2.0, default1); changes
+  invalidate affected audio. The audio fingerprint includes non-default pace.
+- Regeneration text limit is now10,000 characters. Natural sentences stay intact;
+  model-sized word windows are synthesized and joined internally.
+- Sentence/chapter source anchors and section classification live in the project's
+  `analysis`; retrieval storage is `sessions/{id}/rag/book.sqlite`.
+
+- `PATCH /api/projects/{id}/analysis`: `{ "chapter":0, "title":"Chapter One",
+  "kind":"chapter", "start_here":true }`. Kind is `chapter`, `front_matter`,
+  `back_matter` or `unclassified`. Saves manual evidence and optionally sets listening
+  priority; retains sentence WAVs but invalidates exports containing old chapter titles.
+  Busy projects return409. This does not split or merge chapter boundaries.
+- Analysis version2 returns classification confidence/reasons, source excerpts,
+  cited search context and explicit partial-match labels. Retrieval is local FTS5,
+  not generative AI. New projects use narration version2; old cached audio is unchanged.

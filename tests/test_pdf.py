@@ -86,3 +86,30 @@ def test_parse_recovery_reuses_finished_pages(tmp_path, monkeypatch):
     pipeline.resume(session)
     assert calls == [1]
     assert json.loads((session / 'session.json').read_text())['status'] == 'complete'
+
+
+def test_chapter_begins_after_biography_mid_page(tmp_path):
+    from reportlab.pdfgen.canvas import Canvas
+    from rag import analyze
+    path=tmp_path/'late-chapter.pdf'
+    canvas=Canvas(str(path));text=canvas.beginText(72,760)
+    for line in ['Author biography','The author lived by the sea.','Chapter One','An extraor-','dinary voyage began.','Chapter Two','A new morning arrived.']:
+        text.textLine(line)
+    canvas.drawText(text);canvas.save()
+    book=read_pdf(path,ocr='never')
+    assert [c.title for c in book.chapters]==['Author biography','Chapter One','Chapter Two']
+    assert book.chapters[1].sentences==['An extraordinary voyage began.']
+    assert analyze(book.to_dict())['start_chapter']==1
+
+
+def test_pdf_pages_do_not_break_a_continuing_sentence(tmp_path):
+    from reportlab.pdfgen.canvas import Canvas
+    path=tmp_path/'continuous.pdf';canvas=Canvas(str(path))
+    for line in ['The ship crossed the wide','and quiet harbour before','reaching the island. A new day began.']:
+        text=canvas.beginText(72,760);text.textLine('A reader edition');text.textLine(line);text.textLine('');text.textLine(str(canvas.getPageNumber()))
+        canvas.drawText(text);canvas.showPage()
+    canvas.save()
+    book=read_pdf(path,ocr='never')
+    assert len(book.chapters)==1
+    assert 'The ship crossed the wide and quiet harbour before reaching the island.' in book.chapters[0].sentences[0]
+    assert all(p['removed_margins'] for p in book.source_pages)
