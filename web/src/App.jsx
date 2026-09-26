@@ -32,7 +32,7 @@ export function UploadDialog({initialFile,onClose,onCreated,t,locale}) {
   return <Modal title={t.upload} onClose={onClose} t={t}><form onSubmit={submit} className="form-stack">
     <label className="file-field">{t.file}<input required={!file} type="file" accept=".pdf,.epub" onChange={e=>setFile(e.target.files[0])}/></label>
     {file&&<p className="selected-file"><BookOpen size={18}/>{file.name}</p>}
-    <label>{t.bookLanguage}<select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">English</option><option value="es">Español (España)</option></select></label>
+    <label>{t.bookLanguage}<select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">EN</option><option value="es">ES</option></select></label>
     <label>{t.ocr}<select value={ocr} onChange={e=>setOcr(e.target.value)}><option value="auto">{t.auto}</option><option value="always">{t.always}</option><option value="never">{t.never}</option></select></label>
     <ErrorNotice error={error} t={t}/><div className="actions"><button type="button" className="secondary" onClick={onClose}>{t.cancel}</button><button className="primary" disabled={pending}>{pending?<LoaderCircle className="spin" size={18}/>:<Upload size={18}/>} {pending?t.pending:t.import}</button></div>
   </form></Modal>
@@ -170,8 +170,8 @@ export default function App() {
   return <>
     <a className="skip-link" href="#reading-area">{t.skip}</a>
     <header className="topbar"><a className="brand" href="#" onClick={e=>e.preventDefault()}><span className="brand-mark"><BookOpen size={23}/></span>PageVoice</a><span className="local-badge"><ShieldCheck size={16}/>{t.local}</span>
-      <div className="top-controls"><label className="language-control"><Globe size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={e=>setLocale(e.target.value)}><option value="en">English</option><option value="es">Español (España)</option></select></label>
-      <button className="theme-button" onClick={()=>setTheme(theme==='dark'?'light':'dark')} aria-label={`${t.theme}: ${theme==='dark'?t.light:t.dark}`} title={theme==='dark'?t.light:t.dark}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}<span>{theme==='dark'?t.light:t.dark}</span></button></div>
+      <div className="top-controls"><label className="language-control"><Globe size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={e=>setLocale(e.target.value)}><option value="en">EN</option><option value="es">ES</option></select></label>
+      <button className="theme-button" onClick={()=>setTheme(theme==='dark'?'light':'dark')} aria-label={`${t.theme}: ${theme==='dark'?t.light:t.dark}`} title={theme==='dark'?t.light:t.dark}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button></div>
     </header>
     <div className="app-layout">
       <aside className="library-rail"><div className="rail-heading"><h2>{t.books}</h2><button className="icon-button" aria-label={t.newBook} onClick={()=>openUpload()}><Plus size={19}/></button></div>
@@ -201,7 +201,7 @@ export default function App() {
 
             </section>
             <aside className="settings-panel"><div className="section-title"><Settings2 size={19}/><h2>{t.settings}</h2></div>
-              <fieldset disabled={busy} className="form-stack"><label>{t.engine}<select value={settings?.engine||'edge'} onChange={e=>updateSettings('engine',e.target.value)}>{engines.map(e=><option key={e.id} value={e.id} disabled={!e.installed}>{e.id==='say'?t.localVoice:t.edge}{!e.installed?' — '+t.unavailable:''}</option>)}</select></label>
+              <fieldset disabled={busy} className="form-stack">
                 <fieldset className="voice-cards"><legend>{t.voice}</legend>{voiceOptions.map(v=><label key={v.id} className={settings?.voice===v.id?'chosen':''}><input type="radio" name="narrator" value={v.id} checked={settings?.voice===v.id} onChange={()=>updateSettings('voice',v.id)}/><span><strong>{v.name}</strong><small>{v.gender?t[v.gender]:''}{v.region?' · '+v.region:''}</small></span></label>)}</fieldset>
                 <button type="button" className="secondary" disabled={pending||busy||!readyEngine||(settings?.engine==='edge'&&!allowNetwork)} onClick={previewVoice}><Play size={16}/>{t.voicePreview}</button>
                 <label>{t.pace} <strong>{settings?.pace||1}×</strong><input type="range" min="0.5" max="2" step="0.05" value={settings?.pace||1} onChange={e=>updateSettings('pace',Number(e.target.value))}/><span className="small muted">{t.paceHint}</span></label>

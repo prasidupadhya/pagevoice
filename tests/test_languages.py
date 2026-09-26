@@ -58,8 +58,12 @@ def test_spanish_scanned_pdf(tmp_path):
 def test_edge_voice_regions():
     from pagevoice.engines import builtin_voices, validate_voice
     voices = builtin_voices('edge')
-    assert len(voices) == 7
+    assert len(voices) == 11
     assert {v['region'] for v in voices if v['language']=='es'} == {'ES'}
     assert {v['region'] for v in voices if v['language']=='en'} <= {'US','GB'}
     with pytest.raises(ValueError, match='available voice'):
         validate_voice('edge', 'es-MX-JorgeNeural', 'es', None)
+
+    for region in ('US', 'GB'):
+        for gender in ('female', 'male'):
+            assert len([v for v in voices if v['region']==region and v['gender']==gender]) == 2

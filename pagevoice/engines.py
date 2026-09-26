@@ -103,6 +103,10 @@ def builtin_voices(engine, curated=True):
             ('en-US-JennyNeural','Jenny','en','female','US','Sincere, approachable'),
             ('en-US-GuyNeural','Guy','en','male','US','Friendly, expressive'),
             ('en-US-ChristopherNeural','Christopher','en','male','US','Deep, warm'),
+            ('en-GB-SoniaNeural','Sonia','en','female','GB','British English'),
+            ('en-GB-LibbyNeural','Libby','en','female','GB','British English'),
+            ('en-GB-RyanNeural','Ryan','en','male','GB','British English'),
+            ('en-GB-ThomasNeural','Thomas','en','male','GB','British English'),
             ('es-ES-ElviraNeural','Elvira','es','female','ES','Bright, clear'),
             ('es-ES-XimenaNeural','Ximena','es','female','ES','Spanish (Spain)'),
             ('es-ES-AlvaroNeural','Álvaro','es','male','ES','Confident, animated')]

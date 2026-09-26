@@ -64,11 +64,12 @@ reanalyzed; XTTS cannot synthesize or be selected in current settings.
 
 ## Voices
 
-Seven Edge voices are offered, filtered to the book's language:
+Eleven Edge voices are offered, filtered to the book's language:
 
 | Language | Female voices | Male voices |
 |---|---|---|
 | English (US) | Aria, Jenny | Guy, Christopher |
+| British English | Sonia, Libby | Ryan, Thomas |
 | Spanish | Elvira, Ximena (Spain) | Álvaro (Spain) |
 
 The catalogue was checked against the live service. It currently exposes only one

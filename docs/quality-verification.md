@@ -60,3 +60,17 @@ this is not an interior sentence interruption or a claim of zero natural pauses.
 
 Follow-up full regression:73 Python tests passed (same non-failing Starlette
 warning),22 frontend tests passed, and the production build passed.
+
+## English regional catalogue and compact controls
+
+Added Sonia/Libby and Ryan/Thomas from the live British English catalogue, alongside
+the existing two female/two male American voices. All11 voices produced valid audio
+in a live diagnostic. Libby's sample retained a0.404s interior pause and Ximena a
+0.433s terminal diagnostic; natural pauses are not removed indiscriminately.
+Spain still has only Elvira, Ximena and Álvaro in the queried Edge catalogue.
+
+Removed the single-option speech-engine selector, shortened both language selectors
+to EN/ES, and made the theme control icon-only with an accessible name and44px target.
+Validation:22 frontend tests, four language tests, production build and live voice
+checks passed. A test now waits for asynchronous settings initialization before
+asserting listening availability; no production delay was introduced.

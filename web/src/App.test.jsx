@@ -19,6 +19,9 @@ describe('reader interactions',()=>{
     server();render(<App/>);await screen.findByRole('heading',{name:'The Quiet Harbour'})
     expect(screen.queryByRole('button',{name:'Add your own voice'})).toBeNull()
     expect(screen.queryByText(/XTTS/)).toBeNull()
+    expect(screen.queryByLabelText(messages.en.engine)).toBeNull()
+    expect([...screen.getByLabelText('Interface language').options].map(o=>o.text)).toEqual(['EN','ES'])
+    expect(screen.getByRole('button',{name:`${messages.en.theme}: ${messages.en.dark}`}).textContent).toBe('')
   })
   it('edits and saves exactly the selected sentence',async()=>{
     const saved=vi.fn();render(<SentenceEditor row={{text:'Original sentence.'}} t={messages.en} onClose={()=>{}} onSave={saved} busy={false}/>);const user=userEvent.setup()
@@ -54,7 +57,7 @@ it('Listen from here requests consent, saves migrated voice settings and starts 
  vi.stubGlobal('fetch',vi.fn(async path=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(8),json:async()=>path==='/api/projects'?[book]:path==='/api/engines'?[{id:'edge',installed:true,voices:[{id:'es-ES-ElviraNeural',language:'es'}]}]:path==='/api/voices'?[]:path==='/api/hardware'?{device:'cpu'}:(path.endsWith('/settings')||path.endsWith('/listen'))?{...book,voice:'es-ES-ElviraNeural'}:book})))
  render(<App/>);await screen.findByRole('heading',{name:book.title})
  const buttons=screen.getAllByRole('button',{name:'Listen from here'})
- expect(buttons[0].disabled).toBe(false)
+ await waitFor(()=>expect(buttons[0].disabled).toBe(false))
  await userEvent.click(buttons[0])
  expect(fetch.mock.calls.some(([path])=>path.endsWith('/listen'))).toBe(false)
  await userEvent.click(screen.getByRole('button',{name:'Allow and start listening'}))
