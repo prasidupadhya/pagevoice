@@ -16,6 +16,8 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('doctor', help='Report hardware and dependencies')
     commands.add_parser('engines', help='List engine capabilities')
+    deletion = commands.add_parser('delete', help='Delete a project and its owned files')
+    deletion.add_argument('session', type=Path)
     inspect = commands.add_parser('inspect', help='Parse EPUB/PDF without synthesis')
     inspect.add_argument('source', type=Path)
     inspect.add_argument('--language', choices=['en', 'es'])
@@ -62,6 +64,27 @@ def main():
             resume(args.session, args.allow_network)
         elif args.command == 'regen':
             regenerate(args.session, args.sentence_id, args.text, args.allow_network)
+        elif args.command == 'delete':
+            import time
+            from filelock import FileLock, Timeout
+            from .trash import Trash, project_id
+            path=args.session.absolute()
+            if path.parent.name!='sessions' or path.is_symlink():
+                raise ValueError('Pass sessions/<project-id>, without symlinks.')
+            project_id(path.name)
+            trash=Trash(path.parent.parent)
+            trash.request(path.name)
+            # A live server owns cancellation. Otherwise acquire exclusive worker
+            # ownership and finish locally; never compete with a running worker.
+            (path.parent.parent/'jobs').mkdir(exist_ok=True)
+            owner=FileLock(str(path.parent.parent/'jobs'/'.worker.lock'),timeout=0)
+            while True:
+                try:
+                    with owner: trash.sweep()
+                except Timeout: pass
+                if not trash.marker(path.name).exists(): break
+                time.sleep(.2)
+            print('Project deleted.')
         elif args.command == 'sentences':
             state = load(args.session.resolve())
             if not state.get('book'):

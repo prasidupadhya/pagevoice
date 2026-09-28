@@ -243,6 +243,8 @@ def resume(session: Path, allow_network=False, prepare_only=False, chapter_index
         raise ValueError('Session not found; pass the session directory.')
     try:
         with FileLock(str(session / '.lock'), timeout=0):
+            if (session.parent.parent/'trash'/session.name/'deletion.json').exists():
+                raise ValueError('Project is being deleted.')
             return _execute(session, load(session), allow_network, prepare_only, chapter_index_only, priority)
     except Timeout as exc:
         raise ValueError('This session is already being modified by another process.') from exc
@@ -256,6 +258,8 @@ def regenerate(session: Path, identifier: str, text=None, allow_network=False, r
         raise ValueError('Use a sentence ID such as 0000-00001 (zero-based chapter/sentence).')
     try:
         with FileLock(str(session / '.lock'), timeout=0):
+            if (session.parent.parent/'trash'/session.name/'deletion.json').exists():
+                raise ValueError('Project is being deleted.')
             state = load(session)
             if request_id and request_id in state.get('applied_requests', []):
                 return _execute(session, state, allow_network, priority=priority)

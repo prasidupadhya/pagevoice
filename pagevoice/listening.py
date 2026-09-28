@@ -41,6 +41,8 @@ def paused(session):
 
 
 def next_priority(session):
+    if (session.parent.parent/'trash'/session.name/'deletion.json').exists():
+        raise PreparationPaused('Project deletion requested.')
     if paused(session):
         raise PreparationPaused('Preparation paused at a sentence boundary.')
     return priority(session)

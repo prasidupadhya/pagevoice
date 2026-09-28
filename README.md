@@ -183,7 +183,16 @@ continues preparing the audiobook. Existing Mexican voice selections migrate to
 Spain's default when settings are next saved; existing audio is preserved on disk.
 
 
-Edge permission is checked by default in the reader at the user's request. The
-Microsoft text-transfer notice remains visible and permission can be unchecked.
-Starting playback then requests permission again if new online audio is needed.
-CLI/API requests still require their explicit network flag.
+Edge permission is unchecked by default. Narration requires explicitly selecting
+the Microsoft text-transfer checkbox or confirming the online narration dialog.
+CLI/API requests require their explicit network flag.
+
+## Remove a book
+
+Use **Remove book** in the library or reader. The dialog lists owned data and byte
+usage; when generated audio exists, type DELETE (ELIMINAR in Spanish). An active
+job finishes its current sentence before files move to trash. **Undo** is available
+for eight seconds after the move; then the background worker permanently purges it.
+Shared uploads stay until no remaining live or Undo project references them.
+Your original file outside PageVoice and shared server logs are never deleted.
+CLI: `pagevoice delete sessions/<id>` waits for the same safe deletion/purge.

@@ -20,3 +20,12 @@ def save(path: Path, data):
         stream.flush()
         os.fsync(stream.fileno())
     temporary.replace(path)
+    sync_directory(path.parent)
+
+
+def sync_directory(path):
+    """Persist rename directory entries on the local POSIX filesystem."""
+    if os.name == 'posix':
+        descriptor = os.open(path, os.O_RDONLY)
+        try: os.fsync(descriptor)
+        finally: os.close(descriptor)

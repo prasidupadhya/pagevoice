@@ -10,6 +10,7 @@ from filelock import FileLock
 
 from .pipeline import resume, regenerate
 from .storage import save
+from .trash import Trash
 from .listening import next_priority, PreparationPaused
 
 ACTIVE = {'queued', 'running'}
@@ -21,6 +22,7 @@ class Jobs:
         self.folder = self.root / 'jobs'
         self.folder.mkdir(parents=True, exist_ok=True)
         self.records = {}
+        self.trash = Trash(self.root)
         self.guard = RLock()
         self.queue = Queue()
         self.stop = Event()
@@ -29,9 +31,12 @@ class Jobs:
 
     def start(self):
         self.owner.acquire()
+        self.trash.sweep()
         for path in sorted(self.folder.glob('*.json')):
             try:
                 record = json.loads(path.read_text())
+                if self.trash.hidden(record['project']) or not (self.root/'sessions'/record['project']/'session.json').exists():
+                    path.unlink(missing_ok=True);continue
                 self.records[record['id']] = record
                 if record['status'] in ACTIVE:
                     record['status'] = 'queued'
@@ -55,6 +60,8 @@ class Jobs:
 
     def submit(self, project, kind, **options):
         with self.guard:
+            if self.trash.hidden(project):
+                raise ValueError("Project is being deleted.")
             if self.busy(project):
                 raise ValueError('This project already has a queued or running job.')
             record = {'id': uuid.uuid4().hex, 'project': project, 'kind': kind,
@@ -69,9 +76,14 @@ class Jobs:
             try:
                 identifier = self.queue.get(timeout=.2)
             except Empty:
+                with self.guard: self.trash.sweep()
                 continue
             with self.guard:
-                record = self.records[identifier]
+                record = self.records.get(identifier)
+                if not record or self.trash.hidden(record['project']) or record['status'] != 'queued':
+                    self.queue.task_done()
+                    self.trash.sweep()
+                    continue
                 record['status'] = 'running'
                 save(self.folder / f'{identifier}.json', record)
             try:
@@ -93,7 +105,9 @@ class Jobs:
                 record.update(status='failed', error=str(exc), traceback=traceback.format_exc())
             finally:
                 with self.guard:
+                    if self.trash.hidden(record['project']): record['status']='cancelled'
                     record['finished'] = time.time()
                     save(self.folder / f'{identifier}.json', record)
+                    self.trash.sweep()
                 self.queue.task_done()
         self.owner.release()

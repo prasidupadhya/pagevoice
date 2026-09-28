@@ -20,6 +20,7 @@ from .jobs import Jobs
 from .pipeline import new_session, load, signature, reusable
 from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
 from .storage import save, digest
+from .trash import safe_path
 from .languages import default_voice
 from .voices import catalogue
 from .narration import detect
@@ -104,7 +105,8 @@ def create_app(data=None):
     def session(project):
         if not re.fullmatch(r'[0-9a-f]{32}', project):
             raise HTTPException(404, 'Project not found.')
-        path = root / 'sessions' / project
+        if jobs.trash.hidden(project): raise HTTPException(404, 'Project not found.')
+        path = safe_path(root, f'sessions/{project}')
         if not (path / 'session.json').is_file():
             raise HTTPException(404, 'Project not found.')
         return path
@@ -152,20 +154,21 @@ def create_app(data=None):
 
     @app.post('/api/projects/{project}/reanalyze', status_code=202)
     def reanalyze(project: str):
-        state = load(session(project))
-        source = root / 'uploads' / state['source_name']
-        if digest(source) != state['source_sha256']: raise HTTPException(409, 'Source checksum mismatch.')
-        engine = state['engine'] if state['engine'] in REGISTRY else 'edge'
-        voice = state['voice'] if engine == state['engine'] else None
-        path = new_session(source, root, engine=engine, voice=voice,
-                           language=(state.get('book') or {}).get('language'), output_format=state['format'],
-                           device=state['device'], ocr=state['parse_options'].get('ocr', 'auto'),
-                           ocr_language=state['parse_options'].get('ocr_language'))
-        fresh = load(path)
-        fresh.update(original_name=state.get('original_name', source.name), pace=state.get('pace', 1.0))
-        save(path / 'session.json', fresh)
-        jobs.submit(path.name, 'prepare')
-        return present(path.name)
+        with jobs.guard, jobs.trash.lock:
+            state = load(session(project))
+            source = safe_path(root, 'uploads/'+state['source_name'])
+            if digest(source) != state['source_sha256']: raise HTTPException(409, 'Source checksum mismatch.')
+            engine = state['engine'] if state['engine'] in REGISTRY else 'edge'
+            voice = state['voice'] if engine == state['engine'] else None
+            path = new_session(source, root, engine=engine, voice=voice,
+                               language=(state.get('book') or {}).get('language'), output_format=state['format'],
+                               device=state['device'], ocr=state['parse_options'].get('ocr', 'auto'),
+                               ocr_language=state['parse_options'].get('ocr_language'))
+            fresh = load(path)
+            fresh.update(original_name=state.get('original_name', source.name), pace=state.get('pace', 1.0))
+            save(path / 'session.json', fresh)
+            jobs.submit(path.name, 'prepare')
+            return present(path.name)
 
     @app.get('/api/projects/{project}/analysis')
     def book_analysis(project: str, q: str = '', chapter: int | None = None):
@@ -175,7 +178,9 @@ def create_app(data=None):
         if not state.get('book'): raise HTTPException(409, 'Book is still being prepared.')
         if len(q) > 500: raise HTTPException(422, 'Search is limited to 500 characters.')
         if chapter is not None and not 0 <= chapter < len(state['book']['chapters']): raise HTTPException(422, 'Chapter is out of range.')
-        return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q, chapter) if q.strip() else []}
+        with FileLock(str(path / '.lock'), timeout=0):
+            session(project)
+            return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q, chapter) if q.strip() else []}
 
     @app.patch('/api/projects/{project}/analysis')
     def correct_analysis(project: str, correction: AnalysisEdit):
@@ -221,10 +226,10 @@ def create_app(data=None):
     @app.get('/api/projects')
     def projects():
         result = []
-        for path in sorted((root / 'sessions').glob('*/session.json'), key=lambda p:p.stat().st_mtime, reverse=True):
+        for path in sorted((root / 'sessions').glob('*/session.json'), reverse=True):
             try:
                 result.append(present(path.parent.name))
-            except (ValueError, KeyError, HTTPException):
+            except (OSError, ValueError, KeyError, HTTPException):
                 continue
         return result
 
@@ -251,6 +256,39 @@ def create_app(data=None):
             save(path / 'session.json', state)
         jobs.submit(path.name, 'prepare')
         return present(path.name)
+
+    @app.get('/api/projects/{project}/deletion')
+    def deletion_info(project: str):
+        with jobs.guard, jobs.trash.lock:
+            session(project)
+            return jobs.trash.inventory(project)
+
+    @app.delete('/api/projects/{project}', status_code=202)
+    async def delete_project(project: str):
+        with jobs.guard:
+            session(project)
+            jobs.trash.request(project)
+            for record in jobs.records.values():
+                if record['project']==project and record['status'] in ('queued','paused'):
+                    record['status']='cancelled'
+                    save(jobs.folder/(record['id']+'.json'),record)
+        # Wait asynchronously for the worker to stop at a safe boundary. The worker
+        # sweeps the durable trash even if this HTTP client disconnects.
+        while True:
+            with jobs.guard:
+                data=jobs.trash.read(project)
+                if data['state']=='trashed': return data
+            await asyncio.sleep(.1)
+
+    @app.post('/api/trash/{project}/restore')
+    def restore_project(project: str):
+        with jobs.guard:
+            try: jobs.trash.restore(project)
+            except FileNotFoundError: raise HTTPException(404, 'Deleted project not found.')
+            for record in jobs.records.values():
+                if record['project']==project and record['status'] in ('queued','running','cancelled'):
+                    record['status']='paused'
+        return present(project)
 
     @app.get('/api/projects/{project}')
     def project_detail(project: str):
@@ -396,7 +434,11 @@ def create_app(data=None):
         async def stream():
             previous = None
             while not await request.is_disconnected():
-                data = json.dumps(present(project), ensure_ascii=False)
+                try:
+                    data = json.dumps(await asyncio.to_thread(present, project), ensure_ascii=False)
+                except (HTTPException, FileNotFoundError):
+                    yield 'event: deleted\ndata: {}\n\n'
+                    break
                 if data != previous:
                     yield f'event: progress\ndata: {data}\n\n'
                     previous = data

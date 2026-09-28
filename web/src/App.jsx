@@ -1,6 +1,7 @@
-import React, {useEffect, useRef, useState} from 'react'
-import {BookOpen, Headphones, Plus, Upload, Sun, Moon, Globe, Play, Download, Settings2, Mic, X, Check, RefreshCw, Pencil, Volume2, AlertCircle, ChevronRight, AudioLines, ShieldCheck, LoaderCircle} from 'lucide-react'
+import React, {useEffect, useLayoutEffect, useRef, useState} from 'react'
+import {BookOpen, Headphones, Plus, Upload, Sun, Moon, Globe, Play, Download, Settings2, Mic, X, Check, RefreshCw, Pencil, Volume2, AlertCircle, ChevronRight, AudioLines, ShieldCheck, LoaderCircle, Trash2} from 'lucide-react'
 import {api} from './api'
+import {DeleteBook,UndoDeletion} from './DeleteBook'
 import {Casting} from './Casting'
 import {Listener,forwardRows,bufferStatus} from './listener'
 import {BookAnalysis} from './BookAnalysis'
@@ -10,7 +11,7 @@ import {messages, preference, persist} from './i18n'
 
 export function Modal({title,onClose,children,t}) {
   const ref=useRef(null)
-  useEffect(()=>{ref.current?.showModal();return()=>ref.current?.close()},[])
+  useEffect(()=>{const previous=document.activeElement;const dialog=ref.current;dialog?.showModal();return()=>{dialog?.close();if(previous?.isConnected)previous.focus()}},[])
   return <dialog ref={ref} aria-label={title} onCancel={e=>{e.preventDefault();onClose()}}>
     <header className="modal-heading"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label={t.close}><X size={20}/></button></header>{children}
   </dialog>
@@ -63,8 +64,13 @@ export default function App() {
   const [projects,setProjects]=useState([]),[activeId,setActiveId]=useState(''),[project,setProject]=useState(null),[engines,setEngines]=useState([])
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState(''),[disconnected,setDisconnected]=useState(false),[pending,setPending]=useState(false)
   const [upload,setUpload]=useState(false),[uploadFile,setUploadFile]=useState(null),[editor,setEditor]=useState(null),[chapter,setChapter]=useState(0),[playing,setPlaying]=useState(null)
-  const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(true)
+  const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(false)
   const [listenConsent,setListenConsent]=useState(null)
+  const [deleting,setDeleting]=useState(null),[undo,setUndo]=useState([])
+  const removed=useRef(new Set()),shelf=useRef(null),positions=useRef(new Map())
+  useLayoutEffect(()=>{
+    const next=new Map();shelf.current?.querySelectorAll('[data-book]').forEach(node=>{const box=node.getBoundingClientRect(),previous=positions.current.get(node.dataset.book);next.set(node.dataset.book,box);if(previous&&!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)node.animate?.([{transform:`translate(${previous.x-box.x}px,${previous.y-box.y}px)`},{transform:'none'}],{duration:200,easing:'ease-out'})});positions.current=next
+  },[projects])
   const audio=useRef(null),intent=useRef(null),listener=useRef(null),listenRequest=useRef(0)
   const [listenStart,setListenStart]=useState(0),[listenState,setListenState]=useState({status:'idle',cursor:0,ready:0,target:20,total:0})
   useEffect(()=>{const engine=new Listener(setListenState);listener.current=engine;return()=>{engine.onChange=()=>{};engine.dispose()}},[activeId])
@@ -82,7 +88,7 @@ export default function App() {
   useEffect(()=>{
     if(!activeId){setProject(null);return}persist('pagevoice-project',activeId);setChapter(0);setPlaying(null);setProject(null);setDirty(false);setDisconnected(false)
     let closed=false,initial=true
-    function update(p){if(closed)return;if(initial){initial=false;setChapter(p.listening?.chapter||0);setListenStart(p.listening?.chapter||0)}setProject(p);setProjects(all=>all.some(x=>x.id===p.id)?all.map(x=>x.id===p.id?p:x):[p,...all])
+    function update(p){if(closed||removed.current.has(p.id))return;if(initial){initial=false;setChapter(p.listening?.chapter||0);setListenStart(p.listening?.chapter||0)}setProject(p);setProjects(all=>all.some(x=>x.id===p.id)?all.map(x=>x.id===p.id?p:x):[p,...all])
       if(intent.current?.project===p.id && p.job?.status==='complete') {
         const action=intent.current;intent.current=null
         if(action.kind==='preview'&&p.chapters[action.chapter]?.preview)setPlaying({src:p.chapters[action.chapter].preview+'?v='+p.job.id,label:p.chapters[action.chapter].title})
@@ -92,6 +98,7 @@ export default function App() {
     api('/api/projects/'+activeId).then(update).catch(e=>setError(e.message))
     const events=new EventSource(`/api/projects/${activeId}/events`)
     events.addEventListener('progress',e=>{setDisconnected(false);update(JSON.parse(e.data))})
+    events.addEventListener('deleted',()=>{events.close();removeFromLibrary(activeId)})
     events.onopen=()=>setDisconnected(false);events.onerror=()=>setDisconnected(true)
     return()=>{closed=true;events.close()}
   },[activeId])
@@ -105,6 +112,11 @@ export default function App() {
   const canListenDuringJob=['render','listen','regen'].includes(project?.job?.kind)
   const cachedListening=bufferStatus(forwardRows(project,chapter)).canStart
   const listenDisabled=pending||!selectedChapter||(!readyEngine&&!cachedListening)||(busy&&!canListenDuringJob)
+  function stopDeleted(id){if(id===activeId){listenRequest.current++;intent.current=null;listener.current?.reset();audio.current?.pause();setPlaying(null)}}
+  function removeFromLibrary(id){removed.current.add(id);stopDeleted(id);setProjects(all=>all.filter(p=>p.id!==id));setActiveId(current=>current===id?'':current)}
+  function deleted(receipt){removeFromLibrary(receipt.id);setDeleting(null);setUndo(all=>[...all,receipt])}
+  function expired(id){setUndo(all=>all.filter(p=>p.id!==id))}
+  function restored(p){removed.current.delete(p.id);setProjects(all=>[p,...all.filter(x=>x.id!==p.id)]);expired(p.id);chooseProject(p.id)}
   function chooseProject(id){listenRequest.current++;setListenConsent(null);setActiveId(id);setError('');setNotice('')}
   function openUpload(file=null){setUploadFile(file);setUpload(true)}
   function updateSettings(key,value){setSettings(s=>{const next={...s,[key]:value};if(key==='engine')next.voice=engines.find(e=>e.id===value)?.voices.find(v=>v.language===project.language)?.id||'';return next});setDirty(true)}
@@ -175,7 +187,7 @@ export default function App() {
     </header>
     <div className="app-layout">
       <aside className="library-rail"><div className="rail-heading"><h2>{t.books}</h2><button className="icon-button" aria-label={t.newBook} onClick={()=>openUpload()}><Plus size={19}/></button></div>
-        <nav aria-label={t.library} className="project-list">{projects.map(p=><button key={p.id} className={`project-link ${p.id===activeId?'selected':''}`} onClick={()=>chooseProject(p.id)} aria-current={p.id===activeId?'page':undefined}><BookOpen size={19}/><span><strong>{p.title}</strong><small>{p.language==='es'?'Español':'English'}</small></span>{p.id===activeId&&<ChevronRight size={15}/>}</button>)}</nav>
+        <nav ref={shelf} aria-label={t.library} className="project-list">{projects.map(p=><div key={p.id} data-book={p.id} className="library-entry"><button className={`project-link ${p.id===activeId?'selected':''}`} onClick={()=>chooseProject(p.id)} aria-current={p.id===activeId?'page':undefined}><BookOpen size={19}/><span><strong>{p.title}</strong><small>{p.language==='es'?'Español':'English'}</small></span>{p.id===activeId&&<ChevronRight size={15}/>}</button><button className="icon-button" aria-label={`${t.deleteBook}: ${p.title}`} onClick={()=>setDeleting(p)}><Trash2 size={17}/></button></div>)}</nav>
         {!projects.length&&<p className="small muted rail-empty">{t.noBooks}</p>}
         <div className="rail-bottom"><p className="small muted privacy-note"><ShieldCheck size={16}/>{t.localHint}</p></div>
       </aside>
@@ -183,7 +195,7 @@ export default function App() {
         <ol className="workflow" aria-label={t.workflow}><li className={!project?'current':'done'}><span>1</span>{t.stepUpload}</li><li className={project&&!busy&&!project.output?'current':''}><span>2</span>{t.stepVoice}</li><li className={busy||project?.output?'current':''}><span>3</span>{t.stepListen}</li></ol>
         <ErrorNotice error={error} t={t}/>{notice&&<div className="notice success" role="status"><Check size={18}/>{notice}</div>}{disconnected&&<div className="notice" role="status"><RefreshCw size={17}/>{t.reconnecting}</div>}
         {loading?<div className="loading-state"><LoaderCircle className="spin"/>{t.loading}</div>:!project?<section className="empty-library"><span className="empty-symbol"><Headphones size={40}/></span><h1>{t.empty}</h1><p>{t.emptyHint}</p><button className="dropzone" onClick={()=>openUpload()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();openUpload(e.dataTransfer.files[0])}}><Upload size={28}/><strong>{t.choose}</strong><span>PDF / EPUB</span></button>{error&&<button className="secondary" onClick={refresh}>{t.retry}</button>}</section>:<>
-          <section className="book-heading"><div><p className="book-author">{project.author||t.library}</p><h1>{project.title}</h1><p className="book-meta"><span>{project.language==='es'?'Español':'English'}</span><span>{project.chapters.length} {t.chapters.toLowerCase()}</span><span className={`status-label ${busy?'active':''}`}>{busy?<LoaderCircle className="spin" size={14}/>:project.output?<Check size={14}/>:<BookOpen size={14}/>} {statusText(project,t)}</span></p></div><button className="secondary compact" onClick={()=>openUpload()}><Plus size={18}/>{t.newBook}</button></section>
+          <section className="book-heading"><button className="icon-button" aria-label={t.deleteBook} onClick={()=>setDeleting(project)}><Trash2 size={19}/></button><div><p className="book-author">{project.author||t.library}</p><h1>{project.title}</h1><p className="book-meta"><span>{project.language==='es'?'Español':'English'}</span><span>{project.chapters.length} {t.chapters.toLowerCase()}</span><span className={`status-label ${busy?'active':''}`}>{busy?<LoaderCircle className="spin" size={14}/>:project.output?<Check size={14}/>:<BookOpen size={14}/>} {statusText(project,t)}</span></p></div><button className="secondary compact" onClick={()=>openUpload()}><Plus size={18}/>{t.newBook}</button></section>
           {(project.error||project.job?.error)&&<ErrorNotice error={project.job?.error||project.error} t={t}/>}
           {project.source_pages?.some(p=>p.warning)&&<details className="notice"><summary>{t.pageWarning}</summary>{project.source_pages.filter(p=>p.warning).map(p=><p key={p.page}>{p.page}: {p.warning}</p>)}</details>}
           {!project.chapters.length?<section className="preparing-panel"><BookOpen size={35}/><h2>{busy?t.preparing:t.prepareError}</h2><p>{t.preparingHint}</p>{!busy&&<button className="primary" onClick={()=>runJob('resume')}>{t.resume}</button>}</section>:<div className="workspace">
@@ -222,6 +234,8 @@ export default function App() {
         </>}
       </main>
     </div>
+    <div className="toast-stack">{undo.map(receipt=><UndoDeletion key={receipt.id} receipt={receipt} t={t} onRestore={restored} onExpire={expired}/>)}</div>
+    {deleting&&<DeleteBook project={deleting} t={t} Modal={Modal} onClose={()=>setDeleting(null)} onDeleted={deleted} onStopping={stopDeleted}/>}
     {upload&&<UploadDialog initialFile={uploadFile} locale={locale} t={t} onClose={()=>setUpload(false)} onCreated={p=>{setProjects(all=>[p,...all]);setActiveId(p.id);setUpload(false)}}/>}
     {listenConsent!==null&&<Modal title={t.onlineListening} t={t} onClose={()=>setListenConsent(null)}><p>{t.onlineListeningNotice}</p><div className="actions"><button className="secondary" onClick={()=>setListenConsent(null)}>{t.cancel}</button><button className="primary" onClick={()=>{const next=listenConsent;setListenConsent(null);setAllowNetwork(true);beginListening(next,true)}}>{t.allowAndListen}</button></div></Modal>}
     {editor&&<SentenceEditor row={editor} t={t} busy={busy} onClose={()=>setEditor(null)} speakers={project?.speakers} onSave={saveSentence}/>}

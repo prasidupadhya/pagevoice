@@ -111,3 +111,26 @@ See [progressive listening verification](progressive-listening.md).
 - Analysis version2 returns classification confidence/reasons, source excerpts,
   cited search context and explicit partial-match labels. Retrieval is local FTS5,
   not generative AI. New projects use narration version2; old cached audio is unchanged.
+
+## Book removal (Phase 1)
+
+- `GET /api/projects/{id}/deletion`: owned paths, byte count, generated-audio flag,
+  source-sharing flag. Count is measured at request time; active work can add data.
+- `DELETE /api/projects/{id}`:202 after safe-boundary cancellation and durable moves
+  into `trash/<id>/files/`. Response includes `expires` (Unix seconds), actual moved
+  `bytes`, title and state. Repeated deletion and ordinary reads return404. The
+  request may wait for in-flight extraction/synthesis/encoding to release its lock.
+- `POST /api/trash/{id}/restore`: restores during the eight-second Undo window;
+  resumed jobs remain paused and never automatically send text online. Returns the
+  restored project. Expired undo returns400; purged/missing returns404.
+- CLI: `pagevoice delete sessions/<id>` uses the same trash protocol and waits for
+  purge. If the server owns the worker, CLI lets it finish cancellation; otherwise
+  CLI temporarily acquires worker ownership for cleanup.
+
+Deletion markers are written before moving files. Startup finishes interrupted
+moves/restores/purges before loading queued jobs. The worker checks deletion at
+sentence boundaries; the global worker-owner lock remains held so other projects
+can safely continue. Project session/synthesis locks release before moving data.
+Jobs are located by their recorded project ID, not filename. Uploads are removed
+only when no live or trashed sibling references the source name. Per-project logs
+are owned; deployment-wide `logs/server.log` is not. SSE emits `deleted` then closes.
