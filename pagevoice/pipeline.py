@@ -118,7 +118,14 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                 state['book']['title'] = Path(state.get('original_name', source.name)).stem
         from rag import analyze, index_book
         state['analysis'] = analyze(state['book'])
-        index_book(session / 'rag', state['book'])
+        if prepare_only:
+            index_book(session / 'rag', state['book'])
+        else:
+            from rag.background import rebuild
+            from rag.lexical import status as index_status
+            if index_status(session / 'rag', state['book'])['state'] != 'ready':
+                try: rebuild(session,state['book'])
+                except ValueError: pass  # Listening has priority; a later search retries the index.
         if not (session / 'listening.json').exists():
             from .listening import set_priority
             set_priority(session, state['analysis']['start_chapter'])

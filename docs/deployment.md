@@ -139,3 +139,9 @@ mode book files/analysis/audio reside on your selected server, not the reader's 
 The default local mode keeps them on the user's computer.
 
 The optional Vercel Blob/external-worker redesign is not implemented in this phase.
+
+Optional semantic model: `docker build --build-arg PAGEVOICE_BAKE_RAG_MODEL=1 -t
+pagevoice-semantic .` explicitly installs the optional ONNX runtime and downloads
+SHA-256-pinned model files into `/opt/pagevoice-model`. The default build argument
+is 0: no model download. This increases image size substantially and has not been
+verified with the real model in this run. Runtime override: `PAGEVOICE_RAG_MODEL_DIR`.

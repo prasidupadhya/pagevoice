@@ -9,7 +9,7 @@ import os
 import re
 import tempfile
 
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, Query
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -162,7 +162,10 @@ def create_app(data=None):
             return present(path.name)
 
     @app.get('/api/projects/{project}/analysis')
-    def book_analysis(project: str, q: str = '', chapter: int | None = None):
+    def book_analysis(project: str, q: str = '', chapter: int | None = None,
+                      kind: Literal['chapter','front_matter','back_matter','unclassified'] | None = None,
+                      match_type: Literal['exact','phrase','stem','partial','fuzzy','semantic'] | None = None,
+                      limit: int = Query(default=8,ge=1,le=50), mode: Literal['lexical','hybrid'] = 'lexical'):
         from rag import analyze, search
         path = session(project)
         state = load(path)
@@ -171,7 +174,37 @@ def create_app(data=None):
         if chapter is not None and not 0 <= chapter < len(state['book']['chapters']): raise HTTPException(422, 'Chapter is out of range.')
         with FileLock(str(root / f'.delete-{project}.lock'), timeout=0):
             session(project)
-            return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q, chapter) if q.strip() else []}
+            return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q, chapter, kind=kind, match_type=match_type, limit=limit, mode=mode) if q.strip() else []}
+
+    @app.get('/api/projects/{project}/analysis/index')
+    def analysis_index(project: str):
+        from rag.background import index_status
+        from rag.semantic import model_status
+        path=session(project);state=load(path)
+        return {**index_status(path,state.get('book')), 'semantic':model_status()}
+
+    @app.post('/api/projects/{project}/analysis/index', status_code=202)
+    def rebuild_analysis(project: str):
+        from rag.background import rebuild
+        path=session(project);state=load(path)
+        if not state.get('book'):raise HTTPException(409,'Book is still being prepared.')
+        return rebuild(path,state['book'])
+
+    @app.get('/api/projects/{project}/analysis/{feature}')
+    def analysis_feature(project: str, feature: Literal['summaries','entities','quotes','repetitions','qa'],
+                         q: str = Query(default='',max_length=500), chapter: int | None = None,
+                         limit: int = Query(default=50,ge=1,le=100)):
+        from rag import features
+        path=session(project)
+        with FileLock(str(root / f'.delete-{project}.lock'),timeout=0):
+            state=load(session(project));book=state.get('book')
+            if not book:raise HTTPException(409,'Book is still being prepared.')
+            if chapter is not None and not 0<=chapter<len(book['chapters']):raise HTTPException(422,'Chapter is out of range.')
+            if feature=='summaries':return {'summaries':features.summaries(book,chapter)}
+            if feature=='entities':return features.entities(book,limit)
+            if feature=='quotes':return {'quotes':features.quotes(book,q,limit)}
+            if feature=='repetitions':return {'repetitions':features.repetitions(book,limit)}
+            return features.answer(path/'rag',book,q,chapter)
 
     @app.patch('/api/projects/{project}/analysis')
     def correct_analysis(project: str, correction: AnalysisEdit):

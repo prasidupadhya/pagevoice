@@ -14,6 +14,12 @@ def main():
     parser = argparse.ArgumentParser(prog='pagevoice', description='Local library with Edge online EPUB/PDF narration')
     parser.add_argument('--version', action='version', version=__version__)
     commands = parser.add_subparsers(dest='command', required=True)
+    models=commands.add_parser('rag-model',help='Explicitly install or inspect the optional local semantic model')
+    models.add_argument('action',choices=['install','status'])
+    models.add_argument('--directory',type=Path)
+    evaluation=commands.add_parser('rag-eval', help='Run offline fixed-gold retrieval evaluation')
+    evaluation.add_argument('--output',type=Path)
+    evaluation.add_argument('--baseline',type=Path)
     commands.add_parser('doctor', help='Report hardware and dependencies')
     commands.add_parser('engines', help='List engine capabilities')
     deletion = commands.add_parser('delete', help='Delete a project and its owned files')
@@ -53,7 +59,13 @@ def main():
     progress.setLevel(logging.INFO)
     progress.propagate = False
     try:
-        if args.command == 'doctor':
+        if args.command == 'rag-model':
+            from rag.semantic import install,model_status
+            print(install(args.directory) if args.action=='install' else json.dumps(model_status(),indent=2))
+        elif args.command == 'rag-eval':
+            from rag.eval.run import main as evaluate
+            evaluate(args.output,args.baseline)
+        elif args.command == 'doctor':
             print(json.dumps(hardware(), indent=2))
         elif args.command == 'engines':
             for key, info in REGISTRY.items():

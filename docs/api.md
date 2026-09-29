@@ -150,3 +150,29 @@ contain the deployment secret. SSE uses the bearer header, not a query token.
 401 means authentication is required, 413 is a body limit, 429 is a rate limit and
 507 indicates upload admission exceeded the storage quota. Background quota
 failures appear in the normal job error field and can be resumed after freeing space.
+
+## Local analysis additions
+
+`GET /api/projects/{id}/analysis?q=...` also accepts `chapter`,
+`kind=chapter|front_matter|back_matter|unclassified`,
+`match_type=exact|phrase|stem|partial|fuzzy|semantic`, `limit=1..50` (default 8),
+`mode=lexical|hybrid` (default lexical). Queries: max 500 characters. Hits add
+`match_type`, `matched_terms`, `score`, `explanation`, `source_anchor` and context
+coordinates. Section records add `subkind`, `confidence_level`, `signals`, `flags`.
+Existing fields remain. Hybrid never downloads; unavailable model falls back.
+Explicit phrase/NEAR/required/excluded/prefix operators keep lexical constraints.
+
+- `GET /api/projects/{id}/analysis/index`: missing/stale/building/ready/failed/corrupt,
+  schema/fingerprint/size when present, optional semantic-model status.
+- `POST /api/projects/{id}/analysis/index`: 202 background rebuild (at most two
+  concurrent builds); index writes and deletion coordinate through project locks.
+- `GET .../analysis/summaries?chapter=0`: verbatim sentences with citations and
+  estimated reading time, labelled extractive.
+- `GET .../analysis/entities?limit=50`: heuristic names/keywords with chapter counts
+  and source citations. No trained NER or factual inference.
+- `GET .../analysis/quotes?q=...&limit=50`: matching verbatim quote candidates.
+- `GET .../analysis/repetitions?limit=50`: repeated normalized passages/citations.
+- `GET .../analysis/qa?q=...&chapter=0`: supporting passages or explicit no-evidence
+  status; `answer` is null, never generated prose.
+
+Feature limits max 100; unknown feature/filter and invalid chapter return 422.

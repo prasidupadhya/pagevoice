@@ -79,3 +79,24 @@ frontend code and instructions; no live deployment or backend hosting is request
 An actual Vercel domain, HTTPS backend integration and production provider storage
 remain **not verified**. The frontend alone cannot parse/narrate books without a
 reachable backend. See the deployment checklist before exposing a real library.
+
+## Phase 3 — local retrieval and analysis
+
+- `.venv/bin/python -m pytest -q`: **130 passed**, 76.03 s (existing Starlette/httpx
+  deprecation). A final Roman-numbering regression addition was also run with
+  `pytest -q tests/test_rag_overhaul.py`: **42 passed**, 1.65 s.
+- `npm --prefix web test`: **28 passed**, 7 files, 2.43 s.
+- `npm --prefix web run build`: passed, 1,886 modules; JS 287.18 kB / 90.34 kB gzip.
+- `pagevoice rag-eval --output rag/eval/after.json --baseline rag/eval/baseline.json`:
+  quality regression gate passed. Recall@5 .82 → .94; MRR .770 → .936667.
+- 600-page reflowed native PDF: lexical index 0.646 s; search p95 14.667 ms.
+  See [full protocol, results and tradeoffs](rag-eval.md).
+- Tested query parser with 100 generated Unicode inputs, exact/phrase/stem/fuzzy
+  filters, EN/ES accents, ñ distinction, transactional schema replacement, corrupt
+  index rebuild, incremental updates, source features, background/deletion locks,
+  installer checksum failures and optional-vector manifest invalidation.
+- Optional real ONNX weights/inference were not downloaded/run. No semantic-quality
+  claims. No held-out corpus or real damaged historical scan benchmark. Typography
+  votes accept metadata but PDF font-size extraction is not yet wired into parsing.
+- Vercel: user explicitly waived live deployment/authentication; frontend configuration
+  and successful local `vercel build` from Phase 2 are the verified scope.

@@ -1,0 +1,16 @@
+{
+  "source_sha256": "3f6bb9d6f78e0293b56acd4714dd68cb7d6d1d293402031ce9d5a216bcaf9d75",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.10.12",
+  "pages": 600,
+  "words": 127360,
+  "chapters": 60,
+  "sentences": 6224,
+  "parse_seconds": 5.932078709010966,
+  "index_build_seconds": 0.6456707919714972,
+  "index_bytes": 4726784,
+  "latency_p50_ms": 11.966187506914139,
+  "latency_p95_ms": 14.666958944872022,
+  "queries": 100,
+  "note": "Complete source reflowed into 600 pages with 60 artificial bookmarks. Not the original edition pagination; native PDF, not OCR."
+}

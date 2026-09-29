@@ -203,3 +203,13 @@ The React reader can run on Vercel; the Python worker needs a separate persisten
 container host. See [deployment instructions](docs/deployment.md) for Docker,
 explicit domain allowlists, private-library access, storage limits and verification.
 Hosted mode stores books on your backend server. Local mode remains the default.
+
+### Measured local book analysis
+
+Default analysis/search remains offline and non-generative. EN/ES stemming,
+phrase/proximity queries, labelled typo fallback, source citations and extractive
+book features are documented in [rag/README.md](rag/README.md). The fixed 112-query
+regression corpus improved recall@5 from 82% to 94% and MRR from .770 to .937;
+these are development-corpus results, not universal accuracy. The richer index is
+larger/slower than baseline but meets the measured 600-page performance targets.
+See [evaluation details and limitations](docs/rag-eval.md).

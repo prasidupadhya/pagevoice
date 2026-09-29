@@ -10,6 +10,9 @@ RUN python -m pip install --no-cache-dir setuptools==75.8.0 -r requirements-core
 COPY pagevoice/ pagevoice/
 COPY rag/ rag/
 RUN python -m pip install --no-cache-dir --no-deps --no-build-isolation .
+ARG PAGEVOICE_BAKE_RAG_MODEL=0
+ENV PAGEVOICE_RAG_MODEL_DIR=/opt/pagevoice-model
+RUN if [ "$PAGEVOICE_BAKE_RAG_MODEL" = "1" ]; then python -m pip install --no-cache-dir ".[semantic]" && pagevoice rag-model install --directory /opt/pagevoice-model; fi
 USER 10001:10001
 VOLUME /data
 EXPOSE 8765

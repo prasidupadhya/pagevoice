@@ -1,0 +1,34 @@
+[
+  {
+    "id": "wilde",
+    "file": "wilde.epub",
+    "fixture": "nested-epub",
+    "source": "https://www.gutenberg.org/files/902/902-h/902-h.htm",
+    "sha256": "7109abc7de9776d2472a04bf450e1ab53b64ff257e5b89b9073e4442b11b377c",
+    "language": "en"
+  },
+  {
+    "id": "ojos",
+    "file": "ojos.epub",
+    "fixture": "no-toc-epub",
+    "source": "https://www.gutenberg.org/files/10814/10814-h/10814-h.htm",
+    "sha256": "3a12dfc3199cc125201b448c945c14dc20dc745dde858ab5caf85900c8b491c6",
+    "language": "es"
+  },
+  {
+    "id": "beso",
+    "file": "beso.pdf",
+    "fixture": "native-pdf",
+    "source": "https://www.gutenberg.org/files/10814/10814-h/10814-h.htm",
+    "sha256": "f101ee262a99e0dea38860b99f071a70478bfe552394c0caa93a52b54ffc39d2",
+    "language": "es"
+  },
+  {
+    "id": "rabbit",
+    "file": "rabbit.pdf",
+    "fixture": "scanned-pdf",
+    "source": "https://www.gutenberg.org/cache/epub/14838/pg14838-images.html",
+    "sha256": "a3debe441ff21ee8ea47672279f785bc5013ad66be15e16bde58feb4d205e91e",
+    "language": "en"
+  }
+]
