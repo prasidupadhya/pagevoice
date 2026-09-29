@@ -1,3 +1,4 @@
+import {request} from './api'
 // Original bounded Web Audio scheduler. Readiness is contiguous, never just a count.
 export function forwardRows(project, chapter) {
   return (project?.chapters||[]).slice(chapter).flatMap(c=>c.sentences.map((row,i)=>({...row,chapter:c.index,sentence:i,title:c.title})))
@@ -10,7 +11,7 @@ export function bufferStatus(rows, cursor=0) {
 }
 
 export class Listener {
-  constructor(onChange,{contextFactory=()=>new (window.AudioContext||window.webkitAudioContext)(),fetcher=(url,options)=>fetch(url,options)}={}) {
+  constructor(onChange,{contextFactory=()=>new (window.AudioContext||window.webkitAudioContext)(),fetcher=(url,options)=>request(url,options)}={}) {
     this.onChange=onChange;this.contextFactory=contextFactory;this.fetcher=fetcher
     this.rows=[];this.cursor=0;this.next=0;this.nodes=[];this.version=0;this.status='idle';this.intent=false;this.started=false;this.pumping=false
   }

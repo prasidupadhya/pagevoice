@@ -21,6 +21,9 @@ from .pipeline import new_session, load, signature, reusable
 from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
 from .storage import save, digest
 from .trash import safe_path
+from .config import Config, check_quota
+from .security import Security, media_url
+from .uploads import validate_upload
 from .languages import default_voice
 from .voices import catalogue
 from .narration import detect
@@ -66,6 +69,7 @@ class CastingRequest(BaseModel):
 def create_app(data=None):
     root = Path(data or os.environ.get('PAGEVOICE_DATA', '.')).resolve()
     root.mkdir(parents=True, exist_ok=True)
+    config = Config()
     jobs = Jobs(root)
 
     @asynccontextmanager
@@ -78,25 +82,12 @@ def create_app(data=None):
                   docs_url=None, redoc_url=None)
     app.state.root, app.state.jobs = root, jobs
 
-    @app.middleware('http')
-    async def local_only(request, call_next):
-        host = request.url.hostname
-        if host not in ('127.0.0.1', 'localhost', '::1', 'testserver'):
-            return JSONResponse({'detail': 'Only localhost is supported.'}, status_code=403)
-        origin = request.headers.get('origin')
-        if origin:
-            parsed = urlsplit(origin)
-            if parsed.hostname not in ('localhost', '127.0.0.1', '::1', 'testserver') or parsed.scheme not in ('http', 'https'):
-                return JSONResponse({'detail': 'Cross-origin access is not allowed.'}, status_code=403)
-        if request.headers.get('sec-fetch-site') == 'cross-site':
-            return JSONResponse({'detail': 'Cross-site access is not allowed.'}, status_code=403)
-        response = await call_next(request)
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        return response
+    app.add_middleware(Security, config=config)
+    app.state.config = config
 
     @app.exception_handler(ValueError)
     async def bad_value(request, exc):
-        return JSONResponse({'detail': str(exc)}, status_code=400)
+        return JSONResponse({'detail': str(exc)}, status_code=507 if 'Storage quota reached' in str(exc) else 400)
 
     @app.exception_handler(Timeout)
     async def locked(request, exc):
@@ -134,10 +125,10 @@ def create_app(data=None):
                 total += 1
                 rows.append({'id': identifier, 'text': text, 'ready': complete,
                              'speaker': state.get('speaker_tags', {}).get(identifier, 'Narrator'),
-                             'audio': f'/api/projects/{project}/sentences/{identifier}/audio?v={record.get("sha256", "")[:16]}' if complete else None})
+                             'audio': media_url(f'/api/projects/{project}/sentences/{identifier}/audio?v={record.get("sha256", "")[:16]}', config) if complete else None})
             chapters.append({'index': ci, 'title': chapter['title'], 'sentences': rows,
                              'ready': sum(row['ready'] for row in rows), 'total': len(rows), 'contiguous_ready': contiguous,
-                             'preview': f'/api/projects/{project}/previews/{ci}' if str(ci) in state.get('previews', {}) else None})
+                             'preview': media_url(f'/api/projects/{project}/previews/{ci}', config) if str(ci) in state.get('previews', {}) else None})
         return {'id': project, 'title': (state.get('book') or {}).get('title', state.get('original_name', 'Book')),
                 'author': (state.get('book') or {}).get('author', ''),
                 'language': (state.get('book') or {}).get('language', state.get('parse_options', {}).get('language', 'en')),
@@ -147,7 +138,7 @@ def create_app(data=None):
                 'chapters': chapters, 'progress': {'complete': ready, 'total': total, 'current_chapter': state.get('current_chapter')},
                 'listening': {'chapter': priority(path), 'buffer': BUFFER_SENTENCES, 'pausing': paused(path)},
                 'source_pages': (state.get('book') or {}).get('source_pages', []),
-                'output': f'/api/projects/{project}/download' if state.get('output_current') else None,
+                'output': media_url(f'/api/projects/{project}/download', config) if state.get('output_current') else None,
                 'duration': state.get('duration'), 'job': dict(latest[0]) if latest else None,
                 'last_run': state.get('last_run'), 'cast': state.get('cast', {}),
                 'speakers': sorted({'Narrator'} | set(state.get('speaker_tags', {}).values()) | set(state.get('cast', {})))}
@@ -178,7 +169,7 @@ def create_app(data=None):
         if not state.get('book'): raise HTTPException(409, 'Book is still being prepared.')
         if len(q) > 500: raise HTTPException(422, 'Search is limited to 500 characters.')
         if chapter is not None and not 0 <= chapter < len(state['book']['chapters']): raise HTTPException(422, 'Chapter is out of range.')
-        with FileLock(str(path / '.lock'), timeout=0):
+        with FileLock(str(root / f'.delete-{project}.lock'), timeout=0):
             session(project)
             return {**analyze(state['book']), 'results': search(path / 'rag', state['book'], q, chapter) if q.strip() else []}
 
@@ -201,7 +192,7 @@ def create_app(data=None):
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'languages': ['en', 'es']}
+        return {'status': 'ok', 'languages': ['en', 'es'], 'hosted': config.hosted}
 
     @app.get('/api/hardware')
     def system():
@@ -250,7 +241,10 @@ def create_app(data=None):
                     stream.write(chunk)
             if not size:
                 raise HTTPException(400, 'The book is empty.')
-            path = new_session(source, root, language=language, ocr=ocr)
+            validate_upload(source)
+            with jobs.trash.lock:
+                check_quota(root, size + 1024**2)
+                path = new_session(source, root, language=language, ocr=ocr)
             state = load(path)
             state['original_name'] = Path(file.filename).name
             save(path / 'session.json', state)
@@ -488,5 +482,7 @@ def create_app(data=None):
 def serve():
     import uvicorn
     # An open progress stream must not keep a stopped server alive forever.
-    uvicorn.run(create_app(), host='127.0.0.1', port=int(os.environ.get('PAGEVOICE_PORT', '8765')),
-                timeout_graceful_shutdown=5)
+    uvicorn.run(create_app(), host=os.environ.get('PAGEVOICE_HOST', '127.0.0.1'), port=int(os.environ.get('PAGEVOICE_PORT', '8765')),
+                timeout_graceful_shutdown=5, access_log=False,
+                proxy_headers=bool(os.environ.get('PAGEVOICE_TRUSTED_PROXIES')),
+                forwarded_allow_ips=os.environ.get('PAGEVOICE_TRUSTED_PROXIES', ''))

@@ -1,0 +1,12 @@
+# Only the static reader source and build configuration belong on Vercel.
+*
+!web/
+!web/**
+!package.json
+!vercel.json
+!.nvmrc
+web/node_modules/
+web/dist/
+web/test-results/
+web/.env*
+web/**/*.test.*

@@ -17,3 +17,5 @@ logs/
 trash/
 .library.lock
 .delete-*.lock
+.vercel/
+node_modules/

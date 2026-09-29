@@ -35,7 +35,7 @@ uvicorn.run = run
 os.environ['PAGEVOICE_DATA'] = sys.argv[1]
 serve()
 '''
-        env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(Path.cwd()), str(Path('tests').resolve())]))
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(Path.cwd()), str(Path(__file__).resolve().parent)]))
         process = subprocess.Popen([sys.executable, '-u', '-c', code, str(tmp_path), str(listener.fileno()), engine],
             pass_fds=(listener.fileno(),), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
         process.stdout.close()  # Real EPIPE, not a mocked exception.
@@ -55,15 +55,15 @@ serve()
                 project = response.json()['id']
                 wait(client, project)
                 base = f'/api/projects/{project}'
-                assert client.patch(base + '/settings', json={'engine':'say'}).status_code == 200
+                assert client.patch(base + '/settings', json={'engine':'edge' if engine=='fake' else 'say'}).status_code == 200
                 # Exercise both deterministic fake audio and actual system speech.
-                assert client.post(base + '/preview', json={'chapter':0}).status_code == 202
+                assert client.post(base + '/preview', json={'chapter':0,'allow_network':engine=='fake'}).status_code == 202
                 preview = wait(client, project)
                 assert client.get(preview['chapters'][0]['preview']).status_code == 200
-                assert client.post(base + '/render', json={}).status_code == 202
+                assert client.post(base + '/render', json={'allow_network':engine=='fake'}).status_code == 202
                 rendered = wait(client, project)
                 assert client.get(rendered['output']).status_code == 200
-                assert client.post(base + '/regen', json={'sentence_id':'0000-00001','text':'A corrected sentence.'}).status_code == 202
+                assert client.post(base + '/regen', json={'sentence_id':'0000-00001','text':'A corrected sentence.','allow_network':engine=='fake'}).status_code == 202
                 edited = wait(client, project)
                 assert edited['last_run'] == {'reused':3,'synthesized':1}
                 # Leave SSE open while stopping the actual production entry point.

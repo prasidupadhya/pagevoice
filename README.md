@@ -196,3 +196,10 @@ for eight seconds after the move; then the background worker permanently purges 
 Shared uploads stay until no remaining live or Undo project references them.
 Your original file outside PageVoice and shared server logs are never deleted.
 CLI: `pagevoice delete sessions/<id>` waits for the same safe deletion/purge.
+
+### Hosted deployment
+
+The React reader can run on Vercel; the Python worker needs a separate persistent
+container host. See [deployment instructions](docs/deployment.md) for Docker,
+explicit domain allowlists, private-library access, storage limits and verification.
+Hosted mode stores books on your backend server. Local mode remains the default.

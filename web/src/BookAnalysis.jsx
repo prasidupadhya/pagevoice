@@ -1,3 +1,4 @@
+import {request as fetch} from './api'
 import React,{useState,useEffect,useRef} from 'react'
 export function BookAnalysis({project,t,onChapter,onReanalyze,onReviewed,disabled}) {
  const [data,setData]=useState(null),[query,setQuery]=useState(''),[filter,setFilter]=useState(''),[submitted,setSubmitted]=useState(false)

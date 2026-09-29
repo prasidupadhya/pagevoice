@@ -1,6 +1,6 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react'
 import {BookOpen, Headphones, Plus, Upload, Sun, Moon, Globe, Play, Download, Settings2, Mic, X, Check, RefreshCw, Pencil, Volume2, AlertCircle, ChevronRight, AudioLines, ShieldCheck, LoaderCircle, Trash2} from 'lucide-react'
-import {api} from './api'
+import {api,apiURL,request,progressEvents,setAccessToken} from './api'
 import {DeleteBook,UndoDeletion} from './DeleteBook'
 import {Casting} from './Casting'
 import {Listener,forwardRows,bufferStatus} from './listener'
@@ -66,6 +66,9 @@ export default function App() {
   const [upload,setUpload]=useState(false),[uploadFile,setUploadFile]=useState(null),[editor,setEditor]=useState(null),[chapter,setChapter]=useState(0),[playing,setPlaying]=useState(null)
   const [settings,setSettings]=useState(null),[dirty,setDirty]=useState(false),[allowNetwork,setAllowNetwork]=useState(false)
   const [listenConsent,setListenConsent]=useState(null)
+  const [auth,setAuth]=useState(false),[token,setToken]=useState(''),[hosted,setHosted]=useState(false),[authError,setAuthError]=useState('')
+  useEffect(()=>{api('/api/health').then(info=>setHosted(Boolean(info.hosted))).catch(()=>{})},[])
+  useEffect(()=>{const required=()=>setAuth(true);window.addEventListener('pagevoice-auth',required);return()=>window.removeEventListener('pagevoice-auth',required)},[])
   const [deleting,setDeleting]=useState(null),[undo,setUndo]=useState([])
   const removed=useRef(new Set()),shelf=useRef(null),positions=useRef(new Map())
   useLayoutEffect(()=>{
@@ -86,17 +89,17 @@ export default function App() {
   }
   useEffect(()=>{refresh()},[])
   useEffect(()=>{
-    if(!activeId){setProject(null);return}persist('pagevoice-project',activeId);setChapter(0);setPlaying(null);setProject(null);setDirty(false);setDisconnected(false)
+    setAllowNetwork(false);if(!activeId){setProject(null);return}persist('pagevoice-project',activeId);setChapter(0);setPlaying(null);setProject(null);setDirty(false);setDisconnected(false)
     let closed=false,initial=true
     function update(p){if(closed||removed.current.has(p.id))return;if(initial){initial=false;setChapter(p.listening?.chapter||0);setListenStart(p.listening?.chapter||0)}setProject(p);setProjects(all=>all.some(x=>x.id===p.id)?all.map(x=>x.id===p.id?p:x):[p,...all])
       if(intent.current?.project===p.id && p.job?.status==='complete') {
         const action=intent.current;intent.current=null
-        if(action.kind==='preview'&&p.chapters[action.chapter]?.preview)setPlaying({src:p.chapters[action.chapter].preview+'?v='+p.job.id,label:p.chapters[action.chapter].title})
+        if(action.kind==='preview'&&p.chapters[action.chapter]?.preview)setPlaying({src:p.chapters[action.chapter].preview,label:p.chapters[action.chapter].title})
 
       }
     }
     api('/api/projects/'+activeId).then(update).catch(e=>setError(e.message))
-    const events=new EventSource(`/api/projects/${activeId}/events`)
+    const events=progressEvents(`/api/projects/${activeId}/events`)
     events.addEventListener('progress',e=>{setDisconnected(false);update(JSON.parse(e.data))})
     events.addEventListener('deleted',()=>{events.close();removeFromLibrary(activeId)})
     events.onopen=()=>setDisconnected(false);events.onerror=()=>setDisconnected(true)
@@ -172,7 +175,7 @@ export default function App() {
   async function previewVoice() {
     setPending(true);setError('');listener.current?.reset()
     try {
-      const response=await fetch('/v1/audio/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:settings.engine,voice:settings.voice,language:project.language,speed:settings.pace||1,response_format:'wav',allow_network:allowNetwork,input:project.language==='es'?'Abre tu libro. Cada página es el comienzo de una nueva aventura.':'Open your book. Every page is the beginning of a new adventure.'})})
+      const response=await request('/v1/audio/speech',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:settings.engine,voice:settings.voice,language:project.language,speed:settings.pace||1,response_format:'wav',allow_network:allowNetwork,input:project.language==='es'?'Abre tu libro. Cada página es el comienzo de una nueva aventura.':'Open your book. Every page is the beginning of a new adventure.'})})
       if(!response.ok){const problem=await response.json();throw Error(problem.detail||'Audio unavailable')}
       const src=URL.createObjectURL(await response.blob());setPlaying({src,label:t.voicePreview})
     }catch(e){setError(e.message)}finally{setPending(false)}
@@ -181,7 +184,7 @@ export default function App() {
   function play(src,label){listener.current?.reset();setPlaying({src,label})}
   return <>
     <a className="skip-link" href="#reading-area">{t.skip}</a>
-    <header className="topbar"><a className="brand" href="#" onClick={e=>e.preventDefault()}><span className="brand-mark"><BookOpen size={23}/></span>PageVoice</a><span className="local-badge"><ShieldCheck size={16}/>{t.local}</span>
+    <header className="topbar"><a className="brand" href="#" onClick={e=>e.preventDefault()}><span className="brand-mark"><BookOpen size={23}/></span>PageVoice</a><span className="local-badge"><ShieldCheck size={16}/>{hosted?t.hostedStorage:t.local}</span>
       <div className="top-controls"><label className="language-control"><Globe size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={e=>setLocale(e.target.value)}><option value="en">EN</option><option value="es">ES</option></select></label>
       <button className="theme-button" onClick={()=>setTheme(theme==='dark'?'light':'dark')} aria-label={`${t.theme}: ${theme==='dark'?t.light:t.dark}`} title={theme==='dark'?t.light:t.dark}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button></div>
     </header>
@@ -189,7 +192,7 @@ export default function App() {
       <aside className="library-rail"><div className="rail-heading"><h2>{t.books}</h2><button className="icon-button" aria-label={t.newBook} onClick={()=>openUpload()}><Plus size={19}/></button></div>
         <nav ref={shelf} aria-label={t.library} className="project-list">{projects.map(p=><div key={p.id} data-book={p.id} className="library-entry"><button className={`project-link ${p.id===activeId?'selected':''}`} onClick={()=>chooseProject(p.id)} aria-current={p.id===activeId?'page':undefined}><BookOpen size={19}/><span><strong>{p.title}</strong><small>{p.language==='es'?'Español':'English'}</small></span>{p.id===activeId&&<ChevronRight size={15}/>}</button><button className="icon-button" aria-label={`${t.deleteBook}: ${p.title}`} onClick={()=>setDeleting(p)}><Trash2 size={17}/></button></div>)}</nav>
         {!projects.length&&<p className="small muted rail-empty">{t.noBooks}</p>}
-        <div className="rail-bottom"><p className="small muted privacy-note"><ShieldCheck size={16}/>{t.localHint}</p></div>
+        <div className="rail-bottom"><p className="small muted privacy-note"><ShieldCheck size={16}/>{hosted?t.hostedPrivacy:t.localHint}</p></div>
       </aside>
       <main id="reading-area" className="main-area" tabIndex={-1}>
         <ol className="workflow" aria-label={t.workflow}><li className={!project?'current':'done'}><span>1</span>{t.stepUpload}</li><li className={project&&!busy&&!project.output?'current':''}><span>2</span>{t.stepVoice}</li><li className={busy||project?.output?'current':''}><span>3</span>{t.stepListen}</li></ol>
@@ -208,8 +211,8 @@ export default function App() {
                 <ol className="sentence-list">{selectedChapter?.sentences.map((row,i)=><li key={row.id} id={`sentence-${row.id}`} tabIndex={-1} className={listenState.status==='playing'&&listenState.row?.id===row.id?'speaking':''} aria-current={listenState.status==='playing'&&listenState.row?.id===row.id?'true':undefined}><span className="sentence-number" aria-hidden="true">{i+1}</span><p>{row.speaker&&row.speaker!=='Narrator'&&<span className="speaker-label">{row.speaker==='Dialogue'?t.dialogue:row.speaker}</span>}{row.text}</p><div className="sentence-actions"><button className="icon-button" onClick={()=>setEditor(row)} disabled={busy} aria-label={`${t.edit} ${i+1}`} title={t.edit}><Pencil size={16}/></button><button className="icon-button" disabled={!row.ready} onClick={()=>play(row.audio,`${t.chapter} ${chapter+1} / ${i+1}`)} aria-label={`${t.listen} ${i+1}`} title={t.listen}><Volume2 size={16}/></button><span className={`sentence-state ${row.ready?'ready':''}`} aria-label={row.ready?t.complete:t.reviewing}>{row.ready?<Check size={12}/>:null}</span></div></li>)}</ol>
               </div>
 
-              {playing&&<section className="player-panel"><div className="player-label"><Headphones size={18}/><strong>{playing.label}</strong></div><audio key={playing.src} ref={audio} controls autoPlay src={playing.src} onError={()=>setError('audioError')} aria-label={t.playback}/></section>}
-              {project.output&&listenState.status==='idle'&&!playing&&<details className="completed-player"><summary>{t.finalAudio}</summary><audio controls src={project.output+'?v='+project.job?.id} preload="none" aria-label={t.finalAudio} onPlay={()=>listener.current?.reset()}/></details>}
+              {playing&&<section className="player-panel"><div className="player-label"><Headphones size={18}/><strong>{playing.label}</strong></div><audio key={playing.src} ref={audio} controls autoPlay src={apiURL(playing.src)} onError={()=>setError('audioError')} aria-label={t.playback}/></section>}
+              {project.output&&listenState.status==='idle'&&!playing&&<details className="completed-player"><summary>{t.finalAudio}</summary><audio controls src={apiURL(project.output)} preload="none" aria-label={t.finalAudio} onPlay={()=>listener.current?.reset()}/></details>}
 
             </section>
             <aside className="settings-panel"><div className="section-title"><Settings2 size={19}/><h2>{t.settings}</h2></div>
@@ -221,11 +224,11 @@ export default function App() {
                 {dirty&&<button className="secondary full" onClick={saveSettings}><Check size={17}/>{t.save}</button>}
               </fieldset>
               {dirty&&<p className="small muted" role="status">{t.unsaved}</p>}
-              {settings?.engine==='edge'&&<div className="online-note"><p className="small">{t.onlineNotice}</p><label className="check-field"><input type="checkbox" checked={allowNetwork} onChange={e=>setAllowNetwork(e.target.checked)}/><span>{t.onlineConsent}</span></label></div>}
+              {settings?.engine==='edge'&&<div className="online-note"><p className="small">{hosted?t.hostedPrivacy:t.onlineNotice}</p><label className="check-field"><input type="checkbox" checked={allowNetwork} onChange={e=>setAllowNetwork(e.target.checked)}/><span>{t.onlineConsent}</span></label></div>}
               <Casting project={project} voices={voiceOptions} busy={busy||dirty} t={t} onChange={changeCasting}/><div className="render-section"><div className="progress-caption"><span>{t.wholeBook}</span><strong>{project.progress.complete}/{project.progress.total}</strong></div><p className="small muted">{t.progress}</p><progress value={project.progress.complete} max={project.progress.total||1} aria-label={t.progress}/>
                 <button className="primary full" disabled={busy||!readyEngine} onClick={()=>beginListening(chapter)}>{busy?<LoaderCircle className="spin" size={19}/>:<AudioLines size={19}/>} {busy?t.working:project.status==='paused'?t.resumePreparation:t.render}</button>
                 {busy&&canListenDuringJob&&project.status!=='assembling'&&<button className="secondary full" disabled={project.listening?.pausing||pending} onClick={()=>runJob('pause')}>{project.listening?.pausing?t.pausingPreparation:t.pausePreparation}</button>}
-                {project.output&&!busy&&<a className="secondary full" href={project.output} download><Download size={18}/>{t.download}</a>}
+                {project.output&&!busy&&<a className="secondary full" href={apiURL(project.output)} download><Download size={18}/>{t.download}</a>}
                 {!busy&&project.status==='failed'&&<button className="secondary full" onClick={()=>runJob('resume')}>{t.resume}</button>}
                 <p className="small muted">{busy?t.backgroundHint:t.engineHint}</p>{busy&&project.status==='synthesizing'&&project.progress.current_chapter!=null&&<p className="preparing-chapter">{t.preparingChapter} {project.progress.current_chapter+1}</p>}<p className="small muted">{t.forwardHint}</p>
               </div>
@@ -235,6 +238,7 @@ export default function App() {
       </main>
     </div>
     <div className="toast-stack">{undo.map(receipt=><UndoDeletion key={receipt.id} receipt={receipt} t={t} onRestore={restored} onExpire={expired}/>)}</div>
+    {auth&&<Modal title={t.hostedAccess} t={t} onClose={()=>setAuth(false)}><form className="form-stack" onSubmit={async e=>{e.preventDefault();setAuthError('');setAccessToken(token);try{await api('/api/projects');setAuth(false);setToken('');refresh()}catch(e){setAuthError(e.message)}}}><p>{t.hostedNotice}</p><label>{t.accessToken}<input type="password" required value={token} onChange={e=>setToken(e.target.value)} autoComplete="current-password"/></label><p role="alert">{authError}</p><button className="primary">{t.unlock}</button></form></Modal>}
     {deleting&&<DeleteBook project={deleting} t={t} Modal={Modal} onClose={()=>setDeleting(null)} onDeleted={deleted} onStopping={stopDeleted}/>}
     {upload&&<UploadDialog initialFile={uploadFile} locale={locale} t={t} onClose={()=>setUpload(false)} onCreated={p=>{setProjects(all=>[p,...all]);setActiveId(p.id);setUpload(false)}}/>}
     {listenConsent!==null&&<Modal title={t.onlineListening} t={t} onClose={()=>setListenConsent(null)}><p>{t.onlineListeningNotice}</p><div className="actions"><button className="secondary" onClick={()=>setListenConsent(null)}>{t.cancel}</button><button className="primary" onClick={()=>{const next=listenConsent;setListenConsent(null);setAllowNetwork(true);beginListening(next,true)}}>{t.allowAndListen}</button></div></Modal>}

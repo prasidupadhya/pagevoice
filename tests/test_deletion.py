@@ -49,6 +49,7 @@ def test_deletion_during_render_finishes_sentence_and_never_requeues(tmp_path,mo
     with TestClient(create_app(tmp_path)) as client,ThreadPoolExecutor() as pool:
         assert client.post(base+'/render',json={}).status_code==202
         assert started.wait(5)
+        assert client.get(base+'/analysis?q=harbour').status_code==200
         pending=pool.submit(client.delete,base)
         deadline=time.monotonic()+5
         while not client.app.state.jobs.trash.hidden(session.name):

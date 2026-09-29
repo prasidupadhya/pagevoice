@@ -134,3 +134,19 @@ can safely continue. Project session/synthesis locks release before moving data.
 Jobs are located by their recorded project ID, not filename. Uploads are removed
 only when no live or trashed sibling references the source name. Per-project logs
 are owned; deployment-wide `logs/server.log` is not. SSE emits `deleted` then closes.
+
+## Hosted transport
+
+Default local requests remain same-origin and unauthenticated on loopback. Hosted
+mode requires `Authorization: Bearer <PAGEVOICE_ACCESS_TOKEN>` for all routes
+except `/api/health` and valid signed media GETs. Health includes `hosted: boolean`.
+Exact configured origins receive CORS headers; wildcards are rejected. OPTIONS is
+available to allowed origins without a token. See [deployment](deployment.md).
+
+Returned audio/download URLs may contain `expires` and `signature`. Preserve their
+query strings and resolve relative URLs against `VITE_API_BASE_URL`. They authorize
+only GET of that exact media path, expire after approximately one hour and never
+contain the deployment secret. SSE uses the bearer header, not a query token.
+401 means authentication is required, 413 is a body limit, 429 is a rate limit and
+507 indicates upload admission exceeded the storage quota. Background quota
+failures appear in the normal job error field and can be resumed after freeing space.

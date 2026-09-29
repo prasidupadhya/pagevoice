@@ -33,20 +33,20 @@ def test_full_api_workflow(tmp_path,monkeypatch):
         project=wait(client,identifier)
         assert len(project['chapters'])==2
         assert project['status']=='ready'
-        response=client.patch(f'/api/projects/{identifier}/settings',json={'engine':'say','format':'m4b'})
+        response=client.patch(f'/api/projects/{identifier}/settings',json={'engine':'edge','format':'m4b'})
         assert response.status_code==200
-        assert client.post(f'/api/projects/{identifier}/preview',json={'chapter':0}).status_code==202
+        assert client.post(f'/api/projects/{identifier}/preview',json={'chapter':0,'allow_network':True}).status_code==202
         project=wait(client,identifier)
         assert len(engine.calls)==2
         assert client.get(project['chapters'][0]['preview']).headers['content-type']=='audio/mpeg'
         assert client.get(f'/api/projects/{identifier}/download').status_code==409
-        assert client.post(f'/api/projects/{identifier}/render',json={}).status_code==202
+        assert client.post(f'/api/projects/{identifier}/render',json={'allow_network':True}).status_code==202
         project=wait(client,identifier)
         assert len(engine.calls)==4
         assert project['last_run']=={'reused':2,'synthesized':2}
         assert client.get(project['output']).headers['content-type']=='audio/mp4'
         engine.calls.clear()
-        assert client.post(f'/api/projects/{identifier}/regen',json={'sentence_id':'0000-00001','text':'A revised sentence.'}).status_code==202
+        assert client.post(f'/api/projects/{identifier}/regen',json={'sentence_id':'0000-00001','text':'A revised sentence.','allow_network':True}).status_code==202
         project=wait(client,identifier)
         assert engine.calls==['A revised sentence.']
         assert project['chapters'][0]['sentences'][1]['text']=='A revised sentence.'

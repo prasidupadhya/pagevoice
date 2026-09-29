@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!pyproject.toml
+!requirements-core.lock
+!pagevoice/
+!pagevoice/**
+!rag/
+!rag/**
+**/__pycache__
+**/*.sqlite*
