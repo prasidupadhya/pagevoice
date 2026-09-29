@@ -15,7 +15,11 @@ export function backendMode({
   port = "",
   development = false,
 } = {}) {
-  if (String(apiBase).trim()) return "api";
+  if (
+    String(apiBase).trim() &&
+    (apiBase !== "/" || isLoopbackHost(hostname) || development)
+  )
+    return "api";
   // A PageVoice server opened directly uses its default local port.
   if (isLoopbackHost(hostname) && String(port) === "8765") return "api";
   if (isLoopbackHost(hostname) || development) return "browser";

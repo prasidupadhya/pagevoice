@@ -23,14 +23,14 @@ Back up **both volumes together**. Do not run `docker compose down -v` unless yo
 
 ## 2. Configure the Vercel static frontend
 
-Import the **repository root** into Vercel with Node 22. `vercel.mjs` supplies `npm ci --prefix web`, `npm --prefix web run build`, output `web/dist`, SPA rewrites, immutable hashed assets, and a CSP limited to the configured origins. Set these Production environment variables, then redeploy:
+Import the **repository root** into Vercel with Node 22. `vercel.json` supplies `npm ci --prefix web`, `npm --prefix web run build`, output `web/dist`, SPA rewrites, immutable hashed assets, and security headers. Vite embeds a CSP meta tag that narrows connections and media to the configured origins. Set these Production environment variables, then redeploy:
 
 ```dotenv
 VITE_API_BASE_URL=https://api.example.com
 VITE_POCKETBASE_URL=https://identity.example.com
 ```
 
-They are public origins, **not secrets**. Set them for Preview only if the preview URL is also explicitly allowed by `PAGEVOICE_ALLOWED_ORIGINS` and `PB_ALLOWED_ORIGINS`; a staging backend/volume is safer. No Vercel function, database, Blob account, or backend rewrite is used. Browser upload, SSE, and audio transfer go directly to the API host. `vercel.mjs` derives the exact `connect-src` and `media-src` CSP entries at build time. Neither origin may be an arbitrary HTTP URL; HTTP is accepted only for loopback development.
+They are public origins, **not secrets**. Set them for Preview only if the preview URL is also explicitly allowed by `PAGEVOICE_ALLOWED_ORIGINS` and `PB_ALLOWED_ORIGINS`; a staging backend/volume is safer. No Vercel function, database, Blob account, or backend rewrite is used. Browser upload, SSE, and audio transfer go directly to the API host. The header permits HTTPS service connections; the built page's CSP meta policy narrows `connect-src` and `media-src` to the configured origins. Both policies apply in the browser. Neither origin may be an arbitrary HTTP URL; HTTP is accepted only for loopback development.
 
 Without both origins, a public frontend shows setup guidance rather than a misleading temporary library. Local development without them still offers the in-memory device-voice reader. Existing private token-mode API setups remain supported separately; they do not offer visitor isolation.
 

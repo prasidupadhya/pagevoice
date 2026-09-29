@@ -211,9 +211,9 @@ See [deployment instructions](docs/deployment.md). Local mode remains available.
 
 ### Run on Vercel (private guest libraries)
 
-Deploy from the repository root with Node 22. The checked-in `vercel.mjs` builds
-`web/`, serves its static output and generates a strict CSP from these **public**
-Vercel environment variables:
+Deploy from the repository root with Node 22. The checked-in `vercel.json` builds
+`web/` and serves its static output. Vite embeds an exact-origin browser CSP from
+these **public** Vercel environment variables:
 
 | Variable | Example | Purpose |
 | --- | --- | --- |

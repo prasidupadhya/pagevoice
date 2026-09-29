@@ -41,35 +41,20 @@ def test_local_backend_accepts_only_configured_vercel_origin(tmp_path, monkeypat
         assert denied.status_code == 403
 
 
-def test_vercel_csp_uses_only_configured_service_origins():
-    import subprocess
+def test_vercel_header_allows_https_and_only_loopback_http():
+    from pathlib import Path
 
-    script = (
-        "import {config} from './vercel.mjs'; "
-        "console.log(config.headers[0].headers.find(h => h.key === 'Content-Security-Policy').value)"
+    config = json.loads(Path("vercel.json").read_text())
+    policy = next(
+        header["value"]
+        for rule in config["headers"]
+        for header in rule["headers"]
+        if header["key"] == "Content-Security-Policy"
     )
-
-    def policy(env):
-        import os
-
-        variables = {k: v for k, v in os.environ.items() if k not in ("VITE_API_BASE_URL", "VITE_POCKETBASE_URL")}
-        variables.update(env)
-        return subprocess.check_output(
-            ["node", "--input-type=module", "-e", script],
-            env=variables,
-            text=True,
-        ).strip()
-
-    default = policy({})
-    assert "connect-src 'self'" in default
-    assert "https:" not in default
-    configured = policy({
-        "VITE_API_BASE_URL": "https://books.example",
-        "VITE_POCKETBASE_URL": "https://identity.example",
-    })
-    assert "connect-src 'self' https://books.example https://identity.example" in configured
-    assert "media-src 'self' blob: https://books.example" in configured
-    assert "https:" not in configured.replace("https://books.example", "").replace("https://identity.example", "")
+    assert "connect-src 'self' https: http://127.0.0.1:8765" in policy
+    assert "media-src 'self' blob: https: http://127.0.0.1:8765" in policy
+    assert "frame-ancestors 'none'" in policy
+    assert "http:" not in policy.replace("http://127.0.0.1:8765", "")
 
 
 def test_auth_cors_hosts_and_media_capabilities(tmp_path, monkeypatch):
