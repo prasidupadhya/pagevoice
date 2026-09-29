@@ -235,6 +235,9 @@ port is selected automatically. This selects the existing API path; an external
 API origin also needs to be added to the Vercel CSP `connect-src` allowlist. The
 default Vercel build does not make API requests.
 
+See the [browser-mode design notes and responsive screenshots](docs/design.md)
+for the visual principles, theme tokens and before/after captures.
+
 ### Measured local book analysis
 
 Default analysis/search remains offline and non-generative. EN/ES stemming,
