@@ -44,14 +44,15 @@ The server binds to localhost. Port8765 is the default if no override is given.
 3. Select a voice and narration pace (0.5–2×). Explicitly check the Microsoft
    network-consent box before previewing or generating speech. Save changed settings.
 4. Choose a chapter and press **Create audiobook** or **Listen from here**. The
-   click arms playback. Listening starts after20 consecutive sentences are ready,
+   click arms playback. Listening starts after20 consecutive sentences are downloaded and decoded,
    or all remaining sentences when fewer than20 remain. If the browser blocks
    audio, use **Tap to enable audio**.
 5. Preparation continues while you listen. The selected chapter and subsequent
    chapters take priority; earlier sections finish afterward for the complete
    export. Pausing listening does not pause preparation. Both controls are available.
 6. Edit/regenerate a single sentence, or download the completed M4B/MP3. M4B
-   includes chapter metadata. MP3 chapter display depends on the player.
+   includes chapter metadata. MP3 chapter display depends on the player. The
+   separate export bundle contains the audio, chapter list and source citations.
 
 ### Existing books and older audio
 
@@ -114,7 +115,8 @@ It does not claim semantic understanding or generate unsupported answers.
   review warnings. Original page-cache text is retained.
 - Analysis distinguishes document evidence, inferred decisions and manual reviews.
   Unknown sections remain unclassified. Users can correct titles/types and start
-  position; arbitrary chapter splitting/merging is not implemented.
+  position. Chapter boundaries can also be split between sentences or merged;
+  sentence audio is retained and stable citations continue to point to source text.
 - Each project has a SQLite FTS5 index in `sessions/<id>/rag/book.sqlite`.
   Search removes English/Spanish stopwords, tries all important terms first, then
   labels partial matches. Results include neighbouring sentences, chapter/sentence

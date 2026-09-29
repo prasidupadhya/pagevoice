@@ -1,0 +1,46 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa
+      - run: python -m pip install -r requirements-core.lock
+      - run: python -m pip install --no-deps -e .
+      - run: ruff check pagevoice rag tests
+      - run: mypy --ignore-missing-imports rag/structure.py rag/query.py rag/lexical.py rag/features.py pagevoice/trash.py pagevoice/security.py
+      - run: python -m pytest -q
+      - run: pagevoice rag-eval --baseline rag/eval/after.json
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npm --prefix web run lint
+      - run: npm --prefix web run format:check
+      - run: npm --prefix web test
+      - run: npm --prefix web run build
+      - run: npm audit --prefix web --audit-level=low
+  python-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pip-audit==2.10.1
+      - run: pip-audit -r requirements-core.lock --no-deps --disable-pip

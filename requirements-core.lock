@@ -25,12 +25,13 @@ multidict==6.9.1
 packaging==26.3
 pillow==12.3.0
 pluggy==1.6.0
+Pygments==2.21.0
 propcache==0.5.4
 pydantic==2.13.5
 pydantic_core==2.46.5
 pypdf==6.19.0
 pypdfium2==5.13.0
-pytest==8.3.5
+pytest==9.0.3
 python-multipart==0.0.32
 reportlab==5.0.1
 soupsieve==2.9.2
@@ -44,3 +45,7 @@ yarl==1.25.1
 snowballstemmer==3.1.1
 hypothesis==6.168.3
 sortedcontainers==2.4.0
+mypy==2.3.1
+ruff==0.16.9
+mypy_extensions==1.1.0
+pathspec==1.1.1

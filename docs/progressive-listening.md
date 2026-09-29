@@ -1,3 +1,5 @@
+> **Historical report.** This file records an earlier investigation before the production-quality phases. Current behavior and measured checks are in [the verification report](verification.md).
+
 # Progressive listening
 
 Select a chapter and choose **Listen from here**. The player starts after **20

@@ -1,3 +1,5 @@
+> **Historical report.** This file records an earlier investigation before the production-quality phases. Current behavior and measured checks are in [the verification report](verification.md).
+
 # Book analysis and listening verification — 25 September 2026
 
 ## Changes exercised

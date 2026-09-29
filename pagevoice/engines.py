@@ -68,16 +68,16 @@ class EdgeSpeech:
                 output.writeframes(b'\0\0' * 960)
             return
         async def download(raw):
-            from edge_tts.exceptions import NoAudioReceived
+            from edge_tts.exceptions import EdgeTTSException
             for attempt in range(3):
                 raw.unlink(missing_ok=True)
                 try:
                     await asyncio.wait_for(self.module.Communicate(text, voice).save(str(raw)), timeout=180)
                     return
-                except (NoAudioReceived, asyncio.TimeoutError) as exc:
+                except (EdgeTTSException, asyncio.TimeoutError, OSError, ConnectionError) as exc:
                     if attempt == 2:
                         raise RuntimeError('Edge returned no usable audio after 3 attempts. Completed sentences are saved; resume to retry this sentence.') from exc
-                    await asyncio.sleep(1 + attempt)
+                    await asyncio.sleep(1 + 2**attempt)
         with tempfile.TemporaryDirectory(prefix='pagevoice-edge-') as folder:
             raw = Path(folder) / 'speech.mp3'
             asyncio.run(download(raw))

@@ -1,7 +1,5 @@
 import threading
 import time
-import json
-from pathlib import Path
 from fastapi.testclient import TestClient
 from pagevoice.api import create_app
 from pagevoice.pipeline import new_session, resume, load

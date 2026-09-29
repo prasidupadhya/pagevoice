@@ -1,3 +1,5 @@
+> **Historical report.** This file records an earlier investigation before the production-quality phases. Current behavior and measured checks are in [the verification report](verification.md).
+
 # Reader UI verification
 
 React 19.3.0, Vite 8.3.0, Tailwind 4.3.3 and Lucide React 1.47.0 are pinned

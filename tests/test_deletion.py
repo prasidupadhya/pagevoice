@@ -2,7 +2,6 @@ import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-import pytest
 from fastapi.testclient import TestClient
 from pagevoice.api import create_app
 from pagevoice.pipeline import new_session, resume, load

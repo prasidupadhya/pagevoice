@@ -62,7 +62,7 @@ def index_book(folder,book):
                     title=' '.join(tokens(c['title']))
                     for si,text in enumerate(c['sentences']):
                         identity=f'{ci:04d}-{si:05d}';retained.add(identity)
-                        source=c.get('source','');kind=kinds[ci]['kind']
+                        source=(c.get('sentence_anchors') or [c.get('source','')]*len(c['sentences']))[si];kind=kinds[ci]['kind']
                         hashed=hashlib.sha256(json.dumps([text,c['title'],source,kind,language],ensure_ascii=False).encode()).hexdigest()
                         surface=tokens(text);vocabulary.update(surface);vocabulary.update(tokens(c['title']))
                         old=existing.get(identity)
@@ -155,7 +155,7 @@ def search(folder,book,query,chapter=None,kind=None,match_type=None,limit=8,mode
         if (ci,si) in covered:continue
         sentences=book['chapters'][ci]['sentences'];start,end=max(0,si-1),min(len(sentences),si+2)
         results.append({'text':row['text'],'title':row['title'],'chapter':ci,'sentence':si,'source':row['source'],'kind':row['kind'],
-                        'citation':row['stable_id'],'source_anchor':f'{row["source"]}#sentence={si}',
+                        'citation':row['stable_id'],'source_anchor':row['source'],
                         'context':' '.join(sentences[start:end]),'context_start':start,'context_end':end-1,
                         'matched_terms':matched,'match':'all_terms' if match in ('exact','phrase','stem') else match,'match_type':match,
                         'coverage':components['coverage'],'score':score,'explanation':{'components':components,'corrections':corrections,'terms':matched},'mode':'lexical'})

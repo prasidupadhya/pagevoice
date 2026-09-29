@@ -6,7 +6,7 @@ from .query import tokens,STOP
 
 
 def citation(chapter,sentence,source):
-    return {'chapter':chapter,'sentence':sentence,'citation':f'{chapter:04d}-{sentence:05d}','source':source,'source_anchor':f'{source}#sentence={sentence}'}
+    return {'chapter':chapter,'sentence':sentence,'citation':f'{chapter:04d}-{sentence:05d}','source':source,'source_anchor':source}
 
 
 def summaries(book,chapter=None,limit=3):
@@ -24,7 +24,6 @@ def summaries(book,chapter=None,limit=3):
             if text in seen or len(tokens(text))<5:continue
             selected.append(si);seen.add(text)
             if len(selected)==limit:break
-        words=sum(sum(b.values()) for b in bags)
         result.append({'chapter':ci,'label':'extractive','method':'lexical-centroid heuristic','sentences':[dict(text=c['sentences'][si],**citation(ci,si,c.get('source',''))) for si in sorted(selected)],
                        'reading_minutes':round(sum(len(tokens(s)) for s in c['sentences'])/(160 if book.get('language','en')=='es' else 170),2),'reading_time_label':'estimate'})
     return result
