@@ -222,6 +222,12 @@ by device and some may use cloud processing outside PageVoice's control. PageVoi
 itself sends no book data anywhere in temporary browser mode. Search is local
 lexical search, not AI.
 
+The named Edge Online catalogue in [Voices](#voices) is served by the full
+PageVoice API and requires the explicit Microsoft narration consent. Temporary
+browser mode labels the current browser/device voice separately and lists the
+verified Edge choices as server-only; it does not present unrelated system voices
+as Aria, Sonia or the other Edge voices.
+
 Books and covers exist only in the current page's memory. They disappear after a
 refresh or when the tab closes. Temporary mode cannot prepare or download M4B/MP3
 files, regenerate audio, or continue background work after you leave the page.

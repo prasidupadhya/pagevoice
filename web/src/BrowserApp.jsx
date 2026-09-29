@@ -23,6 +23,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { BrowserBackend } from "./backends/BrowserBackend";
 import { SpeechController } from "./browser/SpeechController";
+import { EDGE_ONLINE_VOICES } from "./browser/edgeVoices";
 import { messages, persist, preference } from "./i18n";
 
 function Modal({ title, onClose, children, className = "", closeLabel }) {
@@ -503,12 +504,20 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
   const searchRef = useRef(null);
   const voicesForBook = useMemo(() => {
     const language = activeBook?.language === "es" ? "es" : "en";
-    return voiceList.filter((voice) =>
-      String(voice.lang).toLowerCase().startsWith(language),
-    );
+    return voiceList
+      .filter((voice) => String(voice.lang).toLowerCase().startsWith(language))
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.default)) - Number(Boolean(a.default)) ||
+          `${a.lang}|${a.name}`.localeCompare(`${b.lang}|${b.name}`),
+      );
   }, [voiceList, activeBook?.language]);
+  const edgeVoicesForBook = EDGE_ONLINE_VOICES.filter(
+    (voice) => voice.language === (activeBook?.language === "es" ? "es" : "en"),
+  );
   const selectedVoice =
     voicesForBook.find((voice) => `${voice.name}|${voice.lang}` === voiceKey) ||
+    voicesForBook.find((voice) => voice.default) ||
     voicesForBook[0] ||
     null;
   const searchResults = useMemo(
@@ -1123,7 +1132,12 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                           key={`${voice.name}|${voice.lang}`}
                           value={`${voice.name}|${voice.lang}`}
                         >
-                          {voice.name} · {voice.lang}
+                          {voice.name} · {voice.lang} ·{" "}
+                          {voice.default
+                            ? b.voiceDefault
+                            : voice.localService
+                              ? b.voiceOnDevice
+                              : b.voiceSystem}
                         </option>
                       ))}
                     </select>
@@ -1139,6 +1153,47 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                     >
                       <Volume2 size={16} /> {b.previewVoice}
                     </button>
+                    <details className="browser-edge-voice-catalogue">
+                      <summary>{b.edgeCatalogueTitle}</summary>
+                      <p>{b.edgeCatalogueNotice}</p>
+                      {[
+                        {
+                          key: "US",
+                          title: b.englishUS,
+                        },
+                        {
+                          key: "GB",
+                          title: b.britishEnglish,
+                        },
+                        {
+                          key: "ES",
+                          title: b.spanishSpain,
+                        },
+                      ]
+                        .map((group) => ({
+                          ...group,
+                          voices: edgeVoicesForBook.filter(
+                            (voice) => voice.region === group.key,
+                          ),
+                        }))
+                        .filter((group) => group.voices.length > 0)
+                        .map((group) => (
+                          <div
+                            className="browser-edge-voice-group"
+                            key={group.key}
+                          >
+                            <h3>{group.title}</h3>
+                            <ul>
+                              {group.voices.map((voice) => (
+                                <li key={voice.id}>
+                                  <strong>{voice.name}</strong>
+                                  <span>{t[voice.gender]}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                    </details>
                     <label
                       className="browser-field-label"
                       htmlFor="browser-speed"
