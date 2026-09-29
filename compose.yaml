@@ -7,7 +7,9 @@ services:
       PAGEVOICE_HOST: 0.0.0.0
       PAGEVOICE_DATA: /data
       PAGEVOICE_ALLOWED_HOSTS: localhost,127.0.0.1
-      PAGEVOICE_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      # Add the exact HTTPS origin of the deployed Vercel site in your .env.
+      # Keep this allowlist explicit; never use *.vercel.app or *.
+      PAGEVOICE_ALLOWED_ORIGINS: "${PAGEVOICE_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}"
       PAGEVOICE_DISK_QUOTA_MB: 10240
     volumes:
       - books:/data

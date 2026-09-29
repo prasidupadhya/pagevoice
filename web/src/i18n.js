@@ -52,7 +52,7 @@ export const messages = {
     noEvidence: "No supporting passage found.",
 
     backendNotConfigured:
-      "The reader could not reach the PageVoice API. For Vercel, set VITE_API_BASE_URL to a running backend and rebuild the frontend.",
+      "The reader could not reach the PageVoice API. For the local setup, start PageVoice on this computer. For Vercel, set VITE_API_BASE_URL to the backend address and rebuild the frontend.",
     storageQuota:
       "Storage is full. Remove a book, wait for its Undo window to finish, then try again.",
     rateLimit: "Too many requests. Wait one minute and try again.",
@@ -262,7 +262,7 @@ export const messages = {
     mono: "Mono audiobook",
     detected: "Available processor",
     apiOffline:
-      "The PageVoice server could not be reached. Check the connection and try again.",
+      "The PageVoice server could not be reached. For a Vercel site using your local library, start the backend on this computer, allow the site’s exact origin in PAGEVOICE_ALLOWED_ORIGINS, and grant the browser’s local-network permission. Then try again.",
     retry: "Try again",
     unsaved: "Save your voice settings before previewing or rendering.",
     cast: "Voice casting",
@@ -332,7 +332,7 @@ export const messages = {
     noEvidence: "No se ha encontrado un pasaje que lo respalde.",
 
     backendNotConfigured:
-      "El lector no ha encontrado la API de PageVoice. En Vercel, configura VITE_API_BASE_URL con un servidor activo y vuelve a compilar la interfaz.",
+      "El lector no ha encontrado la API de PageVoice. Para el uso local, inicia PageVoice en este ordenador. Para Vercel, configura VITE_API_BASE_URL con la dirección de un servidor activo y vuelve a compilar la interfaz.",
     storageQuota:
       "El almacenamiento está lleno. Elimina un libro, espera a que termine el plazo para deshacer e inténtalo de nuevo.",
     rateLimit: "Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.",
@@ -545,7 +545,7 @@ export const messages = {
     mono: "Audiolibro mono",
     detected: "Procesador disponible",
     apiOffline:
-      "No se ha podido conectar con el servidor PageVoice. Comprueba la conexión e inténtalo de nuevo.",
+      "No se ha podido conectar con PageVoice. Si usas Vercel con tu biblioteca local, inicia el servidor en este ordenador, añade el origen exacto del sitio a PAGEVOICE_ALLOWED_ORIGINS y concede el permiso de red local en el navegador. Después, vuelve a intentarlo.",
     retry: "Volver a intentar",
     unsaved:
       "Guarda los ajustes de voz antes de escuchar una muestra o crear el audiolibro.",

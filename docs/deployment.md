@@ -34,6 +34,43 @@ keeps it; **do not use `down -v` if you want to retain books**. Container proces
 run as UID/GID 10001. No model is downloaded at build or runtime.
 Only one worker/container may use a given data volume. Keep replicas at one.
 
+## Vercel frontend with a backend on your computer
+
+This option deploys only the static UI. Every person using it needs PageVoice
+running on the same computer as their browser; books, analysis and audio stay in that
+computer's Docker volume. It does not make your local library available to other
+computers. For a shared or always-on library, use the persistent-backend setup below.
+
+1. In Vercel **Project → Settings → Environment Variables**, set
+   `VITE_API_BASE_URL` to `http://127.0.0.1:8765` for Production (and Preview only if
+   you intend to use preview URLs). Redeploy so Vite bakes the value into the UI.
+   The deployed Vercel build must include the CSP change that permits this loopback
+   API address.
+2. Identify the stable public origin of the deployed frontend, for example
+   `https://pagevoice.example.com` (scheme and hostname only, no trailing slash).
+   In this repository, copy `.env.example` to `.env` and set
+   `PAGEVOICE_ALLOWED_ORIGINS` to the exact frontend origin plus the two local dev
+   origins if you still use Vite, e.g.
+   `https://pagevoice.example.com,http://localhost:5173,http://127.0.0.1:5173`.
+   Do not use a wildcard or a per-deployment preview URL as a broad allowlist.
+3. On the computer that will hold the books, run `docker compose up --build -d` from
+   this repository. Confirm `http://127.0.0.1:8765/api/health` returns a response
+   whose `status` field is `ok`.
+4. Open the stable HTTPS Vercel site in Chrome 142 or later on that same computer.
+   If Chrome asks to let the site access your local network, allow it. Chrome gates
+   public-site requests to localhost behind this permission; if denied, use the site
+   permission controls to allow local network access, then reload. See [Chrome's
+   Local Network Access guidance](https://developer.chrome.com/blog/local-network-access).
+   Other browsers may expose a similar permission or apply different local-network
+   rules.
+
+The localhost listener is bound to `127.0.0.1` and is not exposed to the internet.
+The Vercel CSP permits HTTP only to this loopback address and port; it does not permit
+arbitrary HTTP backends. Use an HTTPS backend URL for a remotely hosted service.
+Because this setup uses your browser to connect from a public HTTPS page to a local
+HTTP API, browser local-network permission and the exact CORS origin are required.
+The deployment cannot work for a visitor whose own computer does not run PageVoice.
+
 ## Persistent backend (Render, Railway, Fly.io or a VPS)
 
 1. Build the repository's `Dockerfile`; set service port 8765 and health path
@@ -71,12 +108,15 @@ Only one worker/container may use a given data volume. Keep replicas at one.
 
 1. Import this GitHub repository in Vercel. Use the **repository root**, framework
    "Other", Node **22.x**. `vercel.json` supplies install/build/output settings.
-2. Set the public build variable `VITE_API_BASE_URL=https://books.example.com`.
-   No trailing slash is necessary. **Never add the backend token to Vercel.**
+2. For a persistent remote backend, set the public build variable
+   `VITE_API_BASE_URL=https://books.example.com`. For a local backend on each
+   visitor's computer, use `http://127.0.0.1:8765` and follow the section above. No
+   trailing slash is necessary. **Never add the backend token to Vercel.**
 3. Deploy. Set the stable frontend domain in the backend origin allowlist.
-   The included CSP permits HTTPS backend connections/media; for a fixed deployment,
-   narrow its `connect-src` and `media-src` `https:` entries to the backend origin.
-   Hashed assets cache for one year; the HTML entry point is revalidated.
+   The included CSP permits HTTPS backend connections/media and the local loopback
+   backend at `127.0.0.1:8765`; for a fixed remote deployment, narrow its `connect-src`
+   and `media-src` `https:` entries to the backend origin. Hashed assets cache for one
+   year; the HTML entry point is revalidated.
 4. Open the frontend and enter the access token in the private-library dialog.
    It is kept only in tab memory, not localStorage, cookies or URLs. Reloading asks
    again. Authenticated SSE uses fetch with an Authorization header. Browser audio
