@@ -29,6 +29,38 @@ def test_hosted_fails_closed(monkeypatch):
         Config()
 
 
+def test_local_backend_accepts_only_configured_vercel_origin(tmp_path, monkeypatch):
+    monkeypatch.setenv("PAGEVOICE_HOSTED", "0")
+    monkeypatch.setenv("PAGEVOICE_ALLOWED_ORIGINS", "https://reader.example")
+    with TestClient(create_app(tmp_path), base_url="http://127.0.0.1:8765") as client:
+        allowed = client.get("/api/projects", headers={"Origin": "https://reader.example"})
+        assert allowed.status_code == 200
+        assert allowed.headers["access-control-allow-origin"] == "https://reader.example"
+        denied = client.get("/api/projects", headers={"Origin": "https://other.vercel.app"})
+        assert denied.status_code == 403
+
+
+def test_vercel_csp_allows_only_the_local_pagevoice_http_backend():
+    import json
+    from pathlib import Path
+
+    config = json.loads(Path("vercel.json").read_text())
+    policy = next(
+        header["value"]
+        for rule in config["headers"]
+        for header in rule["headers"]
+        if header["key"] == "Content-Security-Policy"
+    )
+    directives = {
+        name: sources.split()
+        for name, sources in (part.strip().split(" ", 1) for part in policy.split(";"))
+    }
+    assert "http://127.0.0.1:8765" in directives["connect-src"]
+    assert "http://127.0.0.1:8765" in directives["media-src"]
+    assert "http:" not in directives["connect-src"]
+    assert "upgrade-insecure-requests" not in directives
+
+
 def test_auth_cors_hosts_and_media_capabilities(tmp_path, monkeypatch):
     hosted(monkeypatch)
     with TestClient(create_app(tmp_path), base_url="https://books.example") as client:
