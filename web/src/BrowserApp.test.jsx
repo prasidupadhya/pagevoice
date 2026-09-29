@@ -80,22 +80,18 @@ describe("temporary browser reader UI", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("shows the verified Edge catalogue separately from available device voices", async () => {
+  it("offers only the verified English Edge choices and defaults to Aria", async () => {
     const user = userEvent.setup();
     render(<BrowserApp backend={fixtureBackend()} />);
     await user.click(
       screen.getByRole("button", { name: /The Lantern PageVoice Test/ }),
     );
-    expect(screen.getByLabelText("Device voice (temporary mode)")).toBeTruthy();
-    await user.click(
-      screen.getByText("Verified Edge Online voices (server required)"),
+    const voiceSelect = screen.getByLabelText("Voice (verified catalogue)");
+    expect(voiceSelect.value).toBe("en-US-AriaNeural");
+    const names = [...voiceSelect.options].map(
+      (option) => option.textContent.split(" · ")[0],
     );
-    expect(
-      screen.getByText(
-        /These named voices are available through the full PageVoice server/,
-      ),
-    ).toBeTruthy();
-    for (const name of [
+    expect(names).toEqual([
       "Aria",
       "Jenny",
       "Guy",
@@ -104,25 +100,25 @@ describe("temporary browser reader UI", () => {
       "Libby",
       "Ryan",
       "Thomas",
-    ]) {
-      expect(screen.getByText(name)).toBeTruthy();
-    }
-    expect(screen.queryByText("Elvira")).toBeNull();
+    ]);
+    await user.click(screen.getByText("About voices in temporary mode"));
+    expect(
+      screen.getByText(/Only the verified names above are offered/),
+    ).toBeTruthy();
   });
 
-  it("filters the Edge catalogue to Spanish Spain voices for Spanish books", async () => {
+  it("offers only Spanish Spain voices and defaults to Elvira for Spanish books", async () => {
     const user = userEvent.setup();
     render(<BrowserApp backend={fixtureBackend("es")} />);
     await user.click(
       screen.getByRole("button", { name: /The Lantern PageVoice Test/ }),
     );
-    await user.click(
-      screen.getByText("Verified Edge Online voices (server required)"),
+    const voiceSelect = screen.getByLabelText("Voice (verified catalogue)");
+    expect(voiceSelect.value).toBe("es-ES-ElviraNeural");
+    const names = [...voiceSelect.options].map(
+      (option) => option.textContent.split(" · ")[0],
     );
-    for (const name of ["Elvira", "Ximena", "Álvaro"]) {
-      expect(screen.getByText(name)).toBeTruthy();
-    }
-    expect(screen.queryByText("Aria")).toBeNull();
+    expect(names).toEqual(["Elvira", "Ximena", "Álvaro"]);
   });
 
   it("removes a book with Undo and a fresh reader starts with an empty session", async () => {

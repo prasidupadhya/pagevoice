@@ -77,3 +77,32 @@ export const EDGE_ONLINE_VOICES = Object.freeze([
     gender: "male",
   },
 ]);
+
+export const DEFAULT_EDGE_VOICE = Object.freeze({
+  en: "en-US-AriaNeural",
+  es: "es-ES-ElviraNeural",
+});
+
+function normalized(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+}
+
+export function matchingDeviceVoice(edgeVoice, availableVoices) {
+  if (!edgeVoice) return null;
+  const [language, region] = edgeVoice.id.split("-");
+  const expectedLocale = `${language}-${region}`.toLowerCase();
+  const normalizedName = normalized(edgeVoice.name);
+  const namePattern = new RegExp(
+    `(?:^|[^a-z0-9])${normalizedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^a-z0-9])`,
+  );
+  const matches = availableVoices.filter((voice) => {
+    const locale = normalized(voice.lang).replaceAll("_", "-");
+    return (
+      locale === expectedLocale && namePattern.test(normalized(voice.name))
+    );
+  });
+  return matches.find((voice) => voice.default) || matches[0] || null;
+}
