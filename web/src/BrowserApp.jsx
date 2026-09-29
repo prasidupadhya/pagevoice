@@ -23,7 +23,11 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { BrowserBackend } from "./backends/BrowserBackend";
 import { SpeechController } from "./browser/SpeechController";
-import { EDGE_ONLINE_VOICES } from "./browser/edgeVoices";
+import {
+  DEFAULT_EDGE_VOICE,
+  EDGE_ONLINE_VOICES,
+  matchingDeviceVoice,
+} from "./browser/edgeVoices";
 import { messages, persist, preference } from "./i18n";
 
 function Modal({ title, onClose, children, className = "", closeLabel }) {
@@ -224,6 +228,7 @@ function BrowserSentences({
   book,
   chapterIndex,
   playback,
+  canListen,
   onListen,
   textSize,
   labels,
@@ -298,6 +303,7 @@ function BrowserSentences({
                 className="browser-sentence-text"
                 onClick={() => onListen(chapterIndex, index)}
                 aria-label={`${labels.listenFromHere}: ${sentences[index]}`}
+                disabled={!canListen}
               >
                 {sentences[index]}
               </button>
@@ -305,6 +311,7 @@ function BrowserSentences({
                 className="browser-sentence-listen"
                 onClick={() => onListen(chapterIndex, index)}
                 aria-label={`${labels.listenSentence} ${index + 1}`}
+                disabled={!canListen}
               >
                 <Play size={15} />
               </button>
@@ -486,6 +493,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
   const [removingIds, setRemovingIds] = useState(() => new Set());
   const [undoBooks, setUndoBooks] = useState([]);
   const [voiceList, setVoiceList] = useState([]);
+  const [voiceListLoaded, setVoiceListLoaded] = useState(false);
   const [voiceKey, setVoiceKey] = useState("");
   const [playback, setPlayback] = useState({ status: "idle", rate: 1 });
   const [rate, setRate] = useState(1);
@@ -502,24 +510,32 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
   const removalTimers = useRef(new Set());
   const speech = useRef(null);
   const searchRef = useRef(null);
-  const voicesForBook = useMemo(() => {
-    const language = activeBook?.language === "es" ? "es" : "en";
-    return voiceList
-      .filter((voice) => String(voice.lang).toLowerCase().startsWith(language))
-      .sort(
-        (a, b) =>
-          Number(Boolean(b.default)) - Number(Boolean(a.default)) ||
-          `${a.lang}|${a.name}`.localeCompare(`${b.lang}|${b.name}`),
-      );
-  }, [voiceList, activeBook?.language]);
-  const edgeVoicesForBook = EDGE_ONLINE_VOICES.filter(
-    (voice) => voice.language === (activeBook?.language === "es" ? "es" : "en"),
+  const activeLanguage = activeBook?.language === "es" ? "es" : "en";
+  const edgeVoicesForBook = useMemo(
+    () =>
+      EDGE_ONLINE_VOICES.filter((voice) => voice.language === activeLanguage),
+    [activeLanguage],
   );
-  const selectedVoice =
-    voicesForBook.find((voice) => `${voice.name}|${voice.lang}` === voiceKey) ||
-    voicesForBook.find((voice) => voice.default) ||
-    voicesForBook[0] ||
+  const selectedEdgeVoice =
+    edgeVoicesForBook.find((voice) => voice.id === voiceKey) ||
+    edgeVoicesForBook.find(
+      (voice) => voice.id === DEFAULT_EDGE_VOICE[activeLanguage],
+    ) ||
+    edgeVoicesForBook[0] ||
     null;
+  const matchingVoices = useMemo(
+    () =>
+      new Map(
+        edgeVoicesForBook.map((voice) => [
+          voice.id,
+          matchingDeviceVoice(voice, voiceList),
+        ]),
+      ),
+    [edgeVoicesForBook, voiceList],
+  );
+  const selectedSpeechVoice = selectedEdgeVoice
+    ? matchingVoices.get(selectedEdgeVoice.id) || null
+    : null;
   const searchResults = useMemo(
     () =>
       activeBook
@@ -551,6 +567,8 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
         setVoiceList(window.speechSynthesis.getVoices());
       } catch {
         setVoiceList([]);
+      } finally {
+        setVoiceListLoaded(true);
       }
     };
     updateVoices();
@@ -629,7 +647,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeBook, chapterIndex, playback.status, rate, selectedVoice]);
+  }, [activeBook, chapterIndex, playback.status, rate, selectedSpeechVoice]);
 
   useEffect(() => {
     if (!activeBook) return;
@@ -679,16 +697,22 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
 
   function startListening(chapter = chapterIndex, sentence = 0) {
     if (!activeBook || !speechSupported) return;
-    if (!selectedVoice) return;
+    if (!selectedSpeechVoice) return;
     setChapterIndex(chapter);
-    speech.current?.play(activeBook, chapter, sentence, selectedVoice, rate);
+    speech.current?.play(
+      activeBook,
+      chapter,
+      sentence,
+      selectedSpeechVoice,
+      rate,
+    );
   }
 
   function previewVoice() {
-    if (!selectedVoice || !activeBook) return;
+    if (!selectedSpeechVoice || !activeBook) return;
     speech.current?.preview(
       b.voiceSample,
-      selectedVoice,
+      selectedSpeechVoice,
       activeBook.language,
       rate,
     );
@@ -1058,7 +1082,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                     <button
                       className="browser-chapter-play"
                       onClick={() => startListening(chapterIndex, 0)}
-                      disabled={!speechSupported}
+                      disabled={!selectedSpeechVoice}
                       aria-label={`${b.listenFromHere}: ${displayChapterTitle(activeBook, chapterIndex, b)}`}
                     >
                       <Play size={17} />
@@ -1068,6 +1092,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                     book={activeBook}
                     chapterIndex={chapterIndex}
                     playback={playback}
+                    canListen={Boolean(selectedSpeechVoice)}
                     onListen={startListening}
                     textSize={textSize}
                     labels={b}
@@ -1116,39 +1141,61 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                     </label>
                     <select
                       id="browser-voice"
-                      value={
-                        selectedVoice
-                          ? `${selectedVoice.name}|${selectedVoice.lang}`
-                          : ""
-                      }
-                      onChange={(event) => setVoiceKey(event.target.value)}
-                      disabled={!voiceList.length}
+                      value={selectedEdgeVoice?.id || ""}
+                      onChange={(event) => {
+                        speech.current?.stop();
+                        setVoiceKey(event.target.value);
+                      }}
                     >
-                      <option value="">
-                        {voiceList.length ? b.selectVoice : b.voicesLoading}
-                      </option>
-                      {voicesForBook.map((voice) => (
-                        <option
-                          key={`${voice.name}|${voice.lang}`}
-                          value={`${voice.name}|${voice.lang}`}
-                        >
-                          {voice.name} · {voice.lang} ·{" "}
-                          {voice.default
-                            ? b.voiceDefault
-                            : voice.localService
-                              ? b.voiceOnDevice
-                              : b.voiceSystem}
-                        </option>
-                      ))}
+                      {[
+                        { region: "US", label: b.englishUS },
+                        { region: "GB", label: b.britishEnglish },
+                        { region: "ES", label: b.spanishSpain },
+                      ]
+                        .map((group) => ({
+                          ...group,
+                          voices: edgeVoicesForBook.filter(
+                            (voice) => voice.region === group.region,
+                          ),
+                        }))
+                        .filter((group) => group.voices.length > 0)
+                        .map((group) => (
+                          <optgroup label={group.label} key={group.region}>
+                            {group.voices.map((voice) => {
+                              const available = matchingVoices.get(voice.id);
+                              return (
+                                <option
+                                  key={voice.id}
+                                  value={voice.id}
+                                  disabled={!available}
+                                >
+                                  {voice.name} · {t[voice.gender]}
+                                  {!available
+                                    ? ` · ${b.voiceUnavailableShort}`
+                                    : ""}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        ))}
                     </select>
-                    {voiceList.length > 0 && !voicesForBook.length && (
-                      <p className="browser-small-warning">
-                        {b.noMatchingVoices}
+                    {selectedSpeechVoice ? (
+                      <p className="browser-voice-match" role="status">
+                        {b.voiceMatched}: {selectedSpeechVoice.name} ·{" "}
+                        {selectedSpeechVoice.lang}
+                      </p>
+                    ) : (
+                      <p className="browser-small-warning" role="status">
+                        {!speechSupported
+                          ? b.unsupportedSpeech
+                          : voiceListLoaded
+                            ? b.voiceUnavailable
+                            : b.voicesLoading}
                       </p>
                     )}
                     <button
                       className="text-button"
-                      disabled={!selectedVoice}
+                      disabled={!selectedSpeechVoice}
                       onClick={previewVoice}
                     >
                       <Volume2 size={16} /> {b.previewVoice}
@@ -1156,43 +1203,6 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                     <details className="browser-edge-voice-catalogue">
                       <summary>{b.edgeCatalogueTitle}</summary>
                       <p>{b.edgeCatalogueNotice}</p>
-                      {[
-                        {
-                          key: "US",
-                          title: b.englishUS,
-                        },
-                        {
-                          key: "GB",
-                          title: b.britishEnglish,
-                        },
-                        {
-                          key: "ES",
-                          title: b.spanishSpain,
-                        },
-                      ]
-                        .map((group) => ({
-                          ...group,
-                          voices: edgeVoicesForBook.filter(
-                            (voice) => voice.region === group.key,
-                          ),
-                        }))
-                        .filter((group) => group.voices.length > 0)
-                        .map((group) => (
-                          <div
-                            className="browser-edge-voice-group"
-                            key={group.key}
-                          >
-                            <h3>{group.title}</h3>
-                            <ul>
-                              {group.voices.map((voice) => (
-                                <li key={voice.id}>
-                                  <strong>{voice.name}</strong>
-                                  <span>{t[voice.gender]}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
                     </details>
                     <label
                       className="browser-field-label"
@@ -1219,7 +1229,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                           className="icon-button"
                           onClick={() => speech.current?.previous()}
                           aria-label={b.previous}
-                          disabled={!activeBook}
+                          disabled={!activeBook || !selectedSpeechVoice}
                         >
                           <SkipBack size={18} />
                         </button>
@@ -1249,6 +1259,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                             onClick={() =>
                               startListening(activeBook.startChapter || 0, 0)
                             }
+                            disabled={!selectedSpeechVoice}
                           >
                             <Play size={17} /> {b.listen}
                           </button>
@@ -1257,7 +1268,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                           className="icon-button"
                           onClick={() => speech.current?.next()}
                           aria-label={b.next}
-                          disabled={!activeBook}
+                          disabled={!activeBook || !selectedSpeechVoice}
                         >
                           <SkipForward size={18} />
                         </button>
@@ -1359,6 +1370,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                             </span>
                             <button
                               className="text-button"
+                              disabled={!selectedSpeechVoice}
                               onClick={() => {
                                 setChapterIndex(hit.chapter);
                                 startListening(hit.chapter, hit.sentence);

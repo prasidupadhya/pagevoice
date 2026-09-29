@@ -222,6 +222,13 @@ by device and some may use cloud processing outside PageVoice's control. PageVoi
 itself sends no book data anywhere in temporary browser mode. Search is local
 lexical search, not AI.
 
+The temporary-mode voice picker now offers only the eleven names in the verified
+catalogue below, filtered to the book's language; English defaults to Aria and
+Spanish to Elvira. A choice is enabled only when the browser exposes a voice with
+the same name and region. That browser voice is not guaranteed to be Microsoft's
+Edge Neural service. Exact Edge Online synthesis and preview require the
+API-backed PageVoice server and its explicit narration consent.
+
 The named Edge Online catalogue in [Voices](#voices) is served by the full
 PageVoice API and requires the explicit Microsoft narration consent. Temporary
 browser mode labels the current browser/device voice separately and lists the
