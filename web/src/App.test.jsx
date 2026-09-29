@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import App, { SentenceEditor, UploadDialog } from "./App";
+import ApiApp, { SentenceEditor, UploadDialog } from "./ApiApp";
 import { messages } from "./i18n";
 
 const project = {
@@ -62,7 +62,7 @@ describe("reader interactions", () => {
       bundle: `/api/projects/${project.id}/bundle`,
     };
     server(ready);
-    render(<App />);
+    render(<ApiApp />);
     expect(
       (
         await screen.findByRole("link", { name: messages.en.download })
@@ -76,7 +76,7 @@ describe("reader interactions", () => {
   });
   it("switches interface language and theme while preserving the book language", async () => {
     server();
-    render(<App />);
+    render(<ApiApp />);
     const user = userEvent.setup();
     await screen.findByRole("heading", { name: "The Quiet Harbour" });
     await user.selectOptions(screen.getByLabelText("Interface language"), "es");
@@ -91,7 +91,7 @@ describe("reader interactions", () => {
   });
   it("does not offer retired cloning or XTTS controls", async () => {
     server();
-    render(<App />);
+    render(<ApiApp />);
     await screen.findByRole("heading", { name: "The Quiet Harbour" });
     expect(
       screen.queryByRole("button", { name: "Add your own voice" }),
@@ -257,7 +257,7 @@ it("Listen from here requires explicit online permission, saves settings and sta
                   : book,
     })),
   );
-  render(<App />);
+  render(<ApiApp />);
   await screen.findByRole("heading", { name: book.title });
   const buttons = screen.getAllByRole("button", { name: "Listen from here" });
   await waitFor(() => expect(buttons[0].disabled).toBe(false));
@@ -305,7 +305,7 @@ it("Listen from here requires explicit online permission, saves settings and sta
 
 it("persists bookmarks and reader text size per browser", async () => {
   server();
-  render(<App />);
+  render(<ApiApp />);
   await screen.findByRole("heading", { name: "The Quiet Harbour" });
   await userEvent.click(
     screen.getByRole("button", { name: "Bookmark sentence 1" }),
