@@ -4,6 +4,7 @@
 - [Repository findings before implementation](findings.md)
 - [HTTP API and local analysis endpoints](api.md)
 - [Vercel frontend setup](deployment.md)
+- [PocketBase fit assessment](pocketbase-fit.md)
 - [Retrieval evaluation corpus, numbers and limitations](rag-eval.md)
 - [Reader design system and reference notes](design.md)
 - [Exact verification commands and results](verification.md)
