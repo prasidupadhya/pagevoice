@@ -224,16 +224,19 @@ lexical search, not AI.
 
 The temporary-mode voice picker now offers only the eleven names in the verified
 catalogue below, filtered to the book's language; English defaults to Aria and
-Spanish to Elvira. A choice is enabled only when the browser exposes a voice with
-the same name and region. That browser voice is not guaranteed to be Microsoft's
-Edge Neural service. Exact Edge Online synthesis and preview require the
-API-backed PageVoice server and its explicit narration consent.
+Spanish to Elvira. For playback, it first looks for the selected name and region
+in device voices, then uses an available voice for the requested region, then any
+device voice for the same language. The reader displays the actual device voice
+used, which may sound different from the selected Edge voice. Listening is only
+disabled when the browser has no voice for the book's language. Exact Edge Online
+synthesis and preview require the API-backed PageVoice server and its explicit
+narration consent.
 
 The named Edge Online catalogue in [Voices](#voices) is served by the full
 PageVoice API and requires the explicit Microsoft narration consent. Temporary
-browser mode labels the current browser/device voice separately and lists the
-verified Edge choices as server-only; it does not present unrelated system voices
-as Aria, Sonia or the other Edge voices.
+browser mode does not contact Microsoft or claim a device voice is the named Edge
+voice; the selector remains limited to the verified Edge profiles while its
+status message identifies the actual browser/device voice used.
 
 Books and covers exist only in the current page's memory. They disappear after a
 refresh or when the tab closes. Temporary mode cannot prepare or download M4B/MP3

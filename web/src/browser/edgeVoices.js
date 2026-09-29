@@ -106,3 +106,54 @@ export function matchingDeviceVoice(edgeVoice, availableVoices) {
   });
   return matches.find((voice) => voice.default) || matches[0] || null;
 }
+
+function localeParts(locale) {
+  const [language = "", region = ""] = normalized(locale)
+    .replaceAll("_", "-")
+    .split("-");
+  return { language, region };
+}
+
+function preferDeviceVoice(voices) {
+  return (
+    [...voices].sort((left, right) => {
+      const localDifference =
+        Number(Boolean(right.localService)) -
+        Number(Boolean(left.localService));
+      if (localDifference) return localDifference;
+      return Number(Boolean(right.default)) - Number(Boolean(left.default));
+    })[0] || null
+  );
+}
+
+/**
+ * Resolve a curated Edge choice to a playable browser voice. Temporary mode
+ * cannot call Edge Online, so it first looks for the exact installed voice,
+ * then a voice for the requested locale, then any voice for the same language.
+ */
+export function resolveDeviceVoice(edgeVoice, availableVoices) {
+  if (!edgeVoice) return null;
+  const exact = matchingDeviceVoice(edgeVoice, availableVoices);
+  if (exact) return { voice: exact, match: "exact" };
+
+  const { language, region } = localeParts(edgeVoice.id);
+  if (!language) return null;
+  const candidates = availableVoices
+    .map((voice) => ({ voice, ...localeParts(voice.lang) }))
+    .filter((candidate) => candidate.language === language);
+  if (!candidates.length) return null;
+
+  const regional = candidates.filter(
+    (candidate) => candidate.region === region,
+  );
+  if (regional.length) {
+    return {
+      voice: preferDeviceVoice(regional.map((candidate) => candidate.voice)),
+      match: "region",
+    };
+  }
+  return {
+    voice: preferDeviceVoice(candidates.map((candidate) => candidate.voice)),
+    match: "language",
+  };
+}

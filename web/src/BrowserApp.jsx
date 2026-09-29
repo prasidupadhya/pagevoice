@@ -26,7 +26,7 @@ import { SpeechController } from "./browser/SpeechController";
 import {
   DEFAULT_EDGE_VOICE,
   EDGE_ONLINE_VOICES,
-  matchingDeviceVoice,
+  resolveDeviceVoice,
 } from "./browser/edgeVoices";
 import { messages, persist, preference } from "./i18n";
 
@@ -528,14 +528,15 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
       new Map(
         edgeVoicesForBook.map((voice) => [
           voice.id,
-          matchingDeviceVoice(voice, voiceList),
+          resolveDeviceVoice(voice, voiceList),
         ]),
       ),
     [edgeVoicesForBook, voiceList],
   );
-  const selectedSpeechVoice = selectedEdgeVoice
+  const selectedVoiceResolution = selectedEdgeVoice
     ? matchingVoices.get(selectedEdgeVoice.id) || null
     : null;
+  const selectedSpeechVoice = selectedVoiceResolution?.voice || null;
   const searchResults = useMemo(
     () =>
       activeBook
@@ -1181,8 +1182,17 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                     </select>
                     {selectedSpeechVoice ? (
                       <p className="browser-voice-match" role="status">
-                        {b.voiceMatched}: {selectedSpeechVoice.name} ·{" "}
-                        {selectedSpeechVoice.lang}
+                        {selectedVoiceResolution.match === "exact" ? (
+                          <>
+                            {b.voiceMatched}: {selectedSpeechVoice.name} ·{" "}
+                            {selectedSpeechVoice.lang}
+                          </>
+                        ) : (
+                          <>
+                            {b.voiceFallback}: {selectedSpeechVoice.name} ·{" "}
+                            {selectedSpeechVoice.lang}. {b.voiceFallbackNote}
+                          </>
+                        )}
                       </p>
                     ) : (
                       <p className="browser-small-warning" role="status">
