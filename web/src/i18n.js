@@ -219,6 +219,22 @@ export const messages = {
       "Storage is full. Remove a book, wait for its Undo window to finish, then try again.",
     rateLimit: "Too many requests. Wait one minute and try again.",
     hostedStorage: "Private hosted library",
+    guestStorage: "Private guest library",
+    guestPrivacy:
+      "No signup. This private guest library is tied to this browser profile. Book files, analysis and finished audio are saved on the PageVoice server. Clearing browser data means this library cannot be recovered. Remove books here at any time.",
+    guestSetupError:
+      "The private library service is not configured. Set VITE_POCKETBASE_URL and rebuild the Vercel site.",
+    librarySyncError:
+      "This book is still safe on the PageVoice server, but its library details could not sync just now. Check the connection and refresh.",
+    deploymentTitle: "Your private reading room is almost ready",
+    deploymentDescription:
+      "This public site needs its persistent PageVoice worker and private library service configured. It will not open a temporary library here.",
+    deploymentVariables:
+      "Add these Vercel environment variables, then redeploy:",
+    apiVariable: "VITE_API_BASE_URL — your HTTPS PageVoice API origin",
+    pocketbaseVariable: "VITE_POCKETBASE_URL — your HTTPS PocketBase origin",
+    deploymentNote:
+      "The API and PocketBase run on a separate host with persistent storage. The site owner must finish that setup before visitors can use the library.",
     hostedPrivacy:
       "Books, analysis and audio are stored on your backend server. Narration text is sent to Microsoft only with your permission.",
     hostedAccess: "Private library access",
@@ -366,6 +382,8 @@ export const messages = {
     saved: "Settings saved.",
     engineHint:
       "Edge is the narration engine. Your book analysis and exports run on this computer.",
+    guestEngineHint:
+      "Edge is the narration engine. Book analysis and exports run on the PageVoice server.",
     name: "Voice name",
     recording: "WAV or MP3 recording",
     consent:
@@ -660,6 +678,22 @@ export const messages = {
       "El almacenamiento está lleno. Elimina un libro, espera a que termine el plazo para deshacer e inténtalo de nuevo.",
     rateLimit: "Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.",
     hostedStorage: "Biblioteca privada alojada",
+    guestStorage: "Biblioteca privada de invitado",
+    guestPrivacy:
+      "Sin registro. Esta biblioteca privada está vinculada a este perfil del navegador. Los libros, el análisis y el audio terminado se guardan en el servidor de PageVoice. Si borras los datos del navegador, no se podrá recuperar la biblioteca. Puedes eliminar libros cuando quieras.",
+    guestSetupError:
+      "El servicio de biblioteca privada no está configurado. Define VITE_POCKETBASE_URL y vuelve a compilar el sitio de Vercel.",
+    librarySyncError:
+      "El libro sigue guardado en el servidor de PageVoice, pero ahora no se pudieron sincronizar los datos de la biblioteca. Comprueba la conexión y vuelve a cargar.",
+    deploymentTitle: "Tu sala de lectura privada está casi lista",
+    deploymentDescription:
+      "Este sitio público necesita que se configuren el trabajador persistente de PageVoice y el servicio de biblioteca privada. Aquí no se abrirá una biblioteca temporal.",
+    deploymentVariables:
+      "Añade estas variables en Vercel y vuelve a desplegar:",
+    apiVariable: "VITE_API_BASE_URL — origen HTTPS de la API de PageVoice",
+    pocketbaseVariable: "VITE_POCKETBASE_URL — origen HTTPS de PocketBase",
+    deploymentNote:
+      "La API y PocketBase se ejecutan en otro servidor con almacenamiento persistente. El propietario del sitio debe completar la configuración antes de que los visitantes puedan usar la biblioteca.",
     hostedPrivacy:
       "Los libros, el análisis y el audio se guardan en tu servidor. El texto de narración se envía a Microsoft solo con tu permiso.",
     hostedAccess: "Acceso a la biblioteca privada",
@@ -810,6 +844,8 @@ export const messages = {
     saved: "Ajustes guardados.",
     engineHint:
       "Edge es el motor de narración. El análisis y la exportación se ejecutan en este ordenador.",
+    guestEngineHint:
+      "Edge es el motor de narración. El análisis y la exportación se ejecutan en el servidor de PageVoice.",
     name: "Nombre de la voz",
     recording: "Grabación WAV o MP3",
     consent: "Tengo permiso de esta persona para clonar y utilizar su voz.",

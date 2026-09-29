@@ -9,9 +9,17 @@ export function isLoopbackHost(hostname = "") {
   );
 }
 
-export function backendMode({ apiBase = "", hostname = "", port = "" } = {}) {
+export function backendMode({
+  apiBase = "",
+  hostname = "",
+  port = "",
+  development = false,
+} = {}) {
   if (String(apiBase).trim()) return "api";
   // A PageVoice server opened directly uses its default local port.
   if (isLoopbackHost(hostname) && String(port) === "8765") return "api";
-  return "browser";
+  if (isLoopbackHost(hostname) || development) return "browser";
+  // A public deployment must never silently present memory-only mode as if it
+  // were a persistent PageVoice library.
+  return "unconfigured";
 }

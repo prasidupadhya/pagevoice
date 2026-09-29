@@ -1,0 +1,11 @@
+# Replace these domains and point both DNS records at this host. Caddy obtains
+# HTTPS certificates; Compose services remain bound to loopback on the host.
+api.example.com {
+    reverse_proxy 127.0.0.1:8765 {
+        flush_interval -1
+    }
+}
+
+identity.example.com {
+    reverse_proxy 127.0.0.1:8090
+}

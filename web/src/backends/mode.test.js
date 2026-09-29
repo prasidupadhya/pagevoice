@@ -16,8 +16,17 @@ describe("backend selection", () => {
     expect(backendMode({ hostname: "localhost" })).toBe("browser");
     expect(
       backendMode({ hostname: "pagevoice-sepia.vercel.app", port: "443" }),
-    ).toBe("browser");
-    expect(backendMode({ hostname: "192.168.1.8", dev: true })).toBe("browser");
+    ).toBe("unconfigured");
+    expect(
+      backendMode({
+        hostname: "pagevoice-sepia.vercel.app",
+        port: "443",
+        apiBase: "https://api.pagevoice.example",
+      }),
+    ).toBe("api");
+    expect(backendMode({ hostname: "192.168.1.8", development: true })).toBe(
+      "browser",
+    );
     expect(isLoopbackHost("[::1]")).toBe(true);
   });
 });

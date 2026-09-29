@@ -17,7 +17,7 @@ from .book import Book, Chapter, read_epub, clean
 from .engines import REGISTRY, create
 from .pdf import read_pdf
 from .storage import digest, save
-from .config import check_quota
+from .config import check_quota, check_tenant_quota
 from .languages import language_code, default_voice
 from .narration import events, synthesize, effective_voice, voice_plan
 
@@ -167,7 +167,11 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
             else:
                 if adapter is None:
                     adapter = create(state['engine'], state['device'], allow_network, session.parent.parent / 'voices')
-                check_quota(session.parent.parent, max(1024**2, len(text)*24000))
+                projected_bytes = max(1024**2, len(text) * 24000)
+                if state.get('owner_id'):
+                    check_tenant_quota(session.parent.parent, state['owner_id'], projected_bytes)
+                else:
+                    check_quota(session.parent.parent, projected_bytes)
                 generation = uuid.uuid4().hex[:12]
                 target = session / 'chunks' / f'{identifier}-{generation}.wav'
                 raw = target.with_suffix('.raw.wav')
@@ -190,7 +194,11 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
         state['status'] = 'assembling'
         save(manifest, state)
         assembled_book = book if chapter_index_only is None else Book(book.title, book.author, book.language, [book.chapters[chapter_index_only]])
-        check_quota(session.parent.parent, sum(p.stat().st_size for paths in chapter_paths for p in paths)*2)
+        projected_bytes = sum(p.stat().st_size for paths in chapter_paths for p in paths) * 2
+        if state.get('owner_id'):
+            check_tenant_quota(session.parent.parent, state['owner_id'], projected_bytes)
+        else:
+            check_quota(session.parent.parent, projected_bytes)
         probe = assemble(assembled_book, chapter_paths, session, output)
         if chapter_index_only is not None:
             state.setdefault('previews', {})[str(chapter_index_only)] = {'audio': str(output.relative_to(session)), 'sha256': digest(output)}
