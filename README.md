@@ -206,6 +206,35 @@ container host. See [deployment instructions](docs/deployment.md) for Docker,
 explicit domain allowlists, private-library access, storage limits and verification.
 Hosted mode stores books on your backend server. Local mode remains the default.
 
+### Run on Vercel (temporary browser mode)
+
+The frontend also works on Vercel without a PageVoice server. Set the Vercel
+project root to the repository root; the checked-in `vercel.json` runs the web
+install/build commands and publishes `web/dist` using Node 22. No environment
+variables are needed for this mode.
+
+Choose **Add a book** and select an English or Spanish PDF or EPUB. Parsing,
+chapter review, sentence splitting and accent-insensitive lexical search run in
+a local Web Worker in your browser tab. PDF bookmarks are used when available;
+PDF scans with no text layer are reported because temporary mode does not run OCR.
+Listening uses voices supplied by the browser or operating system, so voices vary
+by device and some may use cloud processing outside PageVoice's control. PageVoice
+itself sends no book data anywhere in temporary browser mode. Search is local
+lexical search, not AI.
+
+Books and covers exist only in the current page's memory. They disappear after a
+refresh or when the tab closes. Temporary mode cannot prepare or download M4B/MP3
+files, regenerate audio, or continue background work after you leave the page.
+It does not record synthesized speech. Use **Clear everything** to remove the
+current session sooner.
+
+For the existing API-backed reader, set `VITE_API_BASE_URL` before building and
+run the PageVoice API separately. `VITE_API_BASE_URL=/` uses the existing Vite
+`/api` proxy in local development; a PageVoice server opened directly on its local
+port is selected automatically. This selects the existing API path; an external
+API origin also needs to be added to the Vercel CSP `connect-src` allowlist. The
+default Vercel build does not make API requests.
+
 ### Measured local book analysis
 
 Default analysis/search remains offline and non-generative. EN/ES stemming,
