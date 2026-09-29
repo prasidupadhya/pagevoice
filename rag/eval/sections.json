@@ -1,0 +1,31 @@
+{
+  "wilde": [
+    "front_matter",
+    "chapter",
+    "chapter",
+    "chapter",
+    "chapter",
+    "chapter",
+    "back_matter"
+  ],
+  "rabbit": [
+    "front_matter",
+    "chapter",
+    "back_matter"
+  ],
+  "ojos": [
+    "front_matter",
+    "front_matter",
+    "chapter",
+    "chapter",
+    "chapter",
+    "back_matter"
+  ],
+  "beso": [
+    "front_matter",
+    "chapter",
+    "chapter",
+    "chapter",
+    "back_matter"
+  ]
+}

@@ -44,7 +44,7 @@ for current checks and limitations.
 ## Voices, casting and compatible speech
 
 - `GET /api/voices`: archived local profiles, retained for compatibility.
-- `POST /api/voices`: returns410; cloning uploads are removed.
+- Voice-upload route: removed (POST returns405). Existing local reference profiles remain readable; they are not an available narration engine.
 - `POST /api/projects/{id}/speakers/detect`: suggest sentence speakers while preserving
   existing manual assignments. Dialogue without a name becomes `Dialogue`.
 - `PATCH /api/projects/{id}/casting`: merge `{"cast":{"Mira":"Daniel"},
@@ -107,7 +107,98 @@ See [progressive listening verification](progressive-listening.md).
   "kind":"chapter", "start_here":true }`. Kind is `chapter`, `front_matter`,
   `back_matter` or `unclassified`. Saves manual evidence and optionally sets listening
   priority; retains sentence WAVs but invalidates exports containing old chapter titles.
-  Busy projects return409. This does not split or merge chapter boundaries.
+  Busy projects return409. Chapter boundary edits are described below.
 - Analysis version2 returns classification confidence/reasons, source excerpts,
   cited search context and explicit partial-match labels. Retrieval is local FTS5,
   not generative AI. New projects use narration version2; old cached audio is unchanged.
+
+## Book removal (Phase 1)
+
+- `GET /api/projects/{id}/deletion`: owned paths, byte count, generated-audio flag,
+  source-sharing flag. Count is measured at request time; active work can add data.
+- `DELETE /api/projects/{id}`:202 after safe-boundary cancellation and durable moves
+  into `trash/<id>/files/`. Response includes `expires` (Unix seconds), actual moved
+  `bytes`, title and state. Repeated deletion and ordinary reads return404. The
+  request may wait for in-flight extraction/synthesis/encoding to release its lock.
+- `POST /api/trash/{id}/restore`: restores during the eight-second Undo window;
+  resumed jobs remain paused and never automatically send text online. Returns the
+  restored project. Expired undo returns400; purged/missing returns404.
+- CLI: `pagevoice delete sessions/<id>` uses the same trash protocol and waits for
+  purge. If the server owns the worker, CLI lets it finish cancellation; otherwise
+  CLI temporarily acquires worker ownership for cleanup.
+
+Deletion markers are written before moving files. Startup finishes interrupted
+moves/restores/purges before loading queued jobs. The worker checks deletion at
+sentence boundaries; the global worker-owner lock remains held so other projects
+can safely continue. Project session/synthesis locks release before moving data.
+Jobs are located by their recorded project ID, not filename. Uploads are removed
+only when no live or trashed sibling references the source name. Per-project logs
+are owned; deployment-wide `logs/server.log` is not. SSE emits `deleted` then closes.
+
+## Hosted transport
+
+Default local requests remain same-origin and unauthenticated on loopback. Hosted
+mode requires `Authorization: Bearer <PAGEVOICE_ACCESS_TOKEN>` for all routes
+except `/api/health` and valid signed media GETs. Health includes `hosted: boolean`.
+Exact configured origins receive CORS headers; wildcards are rejected. OPTIONS is
+available to allowed origins without a token. See [deployment](deployment.md).
+
+Returned audio/download URLs may contain `expires` and `signature`. Preserve their
+query strings and resolve relative URLs against `VITE_API_BASE_URL`. They authorize
+only GET of that exact media path, expire after approximately one hour and never
+contain the deployment secret. SSE uses the bearer header, not a query token.
+401 means authentication is required, 413 is a body limit, 429 is a rate limit and
+507 indicates upload admission exceeded the storage quota. Background quota
+failures appear in the normal job error field and can be resumed after freeing space.
+
+## Local analysis additions
+
+`GET /api/projects/{id}/analysis?q=...` also accepts `chapter`,
+`kind=chapter|front_matter|back_matter|unclassified`,
+`match_type=exact|phrase|stem|partial|fuzzy|semantic`, `limit=1..50` (default 8),
+`mode=lexical|hybrid` (default lexical). Queries: max 500 characters. Hits add
+`match_type`, `matched_terms`, `score`, `explanation`, `source_anchor` and context
+coordinates. Section records add `subkind`, `confidence_level`, `signals`, `flags`.
+Existing fields remain. Hybrid never downloads; unavailable model falls back.
+Explicit phrase/NEAR/required/excluded/prefix operators keep lexical constraints.
+
+- `GET /api/projects/{id}/analysis/index`: missing/stale/building/ready/failed/corrupt,
+  schema/fingerprint/size when present, optional semantic-model status.
+- `POST /api/projects/{id}/analysis/index`: 202 background rebuild (at most two
+  concurrent builds); index writes and deletion coordinate through project locks.
+- `GET .../analysis/summaries?chapter=0`: verbatim sentences with citations and
+  estimated reading time, labelled extractive.
+- `GET .../analysis/entities?limit=50`: heuristic names/keywords with chapter counts
+  and source citations. No trained NER or factual inference.
+- `GET .../analysis/quotes?q=...&limit=50`: matching verbatim quote candidates.
+- `GET .../analysis/repetitions?limit=50`: repeated normalized passages/citations.
+- `GET .../analysis/qa?q=...&chapter=0`: supporting passages or explicit no-evidence
+  status; `answer` is null, never generated prose.
+
+Feature limits max 100; unknown feature/filter and invalid chapter return 422.
+
+## Reader additions
+
+`POST /api/projects/{id}/listen` accepts optional `sentence` (zero-based, default
+0) alongside `chapter` and `allow_network`. Preparation prioritizes that sentence
+through later chapters, then earlier material for the full export. Invalid sentence
+returns 404. Consent checks still apply. Pause preserves chapter/sentence priority.
+
+`GET /api/storage` returns `bytes` and `quota_bytes`. `GET .../{id}/cover` serves
+only the project's sanitized local PNG (404 if absent), with a path-scoped signed
+URL in hosted mode. A typographic cover is generated by the frontend otherwise.
+
+`GET /api/projects/{id}/bundle` downloads a ZIP containing the current M4B/MP3,
+`chapters.json`, and `citations.json`. Citation records include the stable sentence
+ID, exact narration text, chapter title and source anchor. It is generated on
+request in a temporary spool and is available only while the audiobook export is
+current. Hosted mode uses the same expiring, path-scoped media capability as the
+audio download.
+
+
+`POST /api/projects/{id}/structure` accepts `{"action":"split","chapter":0,"boundary":3}`
+to split before zero-based sentence 3, or `{"action":"merge","chapter":0}`
+to merge chapter 0 with its successor. Split boundaries must leave sentences on
+both sides. Conflicting manual section classifications must be reviewed first.
+Chunks and speaker tags are remapped; source anchors remain tied to the original
+sentence. The previous audiobook remains on disk but is no longer marked current.

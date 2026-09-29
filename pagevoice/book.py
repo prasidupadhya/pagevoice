@@ -67,8 +67,9 @@ def member(base: str, href: str) -> str:
 
 def read_epub(path: Path, language: str | None = None) -> Book:
     with zipfile.ZipFile(path) as archive:
-        if sum(i.file_size for i in archive.infolist()) > 200_000_000:
-            raise ValueError('EPUB uncompressed size exceeds 200 MB.')
+        infos=archive.infolist()
+        if len(infos)>50000 or sum(i.file_size for i in infos)>200_000_000 or any(i.file_size>50_000_000 for i in infos):
+            raise ValueError('EPUB exceeds the 50,000-entry, 50 MB-per-file or 200 MB expanded-size limit.')
         if 'META-INF/encryption.xml' in archive.namelist():
             encryption = ET.fromstring(archive.read('META-INF/encryption.xml'))
             if any('font' not in e.attrib.get('Algorithm', '').lower()

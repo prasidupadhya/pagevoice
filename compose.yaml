@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      PAGEVOICE_HOST: 0.0.0.0
+      PAGEVOICE_DATA: /data
+      PAGEVOICE_ALLOWED_HOSTS: localhost,127.0.0.1
+      PAGEVOICE_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      PAGEVOICE_DISK_QUOTA_MB: 10240
+    volumes:
+      - books:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  books:

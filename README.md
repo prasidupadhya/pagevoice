@@ -44,14 +44,15 @@ The server binds to localhost. Port8765 is the default if no override is given.
 3. Select a voice and narration pace (0.5–2×). Explicitly check the Microsoft
    network-consent box before previewing or generating speech. Save changed settings.
 4. Choose a chapter and press **Create audiobook** or **Listen from here**. The
-   click arms playback. Listening starts after20 consecutive sentences are ready,
+   click arms playback. Listening starts after20 consecutive sentences are downloaded and decoded,
    or all remaining sentences when fewer than20 remain. If the browser blocks
    audio, use **Tap to enable audio**.
 5. Preparation continues while you listen. The selected chapter and subsequent
    chapters take priority; earlier sections finish afterward for the complete
    export. Pausing listening does not pause preparation. Both controls are available.
 6. Edit/regenerate a single sentence, or download the completed M4B/MP3. M4B
-   includes chapter metadata. MP3 chapter display depends on the player.
+   includes chapter metadata. MP3 chapter display depends on the player. The
+   separate export bundle contains the audio, chapter list and source citations.
 
 ### Existing books and older audio
 
@@ -114,7 +115,8 @@ It does not claim semantic understanding or generate unsupported answers.
   review warnings. Original page-cache text is retained.
 - Analysis distinguishes document evidence, inferred decisions and manual reviews.
   Unknown sections remain unclassified. Users can correct titles/types and start
-  position; arbitrary chapter splitting/merging is not implemented.
+  position. Chapter boundaries can also be split between sentences or merged;
+  sentence audio is retained and stable citations continue to point to source text.
 - Each project has a SQLite FTS5 index in `sessions/<id>/rag/book.sqlite`.
   Search removes English/Spanish stopwords, tries all important terms first, then
   labels partial matches. Results include neighbouring sentences, chapter/sentence
@@ -183,7 +185,33 @@ continues preparing the audiobook. Existing Mexican voice selections migrate to
 Spain's default when settings are next saved; existing audio is preserved on disk.
 
 
-Edge permission is checked by default in the reader at the user's request. The
-Microsoft text-transfer notice remains visible and permission can be unchecked.
-Starting playback then requests permission again if new online audio is needed.
-CLI/API requests still require their explicit network flag.
+Edge permission is unchecked by default. Narration requires explicitly selecting
+the Microsoft text-transfer checkbox or confirming the online narration dialog.
+CLI/API requests require their explicit network flag.
+
+## Remove a book
+
+Use **Remove book** in the library or reader. The dialog lists owned data and byte
+usage; when generated audio exists, type DELETE (ELIMINAR in Spanish). An active
+job finishes its current sentence before files move to trash. **Undo** is available
+for eight seconds after the move; then the background worker permanently purges it.
+Shared uploads stay until no remaining live or Undo project references them.
+Your original file outside PageVoice and shared server logs are never deleted.
+CLI: `pagevoice delete sessions/<id>` waits for the same safe deletion/purge.
+
+### Hosted deployment
+
+The React reader can run on Vercel; the Python worker needs a separate persistent
+container host. See [deployment instructions](docs/deployment.md) for Docker,
+explicit domain allowlists, private-library access, storage limits and verification.
+Hosted mode stores books on your backend server. Local mode remains the default.
+
+### Measured local book analysis
+
+Default analysis/search remains offline and non-generative. EN/ES stemming,
+phrase/proximity queries, labelled typo fallback, source citations and extractive
+book features are documented in [rag/README.md](rag/README.md). The fixed 112-query
+regression corpus improved recall@5 from 82% to 94% and MRR from .770 to .937;
+these are development-corpus results, not universal accuracy. The richer index is
+larger/slower than baseline but meets the measured 600-page performance targets.
+See [evaluation details and limitations](docs/rag-eval.md).

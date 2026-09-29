@@ -1,3 +1,5 @@
+> **Historical verification (Phase 2 / 2026-09-29).** This report records the checks and limitations at the original Phase 2 commit. Later phases changed the interface, storage and local retrieval. See [current verification](verification.md) for the latest results.
+
 # Phase 2 verification
 
 Verified locally on macOS arm64, Python 3.10.12, Node 22.13.1 (unused), FFmpeg 8.1.

@@ -5,7 +5,7 @@ command -v ffmpeg >/dev/null || { echo 'Install ffmpeg first (macOS: brew instal
 command -v ffprobe >/dev/null
 "${PYTHON:-python3}" -m venv .venv
 .venv/bin/python -m pip install 'pip==25.0.1'
-.venv/bin/python -m pip install -c requirements-core.lock -e '.[api,test]'
+.venv/bin/python -m pip install -c requirements-core.lock -e '.[api,test,quality]'
 .venv/bin/pagevoice doctor
 command -v npm >/dev/null || { echo 'Node 22.12+ and npm are required for the reader interface.'; exit 1; }
 npm --prefix web ci

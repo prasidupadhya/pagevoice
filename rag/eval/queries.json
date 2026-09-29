@@ -1,0 +1,1286 @@
+[
+  {
+    "id": "wilde-01",
+    "book": "wilde",
+    "category": "exact",
+    "query": "tall column",
+    "expected": [
+      [
+        1,
+        0
+      ]
+    ]
+  },
+  {
+    "id": "wilde-02",
+    "book": "wilde",
+    "category": "exact",
+    "query": "bright sapphires",
+    "expected": [
+      [
+        1,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "wilde-03",
+    "book": "wilde",
+    "category": "exact",
+    "query": "artistic tastes",
+    "expected": [
+      [
+        1,
+        3
+      ]
+    ]
+  },
+  {
+    "id": "wilde-04",
+    "book": "wilde",
+    "category": "exact",
+    "query": "scarlet cloaks",
+    "expected": [
+      [
+        1,
+        8
+      ]
+    ]
+  },
+  {
+    "id": "wilde-05",
+    "book": "wilde",
+    "category": "exact",
+    "query": "Egypt six weeks",
+    "expected": [
+      [
+        1,
+        14
+      ]
+    ]
+  },
+  {
+    "id": "wilde-06",
+    "book": "wilde",
+    "category": "exact",
+    "query": "silver ripples",
+    "expected": [
+      [
+        1,
+        18
+      ]
+    ]
+  },
+  {
+    "id": "wilde-07",
+    "book": "wilde",
+    "category": "exact",
+    "query": "travelling wife",
+    "expected": [
+      [
+        1,
+        25
+      ]
+    ]
+  },
+  {
+    "id": "wilde-08",
+    "book": "wilde",
+    "category": "exact",
+    "query": "golden bedroom",
+    "expected": [
+      [
+        1,
+        38
+      ]
+    ]
+  },
+  {
+    "id": "wilde-09",
+    "book": "wilde",
+    "category": "exact",
+    "query": "Cornish ogre",
+    "expected": [
+      [
+        3,
+        7
+      ]
+    ]
+  },
+  {
+    "id": "wilde-10",
+    "book": "wilde",
+    "category": "exact",
+    "query": "twelve peach trees",
+    "expected": [
+      [
+        3,
+        2
+      ]
+    ]
+  },
+  {
+    "id": "wilde-11",
+    "book": "wilde",
+    "category": "exact",
+    "query": "high wall notice",
+    "expected": [
+      [
+        3,
+        13
+      ]
+    ]
+  },
+  {
+    "id": "wilde-12",
+    "book": "wilde",
+    "category": "exact",
+    "query": "white cloak Frost",
+    "expected": [
+      [
+        3,
+        25
+      ]
+    ]
+  },
+  {
+    "id": "wilde-13",
+    "book": "wilde",
+    "category": "phrase",
+    "query": "\"thin leaves of fine gold\"",
+    "expected": [
+      [
+        1,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "wilde-14",
+    "book": "wilde",
+    "category": "phrase",
+    "query": "\"dusty and full of hard stones\"",
+    "expected": [
+      [
+        3,
+        16
+      ]
+    ]
+  },
+  {
+    "id": "wilde-15",
+    "book": "wilde",
+    "category": "multi-term",
+    "query": "Swallow Reed spring moth",
+    "expected": [
+      [
+        1,
+        15
+      ]
+    ]
+  },
+  {
+    "id": "wilde-16",
+    "book": "wilde",
+    "category": "multi-term",
+    "query": "North Wind chimney pots",
+    "expected": [
+      [
+        3,
+        27
+      ]
+    ]
+  },
+  {
+    "id": "wilde-17",
+    "book": "wilde",
+    "category": "inflection",
+    "query": "flower blossom peach",
+    "expected": [
+      [
+        3,
+        2
+      ]
+    ]
+  },
+  {
+    "id": "wilde-18",
+    "book": "wilde",
+    "category": "inflection",
+    "query": "bird sing window",
+    "expected": [
+      [
+        3,
+        39
+      ]
+    ]
+  },
+  {
+    "id": "wilde-19",
+    "book": "wilde",
+    "category": "typo",
+    "query": "sapphiress",
+    "expected": [
+      [
+        1,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "wilde-20",
+    "book": "wilde",
+    "category": "typo",
+    "query": "weathrcock",
+    "expected": [
+      [
+        1,
+        3
+      ]
+    ]
+  },
+  {
+    "id": "wilde-21",
+    "book": "wilde",
+    "category": "typo",
+    "query": "pinaforess",
+    "expected": [
+      [
+        1,
+        8
+      ]
+    ]
+  },
+  {
+    "id": "wilde-22",
+    "book": "wilde",
+    "category": "syntax",
+    "query": "NEAR(silver ripples, 4)",
+    "expected": [
+      [
+        1,
+        18
+      ]
+    ]
+  },
+  {
+    "id": "wilde-23",
+    "book": "wilde",
+    "category": "syntax",
+    "query": "+ruby -Reed",
+    "expected": [
+      [
+        1,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "wilde-24",
+    "book": "wilde",
+    "category": "paraphrase",
+    "query": "jewelled monument",
+    "expected": [
+      [
+        1,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "wilde-25",
+    "book": "wilde",
+    "category": "paraphrase",
+    "query": "childrens forbidden playground",
+    "expected": [
+      [
+        3,
+        12
+      ]
+    ]
+  },
+  {
+    "id": "wilde-26",
+    "book": "wilde",
+    "category": "stopword",
+    "query": "the and of",
+    "expected": []
+  },
+  {
+    "id": "wilde-27",
+    "book": "wilde",
+    "category": "no-answer",
+    "query": "quantum microprocessor",
+    "expected": []
+  },
+  {
+    "id": "wilde-28",
+    "book": "wilde",
+    "category": "no-answer",
+    "query": "zqxwvbnm",
+    "expected": []
+  },
+  {
+    "id": "rabbit-01",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "four little Rabbits",
+    "expected": [
+      [
+        1,
+        0
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-02",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "sand bank fir tree",
+    "expected": [
+      [
+        1,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-03",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "father pie",
+    "expected": [
+      [
+        1,
+        2
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-04",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "basket umbrella baker",
+    "expected": [
+      [
+        1,
+        5
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-05",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "brown bread currant buns",
+    "expected": [
+      [
+        1,
+        6
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-06",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "blackberries gate",
+    "expected": [
+      [
+        1,
+        7
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-07",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "French beans radishes parsley",
+    "expected": [
+      [
+        1,
+        8
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-08",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "shoes potatoes",
+    "expected": [
+      [
+        1,
+        11
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-09",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "gooseberry net buttons",
+    "expected": [
+      [
+        1,
+        12
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-10",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "brass buttons blue jacket",
+    "expected": [
+      [
+        1,
+        13
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-11",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "friendly sparrows",
+    "expected": [
+      [
+        1,
+        14
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-12",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "sieve jacket behind",
+    "expected": [
+      [
+        1,
+        15
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-13",
+    "book": "rabbit",
+    "category": "exact",
+    "query": "flower pot",
+    "expected": [
+      [
+        1,
+        18
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-14",
+    "book": "rabbit",
+    "category": "phrase",
+    "query": "\"three plants\"",
+    "expected": [
+      [
+        1,
+        22
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-15",
+    "book": "rabbit",
+    "category": "phrase",
+    "query": "\"out of breath\"",
+    "expected": [
+      [
+        1,
+        25
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-16",
+    "book": "rabbit",
+    "category": "multi-term",
+    "query": "white cat gold fish",
+    "expected": [
+      [
+        1,
+        35
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-17",
+    "book": "rabbit",
+    "category": "multi-term",
+    "query": "old mouse peas beans",
+    "expected": [
+      [
+        1,
+        29
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-18",
+    "book": "rabbit",
+    "category": "inflection",
+    "query": "sparrow sob",
+    "expected": [
+      [
+        1,
+        14
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-19",
+    "book": "rabbit",
+    "category": "inflection",
+    "query": "button brass",
+    "expected": [
+      [
+        1,
+        13
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-20",
+    "book": "rabbit",
+    "category": "typo",
+    "query": "gooseberrry",
+    "expected": [
+      [
+        1,
+        12
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-21",
+    "book": "rabbit",
+    "category": "typo",
+    "query": "cabbagess",
+    "expected": [
+      [
+        1,
+        10
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-22",
+    "book": "rabbit",
+    "category": "syntax",
+    "query": "+potatoes -parsley",
+    "expected": [
+      [
+        1,
+        11
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-23",
+    "book": "rabbit",
+    "category": "syntax",
+    "query": "blackberr*",
+    "expected": [
+      [
+        1,
+        7
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-24",
+    "book": "rabbit",
+    "category": "paraphrase",
+    "query": "rabbit caught clothing mesh",
+    "expected": [
+      [
+        1,
+        12
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-25",
+    "book": "rabbit",
+    "category": "paraphrase",
+    "query": "mother purchases pastries",
+    "expected": [
+      [
+        1,
+        6
+      ]
+    ]
+  },
+  {
+    "id": "rabbit-26",
+    "book": "rabbit",
+    "category": "stopword",
+    "query": "is the and",
+    "expected": []
+  },
+  {
+    "id": "rabbit-27",
+    "book": "rabbit",
+    "category": "no-answer",
+    "query": "submarine photovoltaic",
+    "expected": []
+  },
+  {
+    "id": "rabbit-28",
+    "book": "rabbit",
+    "category": "no-answer",
+    "query": "zzqxxyz",
+    "expected": []
+  },
+  {
+    "id": "ojos-01",
+    "book": "ojos",
+    "category": "exact",
+    "query": "Herido ciervo duda",
+    "expected": [
+      [
+        2,
+        0
+      ]
+    ]
+  },
+  {
+    "id": "ojos-02",
+    "book": "ojos",
+    "category": "exact",
+    "query": "rastro sangre zarzas",
+    "expected": [
+      [
+        2,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "ojos-03",
+    "book": "ojos",
+    "category": "exact",
+    "query": "Fernando Argensola primogénito",
+    "expected": [
+      [
+        2,
+        12
+      ]
+    ]
+  },
+  {
+    "id": "ojos-04",
+    "book": "ojos",
+    "category": "exact",
+    "query": "calamidad horrible",
+    "expected": [
+      [
+        2,
+        23
+      ]
+    ]
+  },
+  {
+    "id": "ojos-05",
+    "book": "ojos",
+    "category": "exact",
+    "query": "joyel serreta oro",
+    "expected": [
+      [
+        2,
+        36
+      ]
+    ]
+  },
+  {
+    "id": "ojos-06",
+    "book": "ojos",
+    "category": "exact",
+    "query": "astillas escaño ébano",
+    "expected": [
+      [
+        3,
+        6
+      ]
+    ]
+  },
+  {
+    "id": "ojos-07",
+    "book": "ojos",
+    "category": "exact",
+    "query": "espantados banquillo labios",
+    "expected": [
+      [
+        3,
+        14
+      ]
+    ]
+  },
+  {
+    "id": "ojos-08",
+    "book": "ojos",
+    "category": "exact",
+    "query": "fuente peña plantas",
+    "expected": [
+      [
+        3,
+        17
+      ]
+    ]
+  },
+  {
+    "id": "ojos-09",
+    "book": "ojos",
+    "category": "exact",
+    "query": "estatua alabastro",
+    "expected": [
+      [
+        4,
+        7
+      ]
+    ]
+  },
+  {
+    "id": "ojos-10",
+    "book": "ojos",
+    "category": "exact",
+    "query": "pupilas esmeraldas pestañas",
+    "expected": [
+      [
+        4,
+        8
+      ]
+    ]
+  },
+  {
+    "id": "ojos-11",
+    "book": "ojos",
+    "category": "accent-less",
+    "query": "espiritu mal Alamos",
+    "expected": [
+      [
+        2,
+        21
+      ]
+    ]
+  },
+  {
+    "id": "ojos-12",
+    "book": "ojos",
+    "category": "accent-less",
+    "query": "inefable melancolia",
+    "expected": [
+      [
+        3,
+        22
+      ]
+    ]
+  },
+  {
+    "id": "ojos-13",
+    "book": "ojos",
+    "category": "accent-less",
+    "query": "inigo montero marqueses",
+    "expected": [
+      [
+        2,
+        5
+      ]
+    ]
+  },
+  {
+    "id": "ojos-14",
+    "book": "ojos",
+    "category": "phrase",
+    "query": "\"señorío de mis padres\"",
+    "expected": [
+      [
+        2,
+        27
+      ]
+    ]
+  },
+  {
+    "id": "ojos-15",
+    "book": "ojos",
+    "category": "phrase",
+    "query": "\"la soledad con sus mil rumores\"",
+    "expected": [
+      [
+        3,
+        22
+      ]
+    ]
+  },
+  {
+    "id": "ojos-16",
+    "book": "ojos",
+    "category": "multi-term",
+    "query": "niebla superficie lago rocas",
+    "expected": [
+      [
+        4,
+        5
+      ]
+    ]
+  },
+  {
+    "id": "ojos-17",
+    "book": "ojos",
+    "category": "inflection",
+    "query": "cazador rey Moncayo",
+    "expected": [
+      [
+        2,
+        24
+      ]
+    ]
+  },
+  {
+    "id": "ojos-18",
+    "book": "ojos",
+    "category": "inflection",
+    "query": "sombra paso brisa",
+    "expected": [
+      [
+        4,
+        5
+      ]
+    ]
+  },
+  {
+    "id": "ojos-19",
+    "book": "ojos",
+    "category": "typo",
+    "query": "alabastrro",
+    "expected": [
+      [
+        4,
+        7
+      ]
+    ]
+  },
+  {
+    "id": "ojos-20",
+    "book": "ojos",
+    "category": "typo",
+    "query": "banquilllo",
+    "expected": [
+      [
+        3,
+        14
+      ]
+    ]
+  },
+  {
+    "id": "ojos-21",
+    "book": "ojos",
+    "category": "syntax",
+    "query": "+ciervo -perros",
+    "expected": [
+      [
+        2,
+        0
+      ]
+    ]
+  },
+  {
+    "id": "ojos-22",
+    "book": "ojos",
+    "category": "syntax",
+    "query": "NEAR(joyel oro, 6)",
+    "expected": [
+      [
+        2,
+        36
+      ]
+    ]
+  },
+  {
+    "id": "ojos-23",
+    "book": "ojos",
+    "category": "paraphrase",
+    "query": "cazadores temen manantial maldito",
+    "expected": [
+      [
+        2,
+        21
+      ]
+    ]
+  },
+  {
+    "id": "ojos-24",
+    "book": "ojos",
+    "category": "paraphrase",
+    "query": "mujer sobrenatural acuática",
+    "expected": [
+      [
+        4,
+        20
+      ]
+    ]
+  },
+  {
+    "id": "ojos-25",
+    "book": "ojos",
+    "category": "accent-less",
+    "query": "luminosos transparentes gotas lluvia",
+    "expected": [
+      [
+        1,
+        4
+      ]
+    ]
+  },
+  {
+    "id": "ojos-26",
+    "book": "ojos",
+    "category": "stopword",
+    "query": "el la de y",
+    "expected": []
+  },
+  {
+    "id": "ojos-27",
+    "book": "ojos",
+    "category": "no-answer",
+    "query": "helicóptero informática",
+    "expected": []
+  },
+  {
+    "id": "ojos-28",
+    "book": "ojos",
+    "category": "no-answer",
+    "query": "zzqwvxz",
+    "expected": []
+  },
+  {
+    "id": "beso-01",
+    "book": "beso",
+    "category": "exact",
+    "query": "ejército francés Toledo cuarteles",
+    "expected": [
+      [
+        1,
+        0
+      ]
+    ]
+  },
+  {
+    "id": "beso-02",
+    "book": "beso",
+    "category": "exact",
+    "query": "puertas hogueras noches",
+    "expected": [
+      [
+        1,
+        13
+      ]
+    ]
+  },
+  {
+    "id": "beso-03",
+    "book": "beso",
+    "category": "exact",
+    "query": "soldados almohadas monturas",
+    "expected": [
+      [
+        1,
+        19
+      ]
+    ]
+  },
+  {
+    "id": "beso-04",
+    "book": "beso",
+    "category": "exact",
+    "query": "vandalismo artistas arqueólogos",
+    "expected": [
+      [
+        2,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "beso-05",
+    "book": "beso",
+    "category": "exact",
+    "query": "Zocodover dragones llegada",
+    "expected": [
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  {
+    "id": "beso-06",
+    "book": "beso",
+    "category": "exact",
+    "query": "campana gorda bronce",
+    "expected": [
+      [
+        2,
+        20
+      ]
+    ]
+  },
+  {
+    "id": "beso-07",
+    "book": "beso",
+    "category": "exact",
+    "query": "mujer arrodillada altar ajimez",
+    "expected": [
+      [
+        2,
+        22
+      ]
+    ]
+  },
+  {
+    "id": "beso-08",
+    "book": "beso",
+    "category": "exact",
+    "query": "nubes plomo veletas",
+    "expected": [
+      [
+        3,
+        1
+      ]
+    ]
+  },
+  {
+    "id": "beso-09",
+    "book": "beso",
+    "category": "exact",
+    "query": "Siberia capote",
+    "expected": [
+      [
+        3,
+        6
+      ]
+    ]
+  },
+  {
+    "id": "beso-10",
+    "book": "beso",
+    "category": "exact",
+    "query": "columnilla salomónica grifo",
+    "expected": [
+      [
+        3,
+        11
+      ]
+    ]
+  },
+  {
+    "id": "beso-11",
+    "book": "beso",
+    "category": "exact",
+    "query": "Elvira Castañeda esposa",
+    "expected": [
+      [
+        3,
+        25
+      ]
+    ]
+  },
+  {
+    "id": "beso-12",
+    "book": "beso",
+    "category": "exact",
+    "query": "Champagne blasfemias juramentos",
+    "expected": [
+      [
+        3,
+        27
+      ]
+    ]
+  },
+  {
+    "id": "beso-13",
+    "book": "beso",
+    "category": "typo",
+    "query": "martmoles",
+    "expected": [
+      [
+        3,
+        17
+      ]
+    ]
+  },
+  {
+    "id": "beso-14",
+    "book": "beso",
+    "category": "accent-less",
+    "query": "inscripcion tumba latin",
+    "expected": [
+      [
+        3,
+        24
+      ]
+    ]
+  },
+  {
+    "id": "beso-15",
+    "book": "beso",
+    "category": "accent-less",
+    "query": "marmoles negros reclinatorio",
+    "expected": [
+      [
+        3,
+        17
+      ]
+    ]
+  },
+  {
+    "id": "beso-16",
+    "book": "beso",
+    "category": "phrase",
+    "query": "\"guantelete de piedra\"",
+    "expected": [
+      [
+        3,
+        71
+      ]
+    ]
+  },
+  {
+    "id": "beso-17",
+    "book": "beso",
+    "category": "phrase",
+    "query": "\"dama de mis pensamientos\"",
+    "expected": [
+      [
+        3,
+        14
+      ]
+    ]
+  },
+  {
+    "id": "beso-18",
+    "book": "beso",
+    "category": "inflection",
+    "query": "botella vacía monje granito",
+    "expected": [
+      [
+        3,
+        27
+      ]
+    ]
+  },
+  {
+    "id": "beso-19",
+    "book": "beso",
+    "category": "inflection",
+    "query": "oficial cerrar puertas campana",
+    "expected": [
+      [
+        3,
+        0
+      ]
+    ]
+  },
+  {
+    "id": "beso-20",
+    "book": "beso",
+    "category": "typo",
+    "query": "reclinatorrio",
+    "expected": [
+      [
+        3,
+        17
+      ]
+    ]
+  },
+  {
+    "id": "beso-21",
+    "book": "beso",
+    "category": "typo",
+    "query": "Siberria",
+    "expected": [
+      [
+        3,
+        6
+      ]
+    ]
+  },
+  {
+    "id": "beso-22",
+    "book": "beso",
+    "category": "syntax",
+    "query": "+Champagne -Siberia",
+    "expected": [
+      [
+        3,
+        27
+      ]
+    ]
+  },
+  {
+    "id": "beso-23",
+    "book": "beso",
+    "category": "syntax",
+    "query": "NEAR(copa labios, 8)",
+    "expected": [
+      [
+        3,
+        36
+      ]
+    ]
+  },
+  {
+    "id": "beso-24",
+    "book": "beso",
+    "category": "paraphrase",
+    "query": "estatua castiga militar atrevido",
+    "expected": [
+      [
+        3,
+        71
+      ]
+    ]
+  },
+  {
+    "id": "beso-25",
+    "book": "beso",
+    "category": "paraphrase",
+    "query": "franceses alojados templo abandonado",
+    "expected": [
+      [
+        1,
+        13
+      ]
+    ]
+  },
+  {
+    "id": "beso-26",
+    "book": "beso",
+    "category": "stopword",
+    "query": "y de la el",
+    "expected": []
+  },
+  {
+    "id": "beso-27",
+    "book": "beso",
+    "category": "no-answer",
+    "query": "computadora satélite",
+    "expected": []
+  },
+  {
+    "id": "beso-28",
+    "book": "beso",
+    "category": "no-answer",
+    "query": "zqxvbnm",
+    "expected": []
+  }
+]

@@ -1,92 +1,56 @@
-# Reader design
+# Ink and Paper
 
-## Intent
+## Design plan (before implementation)
 
-A private reading workbench for people converting their English and Spanish
-books to audio. The task begins with a book, continues through chapter review
-and voice selection, and ends with a playable/downloadable audiobook. Interface
-language is independent from book language. No cloud publishing is involved.
+The reader is the main workspace: a narrow bookshelf, an open manuscript and a
+quiet narration desk. Preparation changes the actual manuscript from graphite to
+ink. A warm bookmark follows the spoken sentence; twenty small ink marks show the
+real contiguous buffer. Search and advanced controls fold away so listening stays
+within reach. No decorative dashboard statistics or unrelated hero imagery.
 
-## Direction and pre-build critique
+Palette: paper `#f7f4ec`, sheet `#fffdf8`, ink `#243239`, graphite `#626760`, amber
+`#855b20`. Night: paper `#101c24`, sheet `#192932`, ink `#eee9dc`, graphite
+`#a8b3b4`, amber `#e7bd75`. Status colours are separate from the single action
+accent. Readable graphite must still pass text contrast, even before narration.
 
-The memorable element is the manuscript: generous readable serif text, real
-chapter numbers, and a narrow vertical reading guide. Controls use system sans.
-Avoid a marketing hero, fictional statistics, equal-sized dashboard cards,
-decorative waveforms, and continuous decorative motion. Initial plan included
-book-cover cards; removed because most uploaded books have no cover extraction.
-The actual title, author, chapters, and sentences carry the page instead.
+Newsreader is the literary face for book titles and source text; Source Sans 3
+is the humanist control face. Both are locally bundled Latin WOFF2 with Spanish
+coverage, font-display swap, no font CDN. Reading measure at most 70ch, adjustable
+18–26px. Controls are left aligned; quantities use tabular numerals.
 
-Light tokens: paper #f5f8fb, sheet #ffffff, ink #172d40, muted #536778,
-blue #245c82, line #cbd7e0. Dark tokens: background #142433, sheet #1b3042,
-ink #eef5fa, muted #b4c8d6, blue #8ccced, line #40586c. Use semantic focus,
-success, warning, and error tokens in both themes. No externally loaded fonts.
+Desktop: shelf | manuscript + sticky listening bar | collapsible narration desk.
+Tablet: shelf | manuscript, desk below. Phone: compact horizontal shelf, manuscript,
+thumb-reachable sticky player. Long sentence lists virtualize measured rows; source
+jumps and keyboard navigation must reveal an offscreen row before focusing it.
 
-Layout: a compact top bar for library, interface language, and theme; project
-rail; manuscript workspace with chapter navigation; voice/export controls; an
-ordinary accessible audio player. Stack the columns on small screens. Keep
-controls at least 44px high. Body copy is 16px or larger; controls at least 14px.
-Keep reading lines below 80 characters and preserve focus when status updates.
+Review against the brief: paper/serif/amber is explicitly requested, but a stock
+beige card dashboard is not. Book-cover silhouettes and readiness in the text are
+the distinguishing functional elements. Borders separate controls, not every
+paragraph. Motion only acknowledges readiness, playback, user navigation/deletion.
 
-## Guidance actually read
+## References opened
 
-- https://www.skills.sh/anthropics/skills/frontend-design and its linked SKILL.md:
-  intentional typography, one distinctive decision, restrained decoration.
-- https://impeccable.style/ and /docs/critique/: assess hierarchy, cognitive load,
-  empty/error states, and responsive/theming consistency.
-- https://designwithintent.ai/: autonomy, accessibility, truthful progress,
-  no prechecked consent, and recoverable actions.
-- https://beui.dev/ and /docs/motion-patterns.md: short press/state feedback,
-  semantic movement, stable layout, and reduced-motion fallback.
-- https://www.rareui.com/: component-level interaction restraint. Homepage was
-  readable; machine-readable documentation returned 429, so no inaccessible
-  component API was inferred or copied.
-- https://lucide-animated.com/ and /llms.txt: Lucide icons with semantic state
-  motion. Use the official Lucide React package with original CSS transitions;
-  motion is disabled for reduced-motion preferences.
+- [frontend-design skill](https://www.skills.sh/anthropics/skills/frontend-design),
+  full [SKILL.md](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md):
+  subject-specific typography/layout, deliberate design, critique before building.
+- [Impeccable](https://impeccable.style/): simplify competing actions; label controls,
+  check contrast, avoid identical nested cards and decorative status clutter.
+- [Design with Intent](https://designwithintent.ai/): preserve autonomy, explicit
+  consent, accessibility and measurable outcomes rather than manufactured urgency.
+- [beUI](https://beui.dev/): keyboard-native selectors, restrained modal/toast/tab
+  transitions and reduced-motion handling. Components here are original.
+- [lucide-animated](https://lucide-animated.com/): state-related icon motion.
+  Existing Lucide icons are retained with original small CSS transitions; no new
+  animation framework is required.
+- RareUI: both `https://www.rareui.com/` and `https://rareui.com/` returned an internal
+  fetch error on 2026-09-29. No inaccessible guidance is claimed or guessed.
 
-The supplied Sites skill was applied to working-surface layout, typography,
-local preview and validation. Existing local React/Vite/FastAPI architecture
-and local-only instructions take precedence over hosted scaffolding/deployment.
-No cloud Site is registered. No external reference audiobook code is copied.
+## Component rules
 
-## Progressive listening refinement
+Use semantic buttons, native dialog focus trapping/restoration and labelled inputs.
+Minimum 44px controls, visible focus, politely announced progress. A sentence's
+readiness is expressed by text contrast plus a check/state label; never colour
+alone. Consent remains visible and unchecked until the user grants it.
 
-The reader now leads with an accessible listening panel above a bounded manuscript.
-Chapter tabs expose real readiness counts; the current spoken sentence is highlighted
-and chapter selection follows forward playback. A contiguous buffer indicator answers
-when listening can begin, while the separate whole-book progress explains the export.
-Pausing playback and pausing preparation are visibly distinct. Natural narration
-speed/pitch are preserved; no decorative waveform or fabricated time estimate is shown.
-Controls remain available while completed audio is playing and future chunks synthesize.
-
-## Requested AudiobookGen reference update
-
-Reviewed https://audiobookgen.com/ and https://audiobookgen.com/upload on
-25 September 2026. The reference uses a centered upload card, generous spacing,
-rounded controls, warm charcoal surfaces and amber accents. PageVoice now applies
-that direction with original CSS, a three-step upload/voice/listen guide, curated
-voice cards and a voice preview action. It retains the local library, sentence
-review, English/Spanish and light/dark controls required by this project.
-No reference branding, copy, images or application implementation was copied.
-This is an adaptation of the visual direction and workflow, not a claim of
-pixel-identical reproduction of inaccessible post-upload screens.
-
-Updated tokens: light paper #faf8f4, sheet #ffffff, ink #29241e, muted #6a6054,
-accent #925400; dark paper #1a1714, sheet #2a2622, ink #fffbf5, muted #c4baad,
-accent #fbbf24. Reading prose retains Georgia; controls/headings use local system
-sans. Visible focus, reduced motion, narrow-screen stacking and keyboard radio
-selection remain available. The chapter map starts collapsed to keep the immediate
-listening action near the reader; uncertain source boundaries remain inspectable.
-
-
-## Current refinement — 26 September 2026
-
-Replaced amber with indigo/slate in both themes: light background #f5f6fb,
-ink #20253b, muted #565f78, accent #5143a9; dark background #141827,
-ink #f1f3fc, muted #b9c2dd, accent #b6b0ff. Book analysis now starts open:
-evidence, uncertain classification and corrections are immediately discoverable.
-Search results include neighbouring sentences and navigate to a focusable citation.
-Removed cloning/model installation controls and irrelevant GPU selection from the
-Edge-only website. No age claims are attached to voices without provider evidence.
-Validated React interactions and production build; no new screenshot/visual audit
-was performed for this refinement.
+Motion lasts 150–250ms using opacity/transform; reduced motion disables it. Paper
+grain is a tiny local SVG texture. No background sound or PWA is enabled by default.

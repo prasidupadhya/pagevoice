@@ -1,0 +1,6 @@
+{
+  "name": "pagevoice-deployment",
+  "private": true,
+  "engines": {"node": "22.x"},
+  "scripts": {"build": "npm --prefix web run build"}
+}

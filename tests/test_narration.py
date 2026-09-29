@@ -1,4 +1,3 @@
-import json
 import platform
 import wave
 import pytest

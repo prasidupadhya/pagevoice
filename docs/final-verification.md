@@ -1,3 +1,5 @@
+> **Historical report.** This file records an earlier investigation before the production-quality phases. Current behavior and measured checks are in [the verification report](verification.md).
+
 # Final local verification — 2026-09-24
 
 Latest [progressive listening verification](progressive-listening.md):

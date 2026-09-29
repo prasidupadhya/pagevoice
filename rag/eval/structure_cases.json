@@ -1,0 +1,495 @@
+[
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Loose fragment",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "page-fallback",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "unclassified"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Page 12",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "page-fallback",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "unclassified"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Unnumbered material",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "page-fallback",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "unclassified"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Fragmento suelto",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "spine",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "unclassified"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Preface",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Foreword",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Acknowledgments",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Dedication",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Copyright",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Prólogo",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Prefacio",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Agradecimientos",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Dedicatoria",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Index",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Bibliography",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Appendix",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Glossary",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Epilogue",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Notes",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Bibliografía",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Apéndice",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Epílogo",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Notas",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Glosario",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "back_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Chapter I",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "chapter"
+    ]
+  },
+  {
+    "language": "es",
+    "chapters": [
+      {
+        "title": "Capítulo 1",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "heading",
+        "role": ""
+      }
+    ],
+    "expected": [
+      "chapter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Preface",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "manual",
+        "role": "chapter"
+      }
+    ],
+    "expected": [
+      "chapter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Chapter One",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "spine",
+        "role": "front_matter"
+      }
+    ],
+    "expected": [
+      "front_matter"
+    ]
+  },
+  {
+    "language": "en",
+    "chapters": [
+      {
+        "title": "Index",
+        "sentences": [
+          "A retained source passage for structural review."
+        ],
+        "source": "fixture:1",
+        "evidence": "manual",
+        "role": "unclassified"
+      }
+    ],
+    "expected": [
+      "unclassified"
+    ]
+  }
+]

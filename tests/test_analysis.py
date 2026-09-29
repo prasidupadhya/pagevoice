@@ -68,8 +68,8 @@ def test_analysis_api_and_nondestructive_reanalysis(tmp_path,monkeypatch):
         revised=result.json()['id'];assert revised!=original
         assert wait(client,revised)['analysis']['version']==2
         assert client.get(f'/api/projects/{original}').status_code==200
-        assert client.patch(f'/api/projects/{revised}/settings',json={'engine':'say','pace':1.5}).status_code==200
-        assert client.post(f'/api/projects/{revised}/render',json={}).status_code==202
+        assert client.patch(f'/api/projects/{revised}/settings',json={'engine':'edge','pace':1.5}).status_code==200
+        assert client.post(f'/api/projects/{revised}/render',json={'allow_network':True}).status_code==202
         assert wait(client,revised)['output']
         assert client.patch(f'/api/projects/{revised}/settings',json={'engine':'say','pace':9}).status_code==422
 
