@@ -3,7 +3,7 @@ import { it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DeleteBook, UndoDeletion } from "./DeleteBook";
-import { Modal } from "./App";
+import { Modal } from "./ApiApp";
 import { messages } from "./i18n";
 const project = { id: "a".repeat(32), title: "Harbour" };
 it("requires typed confirmation for audio and displays shared-source storage details", async () => {
