@@ -100,3 +100,22 @@ reachable backend. See the deployment checklist before exposing a real library.
   votes accept metadata but PDF font-size extraction is not yet wired into parsing.
 - Vercel: user explicitly waived live deployment/authentication; frontend configuration
   and successful local `vercel build` from Phase 2 are the verified scope.
+
+## Phase 4 — reader and analysis UI
+
+- `.venv/bin/python -m pytest -q`: **134 passed**, 76.53 s, one upstream
+  Starlette/httpx deprecation warning.
+- `npm --prefix web test`: **33 passed**, 8 files, 2.89 s.
+- `npm --prefix web run build`: passed; JS 321.93 kB / 101.42 kB gzip, analysis
+  view split to 8.64 kB, three self-hosted font subsets.
+- Browser screenshots of the same fictional QA project at 375/768/1440, in light
+  and dark are saved under `docs/screenshots/after/`. All six DOM reports show
+  `scrollWidth == viewport width`; screenshots were visually inspected.
+- Lighthouse 13.5.0 against local built frontend + local FastAPI backend, simulated
+  mobile profile: Performance **96**, Accessibility **100**, Best Practices **100**,
+  SEO **100**. Measurements are audited with gzip enabled; this is a local reader,
+  not the live Vercel domain. The compact scores are in `docs/audits/lighthouse-phase4.json`.
+- Interaction tests cover per-project sentence priority, twenty decoded initial
+  sentences before starting playback, bookmarks, reader text size, upload progress/
+  cancellation, focusable source passages, UI translation and dialog operation.
+- RareUI could not be retrieved; see the design notes for the exact lookup failure.

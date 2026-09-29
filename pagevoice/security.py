@@ -8,7 +8,7 @@ import time
 from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
-MEDIA = re.compile(r'^/api/projects/[0-9a-f]{32}/(?:download|previews/\d+|sentences/\d{4}-\d{5}/audio)$')
+MEDIA = re.compile(r'^/api/projects/[0-9a-f]{32}/(?:download|cover|previews/\d+|sentences/\d{4}-\d{5}/audio)$')
 
 
 def media_url(path, config):

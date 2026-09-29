@@ -32,7 +32,7 @@ from .speech import SpeechRequest, render as speech_render
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    engine: Literal['say', 'edge'] = 'edge'
+    engine: Literal['edge'] = 'edge'
     voice: str | None = Field(default=None, max_length=120)
     format: Literal['m4b', 'mp3'] = 'm4b'
     device: Literal['auto', 'cpu', 'mps', 'cuda', 'rocm'] = 'auto'
@@ -45,6 +45,10 @@ class RenderRequest(BaseModel):
 
 class PreviewRequest(RenderRequest):
     chapter: int = Field(ge=0)
+
+
+class ListenRequest(PreviewRequest):
+    sentence: int = Field(default=0,ge=0)
 
 
 class RegenRequest(RenderRequest):
@@ -82,6 +86,8 @@ def create_app(data=None):
                   docs_url=None, redoc_url=None)
     app.state.root, app.state.jobs = root, jobs
 
+    from starlette.middleware.gzip import GZipMiddleware
+    app.add_middleware(GZipMiddleware,minimum_size=1000,compresslevel=5)
     app.add_middleware(Security, config=config)
     app.state.config = config
 
@@ -131,6 +137,7 @@ def create_app(data=None):
                              'preview': media_url(f'/api/projects/{project}/previews/{ci}', config) if str(ci) in state.get('previews', {}) else None})
         return {'id': project, 'title': (state.get('book') or {}).get('title', state.get('original_name', 'Book')),
                 'author': (state.get('book') or {}).get('author', ''),
+                'cover': media_url(f'/api/projects/{project}/cover',config) if (path/'cover.png').is_file() else None,
                 'language': (state.get('book') or {}).get('language', state.get('parse_options', {}).get('language', 'en')),
                 'status': state['status'], 'error': state.get('error'),
                 'engine': state['engine'], 'voice': state['voice'], 'format': state['format'], 'device': state['device'], 'pace': state.get('pace', 1.0),
@@ -242,10 +249,6 @@ def create_app(data=None):
     @app.get('/api/voices')
     def voices():
         return catalogue(root / 'voices')
-
-    @app.post('/api/voices', status_code=410)
-    def upload_voice():
-        raise HTTPException(410, 'Voice cloning was removed with XTTS. Existing recordings remain on disk; choose an Edge voice.')
 
     @app.get('/api/projects')
     def projects():
@@ -419,18 +422,20 @@ def create_app(data=None):
         return present(project)
 
     @app.post('/api/projects/{project}/listen', status_code=202)
-    def listen(project: str, options: PreviewRequest):
+    def listen(project: str, options: ListenRequest):
         path = session(project)
         with jobs.guard:
             state = load(path)
             if not state.get('book') or options.chapter >= len(state['book']['chapters']):
                 raise HTTPException(404, 'Chapter not found.')
+            if options.sentence >= len(state['book']['chapters'][options.chapter]['sentences']):
+                raise HTTPException(404, 'Sentence not found.')
             active = next((r for r in jobs.records.values() if r['project'] == project and r['status'] in ('queued','running')), None)
             if active and active['kind'] not in ('render','listen','regen'):
                 raise HTTPException(409, 'Finish parsing or the chapter preview before starting progressive listening.')
             if not active and not state.get('output_current') and state['engine'] == 'edge' and not options.allow_network:
                 raise HTTPException(400, 'Edge requires explicit permission to send text to Microsoft.')
-            set_priority(path, options.chapter)
+            set_priority(path, options.chapter, options.sentence)
             if not active and not state.get('output_current'):
                 jobs.submit(project, 'listen', allow_network=options.allow_network)
         return present(project)
@@ -474,6 +479,17 @@ def create_app(data=None):
                 await asyncio.sleep(.5)
         return StreamingResponse(stream(), media_type='text/event-stream',
                                  headers={'Cache-Control':'no-cache', 'X-Accel-Buffering':'no'})
+
+    @app.get('/api/storage')
+    def storage_usage():
+        from .config import disk_usage
+        return {'bytes':disk_usage(root),'quota_bytes':config.quota}
+
+    @app.get('/api/projects/{project}/cover')
+    def cover(project: str):
+        path=safe_path(session(project),'cover.png')
+        if not path.is_file():raise HTTPException(404,'Cover not found.')
+        return FileResponse(path,media_type='image/png')
 
     @app.get('/api/projects/{project}/download')
     def download(project: str):

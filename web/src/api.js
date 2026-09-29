@@ -41,3 +41,19 @@ export function progressEvents(path) {
   }
   connect();return events
 }
+
+export function uploadBook(body,{signal,onProgress}={}) {
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest(),abort=()=>xhr.abort()
+    xhr.open('POST',apiURL('/api/projects'))
+    if(accessToken)xhr.setRequestHeader('Authorization',`Bearer ${accessToken}`)
+    xhr.upload.onprogress=e=>{if(e.lengthComputable)onProgress?.(Math.round(e.loaded/e.total*100))}
+    xhr.onload=()=>{let value;try{value=JSON.parse(xhr.responseText)}catch{reject(Error('backendNotConfigured'));return}
+      if(xhr.status>=200&&xhr.status<300)resolve(value)
+      else{if(xhr.status===401)window.dispatchEvent(new Event('pagevoice-auth'));reject(Error(xhr.status===507?'storageQuota':xhr.status===429?'rateLimit':typeof value.detail==='string'?value.detail:'uploadError'))}}
+    xhr.onerror=()=>reject(Error('apiOffline'));xhr.onabort=()=>reject(new DOMException('Upload cancelled','AbortError'))
+    xhr.onloadend=()=>signal?.removeEventListener('abort',abort)
+    signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted){reject(new DOMException('Upload cancelled','AbortError'));return}
+    xhr.send(body)
+  })
+}

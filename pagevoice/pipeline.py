@@ -12,7 +12,7 @@ from collections import deque
 from filelock import FileLock, Timeout
 
 from .audio import assemble, normalize, frames
-from .listening import chapter_order, PreparationPaused
+from .listening import next_sentence, sentence_priority, PreparationPaused
 from .book import Book, Chapter, read_epub, clean
 from .engines import REGISTRY, create
 from .pdf import read_pdf
@@ -114,6 +114,8 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
                 raise ValueError('Stored source checksum mismatch; restore the original upload.')
             options = state['parse_options']
             state['book'] = read_book(source, cache=session / 'pages', **options).to_dict()
+            from .covers import extract
+            extract(source,session)
             if state['book']['title'] == source.stem:
                 state['book']['title'] = Path(state.get('original_name', source.name)).stem
         from rag import analyze, index_book
@@ -154,9 +156,7 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
         # Check listener priority at each sentence boundary; keep one loaded engine.
         # Export order is reconstructed separately, never the synthesis order.
         while any(remaining.values()):
-            order = chapter_order(len(book.chapters), priority() if priority else 0)
-            chapter_index = next(ci for ci in order if remaining.get(ci))
-            sentence_index, text = remaining[chapter_index].popleft()
+            chapter_index, (sentence_index, text) = next_sentence(remaining, priority() if priority else 0, sentence_priority(session) if priority else 0)
             chapter = book.chapters[chapter_index]
             identifier = f'{chapter_index:04d}-{sentence_index:05d}'
             fingerprint = signature(state, identifier, text)

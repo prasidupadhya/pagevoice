@@ -10,9 +10,9 @@ class PreparationPaused(Exception):
     pass
 
 
-def set_priority(session, chapter):
+def set_priority(session, chapter, sentence=0):
     with FileLock(str(session / '.listening.lock'), timeout=2):
-        save(session / 'listening.json', {'chapter': chapter})
+        save(session / 'listening.json', {'chapter': chapter, 'sentence': sentence})
 
 
 def priority(session):
@@ -30,7 +30,7 @@ def chapter_order(count, start):
 
 def pause(session):
     with FileLock(str(session / '.listening.lock'), timeout=2):
-        save(session / 'listening.json', {'chapter': priority(session), 'paused': True})
+        save(session / 'listening.json', {'chapter': priority(session), 'sentence': sentence_priority(session), 'paused': True})
 
 
 def paused(session):
@@ -46,3 +46,24 @@ def next_priority(session):
     if paused(session):
         raise PreparationPaused('Preparation paused at a sentence boundary.')
     return priority(session)
+
+
+def sentence_priority(session):
+    try:
+        value=json.loads((session/'listening.json').read_text()).get('sentence',0)
+        return value if isinstance(value,int) and value>=0 else 0
+    except (OSError,ValueError,TypeError):return 0
+
+
+def next_sentence(remaining,start,sentence):
+    order=chapter_order(max(remaining,default=-1)+1,start)
+    # Selected sentence through the final chapter, then earlier material for export.
+    for ci in order:
+        rows=remaining.get(ci)
+        if not rows:continue
+        offset=next((i for i,(si,_) in enumerate(rows) if ci!=start or si>=sentence),None)
+        if offset is not None:
+            rows.rotate(-offset);item=rows.popleft();rows.rotate(offset)
+            return ci,item
+    ci=next(ci for ci in order if remaining.get(ci))
+    return ci,remaining[ci].popleft()

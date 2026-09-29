@@ -68,3 +68,23 @@ it('offers a user-gesture recovery when AudioContext resume never settles',async
  context.resume=async()=>{context.state='running'}
  await engine.resume();await waitFor(()=>expect(engine.nodes.length).toBe(4))
 })
+
+it('downloads all twenty initial sentences before starting any audio',async()=>{
+ let release
+ const gate=new Promise(resolve=>{release=resolve})
+ const {engine,context,fetcher}=setup(vi.fn(async url=>{if(url==='/audio/19')await gate;return {ok:true,arrayBuffer:async()=>new ArrayBuffer(8)}}))
+ const starting=engine.start(rows())
+ await waitFor(()=>expect(fetcher).toHaveBeenCalledTimes(20))
+ expect(context.createBufferSource).not.toHaveBeenCalled()
+ release();await starting
+ expect(engine.decoded.size).toBe(20);expect(engine.nodes).toHaveLength(4)
+})
+
+it('seeks without playing earlier sentences and applies playback speed',async()=>{
+ const {engine}=setup();await engine.start(rows(),10)
+ expect(engine.nodes[0].index).toBe(10)
+ await engine.setRate(2);expect(engine.nodes[0].end-engine.nodes[0].start).toBeCloseTo(1)
+ expect(engine.nodes[0].source.playbackRate.value).toBe(2)
+ const project={chapters:[{index:2,title:'Third',sentences:rows().slice(0,4)},{index:3,title:'Fourth',sentences:rows().slice(0,4)}]}
+ expect(forwardRows({chapters:[{}, {}, ...project.chapters]},2,2).map(r=>r.chapter)).toEqual([2,2,3,3,3,3])
+})

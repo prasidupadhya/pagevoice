@@ -30,3 +30,12 @@ it('uses the configured backend for files and rejects secret forwarding to other
  expect(()=>remote.request('https://untrusted.example/')).toThrow('Unexpected backend origin')
  remote.setAccessToken('')
 })
+
+it('reports real upload progress and supports cancellation',async()=>{
+ const {uploadBook}=await import('./api');let xhr
+ vi.stubGlobal('XMLHttpRequest',class{constructor(){xhr=this;this.upload={}}open(){}setRequestHeader(){}send(){}abort(){this.onabort();this.onloadend?.()}})
+ const controller=new AbortController(),progress=vi.fn()
+ const result=uploadBook(new FormData(),{signal:controller.signal,onProgress:progress})
+ xhr.upload.onprogress({lengthComputable:true,loaded:25,total:100});expect(progress).toHaveBeenCalledWith(25)
+ const assertion=expect(result).rejects.toMatchObject({name:'AbortError'});controller.abort();await assertion
+})

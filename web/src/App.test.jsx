@@ -29,10 +29,10 @@ describe('reader interactions',()=>{
     await user.click(screen.getByRole('button',{name:'Save & regenerate'}));expect(saved).toHaveBeenCalledWith('Updated sentence.','Narrator')
   })
   it('uploads with explicit Spanish book language',async()=>{
-    server();const created=vi.fn();render(<UploadDialog t={messages.en} locale="en" onCreated={created} onClose={()=>{}}/>);const user=userEvent.setup()
+    server();let uploaded;vi.stubGlobal('XMLHttpRequest',class{upload={};open(){}setRequestHeader(){}send(body){uploaded=body;this.status=202;this.responseText=JSON.stringify(project);this.onload()}abort(){}});const created=vi.fn();render(<UploadDialog t={messages.en} locale="en" onCreated={created} onClose={()=>{}}/>);const user=userEvent.setup()
     await user.upload(screen.getByLabelText('PDF or EPUB'),new File(['book'],'novela.epub',{type:'application/epub+zip'}))
     await user.selectOptions(screen.getByLabelText('Book language'),'es');await user.click(screen.getByRole('button',{name:'Read this book'}))
-    await waitFor(()=>expect(created).toHaveBeenCalled());expect(fetch.mock.calls.at(-1)[1].body.get('language')).toBe('es')
+    await waitFor(()=>expect(created).toHaveBeenCalled());expect(uploaded.get('language')).toBe('es')
   })
   it('keeps both translation dictionaries complete',()=>{expect(Object.keys(messages.en).sort()).toEqual(Object.keys(messages.es).sort())})
 })
@@ -73,4 +73,14 @@ it('Listen from here requires explicit online permission, saves settings and sta
  const {act}=await import('@testing-library/react');await act(async()=>progress({data:JSON.stringify(next)}))
  await waitFor(()=>expect(start).toHaveBeenCalledTimes(4))
  expect(screen.getByText('Listening now')).toBeTruthy()
+})
+
+it('persists bookmarks and reader text size per browser',async()=>{
+ server();render(<App/>);await screen.findByRole('heading',{name:'The Quiet Harbour'})
+ await userEvent.click(screen.getByRole('button',{name:'Bookmark sentence 1'}))
+ expect(JSON.parse(localStorage.getItem('pagevoice-bookmarks-'+project.id))).toEqual(['0000-00000'])
+ fireEvent.change(screen.getByLabelText('Text size'),{target:{value:'25'}})
+ expect(localStorage.getItem('pagevoice-text-size')).toBe('25')
+ await userEvent.click(screen.getByRole('button',{name:'Keyboard shortcuts'}))
+ expect(screen.getByRole('dialog',{name:'Keyboard shortcuts'})).toBeTruthy()
 })
