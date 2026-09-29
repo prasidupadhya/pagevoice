@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import BrowserApp from "./BrowserApp";
 import { BrowserBackend } from "./backends/BrowserBackend";
@@ -103,7 +103,7 @@ describe("temporary browser reader UI", () => {
     ]);
     await user.click(screen.getByText("About voices in temporary mode"));
     expect(
-      screen.getByText(/Only the verified names above are offered/),
+      screen.getByText(/Only the verified Edge names above are offered/),
     ).toBeTruthy();
   });
 
@@ -119,6 +119,63 @@ describe("temporary browser reader UI", () => {
       (option) => option.textContent.split(" · ")[0],
     );
     expect(names).toEqual(["Elvira", "Ximena", "Álvaro"]);
+  });
+
+  it("plays through an available same-language device voice when Edge names are absent", async () => {
+    const deviceVoice = {
+      name: "Samantha",
+      lang: "en-US",
+      default: true,
+      localService: true,
+    };
+    const synth = {
+      getVoices: vi.fn(() => [deviceVoice]),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      cancel: vi.fn(),
+      speak: vi.fn(),
+    };
+    vi.stubGlobal("speechSynthesis", synth);
+    vi.stubGlobal(
+      "SpeechSynthesisUtterance",
+      class {
+        constructor(text) {
+          this.text = text;
+        }
+      },
+    );
+    const user = userEvent.setup();
+    const view = render(<BrowserApp backend={fixtureBackend()} />);
+    try {
+      await user.click(
+        screen.getByRole("button", { name: /The Lantern PageVoice Test/ }),
+      );
+
+      expect(
+        await screen.findByText(
+          /This browser will use an available device voice instead/,
+        ),
+      ).toBeTruthy();
+      expect(screen.getByText(/Samantha · en-US/)).toBeTruthy();
+      const voiceSelect = screen.getByLabelText("Voice (verified catalogue)");
+      expect(voiceSelect.value).toBe("en-US-AriaNeural");
+      expect(voiceSelect.options[0].disabled).toBe(false);
+
+      const listen = screen.getByRole("button", {
+        name: "Listen",
+        exact: true,
+      });
+      expect(listen.disabled).toBe(false);
+      await user.click(listen);
+      await waitFor(() => expect(synth.speak).toHaveBeenCalled());
+      expect(synth.speak.mock.calls[0][0].voice).toBe(deviceVoice);
+      expect(synth.speak.mock.calls[0][0].text).toBe(
+        "Mira carried a blue lantern through the harbour.",
+      );
+    } finally {
+      view.unmount();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("removes a book with Undo and a fresh reader starts with an empty session", async () => {

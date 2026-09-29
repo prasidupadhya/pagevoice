@@ -109,11 +109,14 @@ export const messages = {
       voicesLoading: "Loading browser voices…",
       voiceUnavailableShort: "not available here",
       voiceMatched: "Using matching browser voice",
+      voiceFallback: "This browser will use an available device voice instead",
+      voiceFallbackNote:
+        "It may sound different from the selected Edge voice. Exact Edge Online audio requires the PageVoice server.",
       voiceUnavailable:
-        "This browser does not provide a voice with the selected name and region. Listening is disabled for this choice. Exact Edge Online synthesis requires the PageVoice server.",
+        "No English or Spanish voice is currently available in this browser. Install or enable a device voice for this book’s language, then try again.",
       edgeCatalogueTitle: "About voices in temporary mode",
       edgeCatalogueNotice:
-        "Only the verified names above are offered. Temporary mode can speak with one only when this browser exposes a voice with the same name and region; that voice may differ from Microsoft’s Edge Neural service. This tab does not contact Microsoft.",
+        "Only the verified Edge names above are offered. Temporary mode plays through a voice supplied by your browser or operating system: it prefers the requested region and falls back to another voice for the same language when needed. The device voice may differ from the selected Edge voice; this tab does not contact Microsoft. Exact Edge Online audio requires the PageVoice server.",
       englishUS: "English (US)",
       britishEnglish: "British English",
       spanishSpain: "Spanish (Spain)",
@@ -547,11 +550,14 @@ export const messages = {
       voicesLoading: "Cargando voces del navegador…",
       voiceUnavailableShort: "no disponible aquí",
       voiceMatched: "Voz coincidente del navegador",
+      voiceFallback: "Este navegador usará una voz disponible del dispositivo",
+      voiceFallbackNote:
+        "Puede sonar distinta de la voz Edge seleccionada. El audio exacto de Edge Online requiere el servidor de PageVoice.",
       voiceUnavailable:
-        "Este navegador no ofrece una voz con el nombre y la región seleccionados. La escucha está desactivada para esta opción. La síntesis exacta de Edge Online requiere el servidor de PageVoice.",
+        "Este navegador no tiene una voz disponible en inglés o español. Instala o activa una voz del dispositivo para el idioma del libro e inténtalo de nuevo.",
       edgeCatalogueTitle: "Sobre las voces en la sesión temporal",
       edgeCatalogueNotice:
-        "Solo se ofrecen los nombres verificados de arriba. La sesión temporal puede usar una opción únicamente si el navegador ofrece una voz con el mismo nombre y región; puede ser distinta al servicio Edge Neural de Microsoft. Esta pestaña no contacta con Microsoft.",
+        "Solo se ofrecen los nombres Edge verificados de arriba. La sesión temporal reproduce el audio con una voz del navegador o del sistema: prefiere la región solicitada y, si no está disponible, usa otra voz del mismo idioma. La voz del dispositivo puede sonar distinta de la voz Edge seleccionada; esta pestaña no contacta con Microsoft. El audio exacto de Edge Online requiere el servidor de PageVoice.",
       englishUS: "Inglés (EE. UU.)",
       britishEnglish: "Inglés británico",
       spanishSpain: "Español (España)",

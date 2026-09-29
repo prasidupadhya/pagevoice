@@ -3,6 +3,7 @@ import {
   DEFAULT_EDGE_VOICE,
   EDGE_ONLINE_VOICES,
   matchingDeviceVoice,
+  resolveDeviceVoice,
 } from "./edgeVoices";
 
 describe("curated Edge Online voice catalogue", () => {
@@ -50,5 +51,28 @@ describe("curated Edge Online voice catalogue", () => {
     expect(matchingDeviceVoice(aria, devices)).toBe(devices[0]);
     expect(matchingDeviceVoice(spanish, devices)).toBe(devices[3]);
     expect(matchingDeviceVoice(EDGE_ONLINE_VOICES[1], devices)).toBeNull();
+  });
+
+  it("falls back to an available voice for the requested region or language", () => {
+    const aria = EDGE_ONLINE_VOICES.find((voice) => voice.name === "Aria");
+    const sonia = EDGE_ONLINE_VOICES.find((voice) => voice.name === "Sonia");
+    const elvira = EDGE_ONLINE_VOICES.find((voice) => voice.name === "Elvira");
+    const american = { name: "Samantha", lang: "en-US", localService: true };
+    const british = { name: "Daniel", lang: "en-GB", default: true };
+    const spanishMexico = { name: "Monica", lang: "es-MX", default: true };
+
+    expect(resolveDeviceVoice(aria, [american])).toEqual({
+      voice: american,
+      match: "region",
+    });
+    expect(resolveDeviceVoice(sonia, [american, british])).toEqual({
+      voice: british,
+      match: "region",
+    });
+    expect(resolveDeviceVoice(elvira, [spanishMexico])).toEqual({
+      voice: spanishMexico,
+      match: "language",
+    });
+    expect(resolveDeviceVoice(elvira, [american])).toBeNull();
   });
 });
