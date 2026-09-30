@@ -1,5 +1,8 @@
 # Deploy PageVoice for private guest libraries
 
+See [the verification report](pocketbase-verification.md) for measured checks and
+the remaining live-host setup.
+
 PageVoice needs three processes: a static React site on Vercel, PocketBase for browser-specific guest identity and library metadata, and the Python/FFmpeg worker for book files, OCR, sentence audio, and M4B/MP3. Vercel hosts only the static site. Book files and audio persist on the worker volume, **not** in PocketBase or Vercel. The two server processes can run on one VPS/container host, but need separate persistent volumes. Keep a single PageVoice worker per volume.
 
 PocketBase creates a random guest identity silently on first visit. There is no signup screen or password for visitors to remember. Its secret is saved in that browser profile; clearing browser storage or changing devices loses the library. This offers browser-level separation, not recoverable human accounts. Do not use the legacy shared-token mode for a public site: everyone with that token sees the same books. PocketBase is [self-hosted and pre-1.0](https://pocketbase.io/docs/going-to-production/), so pin upgrades, back up its volume, and test migrations before upgrading.
