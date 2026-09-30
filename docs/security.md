@@ -2,15 +2,19 @@
 
 PageVoice defaults to one local user, a loopback-only server, and local files.
 Book parsing, structure analysis, search, sentence editing and generated audio
-stay on the machine. Edge speech is online: the user must enable the explicit
-consent control before narration text is sent to Microsoft's service. The consent
-is unchecked for each fresh browser session and is also required by the API.
+stay on the machine. Edge speech is online. The reader's visible Microsoft
+text-transfer option starts checked, as requested, and remains switchable. Upload
+and analysis do not synthesize speech; the user must click a narration action.
+Unchecking the option requires another confirmation before listening. API/CLI
+network permission remains false by default and must be explicitly supplied.
 
-Hosted deployment is an opt-in private single-library setup. Require a long
-`PAGEVOICE_ACCESS_TOKEN`, exact host and origin allowlists, HTTPS termination,
+Hosted deployment is opt-in. Public use requires PocketBase guest ownership and
+isolated PageVoice projects; the legacy shared-token mode is a private single-library
+setup, not user isolation. Require exact host and origin allowlists, HTTPS termination,
 one backend writer per persistent volume, and a host-level volume quota. Keep the
-token out of Vercel build variables and browser storage. Only the frontend base
-URL is public. Forwarded client addresses are trusted only for explicitly listed
+legacy shared token out of Vercel build variables and browser storage. Frontend API
+and PocketBase origins are public; generated guest credentials are per-browser bearer
+credentials. Forwarded client addresses are trusted only for explicitly listed
 proxy addresses. Do not place this configuration behind an open public proxy.
 
 Uploads are suffix and content checked, size-limited and constrained by EPUB

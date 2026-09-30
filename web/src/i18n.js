@@ -110,6 +110,8 @@ export const messages = {
       voiceUnavailableShort: "not available here",
       voiceMatched: "Using matching browser voice",
       voiceFallback: "This browser will use an available device voice instead",
+      deviceVoiceUsed: "Device voice",
+      deviceVoiceDifferent: "May differ from Edge.",
       voiceFallbackNote:
         "It may sound different from the selected Edge voice. Exact Edge Online audio requires the PageVoice server.",
       voiceUnavailable:
@@ -138,6 +140,8 @@ export const messages = {
         "Audiobook download needs the full PageVoice server. Listening works right here.",
       processingError: "The book could not be read. Try another PDF or EPUB.",
       unsupportedFile: "Choose a PDF or EPUB file.",
+      unsupportedLanguage:
+        "Only English and Spanish books are supported. This document declares another language.",
       fileTooLarge: "This file is over the 100 MB limit.",
       zipLimit:
         "This EPUB expands beyond the safe 200 MB limit or has too many entries.",
@@ -357,6 +361,22 @@ export const messages = {
     dark: "Dark",
     upload: "Add to your library",
     bookLanguage: "Book language",
+    autoLanguageHint:
+      "Upload a PDF or EPUB. We detect English or Spanish, find the sections and prepare the text for reading.",
+    importOptions: "Scanning options",
+    languageDetected: "Detected language",
+    languageReview: "Review suggested",
+    languageEvidence:
+      "Detected from sampled book text and document metadata, without an external service. This is a two-language heuristic, not an AI model.",
+    languageDetectionSource: "Evidence",
+    languageMarkers: "Language markers",
+    languageSource_text: "book text",
+    languageSource_metadata: "document metadata",
+    languageSource_fallback: "English fallback",
+    languageMismatch:
+      "The text differs from the document's language label; the text takes priority. Check the voice preview before listening.",
+    languageUncertain:
+      "There is too little evidence to be sure. Short or bilingual books may need a manual language override when importing through the full server's API or CLI.",
     file: "PDF or EPUB",
     selected: "Selected file",
     import: "Read this book",
@@ -569,6 +589,8 @@ export const messages = {
       voiceUnavailableShort: "no disponible aquí",
       voiceMatched: "Voz coincidente del navegador",
       voiceFallback: "Este navegador usará una voz disponible del dispositivo",
+      deviceVoiceUsed: "Voz del dispositivo",
+      deviceVoiceDifferent: "Puede diferir de Edge.",
       voiceFallbackNote:
         "Puede sonar distinta de la voz Edge seleccionada. El audio exacto de Edge Online requiere el servidor de PageVoice.",
       voiceUnavailable:
@@ -597,6 +619,8 @@ export const messages = {
         "Descargar el audiolibro requiere el servidor completo de PageVoice. Aquí puedes escucharlo.",
       processingError: "No se ha podido leer el libro. Prueba otro PDF o EPUB.",
       unsupportedFile: "Elige un archivo PDF o EPUB.",
+      unsupportedLanguage:
+        "Solo se admiten libros en inglés o español. Este documento indica otro idioma.",
       fileTooLarge: "El archivo supera el límite de 100 MB.",
       zipLimit:
         "Este EPUB supera el límite seguro de 200 MB al descomprimirse o contiene demasiados elementos.",
@@ -818,6 +842,22 @@ export const messages = {
     dark: "Oscuro",
     upload: "Añadir a tu biblioteca",
     bookLanguage: "Idioma del libro",
+    autoLanguageHint:
+      "Sube un PDF o EPUB. Detectamos inglés o español, encontramos las secciones y preparamos el texto para leer.",
+    importOptions: "Opciones de escaneo",
+    languageDetected: "Idioma detectado",
+    languageReview: "Revisión recomendada",
+    languageEvidence:
+      "Detección a partir de muestras del texto y los metadatos, sin servicios externos. Es una regla para dos idiomas, no un modelo de IA.",
+    languageDetectionSource: "Evidencia",
+    languageMarkers: "Marcadores de idioma",
+    languageSource_text: "texto del libro",
+    languageSource_metadata: "metadatos del documento",
+    languageSource_fallback: "inglés por defecto",
+    languageMismatch:
+      "El texto difiere del idioma indicado en el documento; se prioriza el texto. Comprueba la voz antes de escuchar.",
+    languageUncertain:
+      "No hay suficiente evidencia para confirmar el idioma. Los libros breves o bilingües pueden necesitar una selección manual al importarlos con la API o CLI del servidor.",
     file: "PDF o EPUB",
     selected: "Archivo seleccionado",
     import: "Leer este libro",

@@ -14,15 +14,30 @@ bundled Source Sans 3. Fonts are served from the build, with no font CDN.
 
 | Token | Light | Dark |
 | --- | --- | --- |
-| `--paper` | `#f7f4ec` | `#101c24` |
-| `--sheet` | `#fffdf8` | `#192932` |
-| `--ink` | `#243239` | `#eee9dc` |
-| `--accent` | `#855b20` | `#e7bd75` |
-| `--line` | `#d1cdbf` | `#45545c` |
+| `--paper` | `#f6f5ef` | `#111e1d` |
+| `--sheet` | `#fffefb` | `#182b28` |
+| `--ink` | `#213632` | `#e9eee7` |
+| `--accent` | `#216957` | `#a3d8c2` |
+| `--line` | `#d1d9d4` | `#3e5550` |
 
 The compact spacing unit is 8 px and the common corner radius is 8 px. Status
 colors are separate from the reading accent. The system preference chooses the
 initial theme; the toolbar control changes it for the current preference.
+
+The restrained green accent marks listening and selection. Muted labels, cover
+art and warnings retain their separate purposes. Redundant blue/purple token
+definitions and hardcoded orange browser controls have been removed. Upload asks
+only for the file; language evidence and optional server OCR settings use native
+disclosures. The server voice catalogue uses one native select instead of eight
+competing radio tiles. The reader retains its keyboard shortcuts and visible
+Microsoft disclosure, with the option initially checked and no upload-time speech.
+
+Motion tokens are 180/240 ms with a settling curve. Disclosures reveal evidence
+with a short opacity/transform transition. Reading surfaces stay flat, and empty
+mobile libraries hide the unused rail so upload is reached sooner. Existing Lucide
+book, play, upload and theme icons communicate their actions; another icon library
+would add weight and inconsistent stroke styles. All animations remain disabled
+for reduced motion. See [reference notes and plan](automatic-reader-plan.md).
 
 ## Components and behavior
 

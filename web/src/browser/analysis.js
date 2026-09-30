@@ -139,7 +139,7 @@ export function analyzeSections(book) {
       reason = "title_keyword";
     } else if (
       evidence === "heading" &&
-      /^(?:chapter|cap[ií]tulo)\s+\S+/iu.test(fold(title))
+      /^(?:\d+[.)]\s+\S+|[ivxlcdm]+\.?$)/iu.test(fold(title))
     ) {
       kind = "chapter";
       confidence = "medium";
@@ -180,13 +180,19 @@ export function analyzeSections(book) {
       sentenceCount: sentences.length,
       wordCount: words,
       flags,
+      subkind:
+        /^(?:part|parte)\s+\S+/iu.test(fold(title)) && kind === "chapter"
+          ? "part_divider"
+          : null,
       review:
         confidence === "low" || kind === "unclassified" || flags.length > 0,
       sourceAnchor: chapter.source || "",
     };
   });
   const chapterStart = sections.findIndex(
-    (section) => section.kind === "chapter",
+    (section) =>
+      section.kind === "chapter" &&
+      !(section.subkind === "part_divider" && section.wordCount < 20),
   );
   const unknownStart = sections.findIndex(
     (section) => section.kind === "unclassified",
