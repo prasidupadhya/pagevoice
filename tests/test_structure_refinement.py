@@ -3,6 +3,16 @@ from pathlib import Path
 
 from rag import analyze, search
 
+def test_classifier_revision_invalidates_index_and_preserves_citations(tmp_path, monkeypatch):
+    from rag import lexical
+    book = {'language': 'en', 'chapters': [dict(title='Chapter 1', source='fixture', evidence='heading', sentences=['The river flows downstream.'])]}
+    first = search(tmp_path, book, 'river')[0]
+    monkeypatch.setattr(lexical, 'STRUCTURE_REVISION', lexical.STRUCTURE_REVISION + 1)
+    assert lexical.status(tmp_path, book)['state'] == 'stale'
+    refreshed = search(tmp_path, book, 'river')[0]
+    assert lexical.status(tmp_path, book)['state'] == 'ready'
+    assert refreshed['citation'] == first['citation']
+
 
 def test_independently_labelled_structure_challenge():
     from rag.eval.run import structure_challenge

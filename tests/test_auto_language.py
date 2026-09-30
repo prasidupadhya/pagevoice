@@ -61,6 +61,20 @@ def test_upload_auto_detects_without_starting_speech_and_reanalysis_keeps_overri
         assert book['voice'] == 'es-ES-ElviraNeural'
         assert book['language_detection']['source'] == 'text'
         assert book['progress']['complete'] == 0
+        # Legacy sessions could have inherited the interface's EN language and
+        # voice. Reanalysis corrects that mismatch without touching the old book.
+        from pagevoice.pipeline import load
+        from pagevoice.storage import save
+        manifest = tmp_path / 'sessions' / book['id'] / 'session.json'
+        legacy = load(manifest.parent)
+        legacy['book']['language'] = 'en'
+        legacy['book'].pop('language_detection', None)
+        legacy['voice'] = 'en-US-AriaNeural'
+        save(manifest, legacy)
+        response = client.post(f"/api/projects/{book['id']}/reanalyze")
+        corrected = wait(client, response.json()['id'])
+        assert corrected['language'] == 'es'
+        assert corrected['voice'] == 'es-ES-ElviraNeural'
         # Direct API clients may explicitly override a bilingual book's language.
         response = client.post('/api/projects', files={'file': ('novela.epub', source.read_bytes())}, data={'language': 'en'})
         overridden = wait(client, response.json()['id'])

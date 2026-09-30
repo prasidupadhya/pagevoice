@@ -8,13 +8,13 @@ from difflib import get_close_matches
 from pathlib import Path
 from filelock import FileLock
 from .query import parse,tokens,stem,expression
-from .structure import analyze
+from .structure import analyze, STRUCTURE_REVISION
 
 SCHEMA=4
 
 
 def fingerprint(book):
-    relevant={'language':book.get('language','en'),'chapters':book['chapters'],'schema':SCHEMA}
+    relevant={'language':book.get('language','en'),'chapters':book['chapters'],'schema':SCHEMA,'structure_revision':STRUCTURE_REVISION}
     return hashlib.sha256(json.dumps(relevant,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
 
 

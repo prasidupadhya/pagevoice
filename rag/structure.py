@@ -3,6 +3,7 @@ import re
 import unicodedata
 from collections import Counter
 
+STRUCTURE_REVISION = 4
 
 def fold(text):
     # Accents in headings are orthographic variants. Keep ñ distinct from n.
@@ -97,5 +98,5 @@ def analyze(book):
     start=next((s['index'] for s in sections if s['kind']=='chapter' and not (s['subkind']=='part_divider' and s['words']<20)),None)
     if start is None:start=next((s['index'] for s in sections if s['kind']=='unclassified'),0)
     count=sum(s['review'] for s in sections)
-    return {'version':2,'revision':4,'method':'local-source-retrieval','start_chapter':start,'sections':sections,'needs_review':bool(count),'review_count':count,
+    return {'version':2,'revision':STRUCTURE_REVISION,'method':'local-source-retrieval','start_chapter':start,'sections':sections,'needs_review':bool(count),'review_count':count,
             'warnings':['review_inferred_boundaries'] if count else [],'flags':[dict(section=s['index'],**f) for s in sections for f in s['flags']]}

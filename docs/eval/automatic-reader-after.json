@@ -12,9 +12,9 @@
     "ndcg@10": 0.9398713694067948,
     "no_answer_precision": 1.0,
     "no_answer_recall": 1.0,
-    "latency_p50_ms": 1.3564795372076333,
-    "latency_p95_ms": 2.5979169877246022,
-    "index_build_seconds": 0.29018079198431224,
+    "latency_p50_ms": 1.499187492299825,
+    "latency_p95_ms": 2.791999955661595,
+    "index_build_seconds": 0.2928307499969378,
     "index_bytes": 1462272
   },
   "structure_challenge": {
@@ -223,22 +223,22 @@
   "builds": [
     {
       "book": "wilde",
-      "seconds": 0.14587933395523578,
+      "seconds": 0.14682220807299018,
       "bytes": 794624
     },
     {
       "book": "ojos",
-      "seconds": 0.05499716603662819,
+      "seconds": 0.05523991689551622,
       "bytes": 217088
     },
     {
       "book": "beso",
-      "seconds": 0.07596954191103578,
+      "seconds": 0.07709562499076128,
       "bytes": 299008
     },
     {
       "book": "rabbit",
-      "seconds": 0.013334750081412494,
+      "seconds": 0.013673000037670135,
       "bytes": 151552
     }
   ],

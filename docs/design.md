@@ -1,8 +1,8 @@
-# PageVoice browser-mode design
+# PageVoice reader design
 
-PageVoice is presented as a private reading room. The book and its reading
-progress stay in the current tab; a small session notice keeps that limit
-visible. Reader text is the main surface, and playback marks the sentence being
+PageVoice is presented as a private reading room. Server mode retains books in
+an isolated library; browser-only mode keeps them in the current tab and displays
+that limit. Reader text is the main surface, and playback marks the sentence being
 spoken while prepared sentences appear at full contrast. Controls remain quiet
 so the book stays visually central.
 
@@ -55,7 +55,19 @@ state. The `prefers-reduced-motion: reduce` rule disables animation and
 transitions. Visible focus rings, labelled controls, live progress messages,
 keyboard shortcuts and mobile-sized controls are part of the component styles.
 
-## Responsive screenshots
+## Automatic reader screenshots
+
+The automatic-reader revision compares main `dca11a6` with the current production
+build at 900px height. Both empty-library themes and populated reader themes are
+captured at 375, 768 and 1440px. See the
+[verification report](automatic-reader-verification.md) for results and limits.
+
+| Reader | 375 px | 768 px | 1440 px |
+| --- | --- | --- | --- |
+| Light | <img src="screenshots/automatic-reader/reader-light-375.png" width="180" alt="Light reader, 375 pixels" /> | <img src="screenshots/automatic-reader/reader-light-768.png" width="180" alt="Light reader, 768 pixels" /> | <img src="screenshots/automatic-reader/reader-light-1440.png" width="180" alt="Light reader, 1440 pixels" /> |
+| Dark | <img src="screenshots/automatic-reader/reader-dark-375.png" width="180" alt="Dark reader, 375 pixels" /> | <img src="screenshots/automatic-reader/reader-dark-768.png" width="180" alt="Dark reader, 768 pixels" /> | <img src="screenshots/automatic-reader/reader-dark-1440.png" width="180" alt="Dark reader, 1440 pixels" /> |
+
+## Earlier browser-mode screenshots
 
 “Before” is the empty library from commit `3361a94`, captured locally with the
 API unavailable. “After” is the browser-only empty library served by the live
