@@ -16,6 +16,18 @@ def percentile(values,p):
     return sorted(values)[max(0,math.ceil(len(values)*p)-1)] if values else 0
 
 
+def structure_challenge():
+    from rag import analyze
+    cases=json.loads((ROOT/'structure_challenge.json').read_text())
+    details=[]
+    for case in cases:
+        chapter={k:v for k,v in case.items() if k!='expected'}
+        chapter.update(source='challenge:1',sentences=['A source passage retained for review.'])
+        actual=analyze({'chapters':[chapter]})['sections'][0]['kind']
+        details.append(dict(case,actual=actual))
+    return {'accuracy':sum(c['actual']==c['expected'] for c in details)/len(details),'count':len(details),'cases':details}
+
+
 def evaluate():
     from rag import analyze,index_book,search
     books={r['id']:json.loads((ROOT/'books'/(r['id']+'.json')).read_text()) for r in json.loads((ROOT/'manifest.json').read_text())}
@@ -74,7 +86,7 @@ def evaluate():
              'no_answer_recall':correct_abstained/negatives if negatives else 0,
              'latency_p50_ms':statistics.median(timings),'latency_p95_ms':percentile(timings,.95),
              'index_build_seconds':sum(b['seconds'] for b in builds),'index_bytes':sum(b['bytes'] for b in builds)}
-    return {'corpus_version':1,'query_count':len(queries),'answerable_queries':len(ranks),'metrics':metrics,'classification_by_kind':per_kind,'confusion':confusion,
+    return {'corpus_version':1,'query_count':len(queries),'answerable_queries':len(ranks),'metrics':metrics,'structure_challenge':structure_challenge(),'classification_by_kind':per_kind,'confusion':confusion,
             'reliability':[{'confidence':k,'count':len(v),'observed_accuracy':sum(v)/len(v)} for k,v in sorted(calibration.items())],
             'categories':{k:{'count':len(v),'recall@5':sum(r is not None and r<=5 for r in v)/len(v),'mrr':statistics.mean(1/r if r else 0 for r in v)} for k,v in categories.items()},
             'builds':builds,'queries':details}

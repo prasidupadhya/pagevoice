@@ -1,0 +1,16 @@
+[
+  {"title":"About the journey","evidence":"heading","expected":"unclassified"},
+  {"title":"Sobre el río","evidence":"heading","expected":"unclassified"},
+  {"title":"Author of our misfortune","evidence":"heading","expected":"unclassified"},
+  {"title":"About the author","evidence":"heading","expected":"front_matter"},
+  {"title":"Life of the author","evidence":"heading","expected":"front_matter"},
+  {"title":"Vida de la autora","evidence":"heading","expected":"front_matter"},
+  {"title":"References","evidence":"heading","expected":"back_matter"},
+  {"title":"Referencias","evidence":"heading","expected":"back_matter"},
+  {"title":"1. The departure","evidence":"heading","expected":"chapter"},
+  {"title":"2. La llegada","evidence":"heading","expected":"chapter"},
+  {"title":"Capítulo primero","evidence":"spine","expected":"chapter"},
+  {"title":"About the author","evidence":"manual","role":"chapter","expected":"chapter"},
+  {"title":"Chapter 1","evidence":"spine","role":"front_matter","expected":"front_matter"},
+  {"title":"Unknown fragment","evidence":"page-fallback","expected":"unclassified"}
+]

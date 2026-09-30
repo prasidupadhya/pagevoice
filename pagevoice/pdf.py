@@ -13,7 +13,7 @@ import pypdfium2 as pdfium
 from .audio import run
 from .book import Book, Chapter, clean, sentences
 from .storage import digest, save
-from .languages import language_code
+from .languages import language_code, detect_language
 
 OCR_LANGUAGES = {
     "en": "eng",
@@ -74,8 +74,9 @@ def read_pdf(path: Path, language=None, ocr="auto", ocr_language=None, cache=Non
         raise ValueError("Encrypted PDFs are not supported; provide a decrypted copy.")
     if len(reader.pages) > 2500:
         raise ValueError("PDF page count exceeds the 2,500-page safety limit.")
-    lang = language_code(language or reader.trailer["/Root"].get("/Lang", "en"))
-    ocr_lang = ocr_language or OCR_LANGUAGES[lang]
+    metadata_language = reader.trailer["/Root"].get("/Lang", "")
+    lang = language_code(language) if language and language != 'auto' else None
+    ocr_lang = ocr_language or (OCR_LANGUAGES[lang] if lang else 'eng+spa')
     if set(ocr_lang.split("+")) - {"eng", "spa"}:
         raise ValueError("Only English and Spanish OCR data (eng, spa, eng+spa) are supported.")
     key = {"source": digest(path), "language": lang, "ocr": ocr, "ocr_language": ocr_lang, "parser": 3}
@@ -130,6 +131,8 @@ def read_pdf(path: Path, language=None, ocr="auto", ocr_language=None, cache=Non
             raise ValueError("Extracted PDF text exceeds the 30 MB analysis limit.")
         pages.append(entry)
 
+    detection = detect_language([p['text'] for p in pages], metadata_language, language)
+    lang = detection['language']
     # Detect repeated margin lines without modifying the cached source text.
     from collections import Counter
 
@@ -258,4 +261,5 @@ def read_pdf(path: Path, language=None, ocr="auto", ocr_language=None, cache=Non
             }
             for p in pages
         ],
+        detection,
     )

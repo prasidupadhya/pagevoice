@@ -14,12 +14,17 @@ FRONT={'preface':('preface','front_matter'),'prefacio':('preface','front_matter'
        'acknowledgments':('acknowledgments','front_matter'),'acknowledgements':('acknowledgments','front_matter'),'agradecimientos':('acknowledgments','front_matter'),
        'dedication':('dedication','front_matter'),'dedicatoria':('dedication','front_matter'),'copyright':('copyright','front_matter'),
        'creditos':('copyright','front_matter'),'contents':('toc','front_matter'),'table of contents':('toc','front_matter'),'indice':('toc','front_matter'),
-       'epigraph':('epigraph','front_matter'),'epigrafe':('epigraph','front_matter'),'about':('biography','front_matter'),
-       'author':('biography','front_matter'),'biography':('biography','front_matter'),'biografia':('biography','front_matter'),'sobre':('biography','front_matter')}
+       'epigraph':('epigraph','front_matter'),'epigrafe':('epigraph','front_matter'),
+       'about the author':('biography','front_matter'),'author biography':('biography','front_matter'),
+       "author's life":('biography','front_matter'),'life of the author':('biography','front_matter'),
+       'biography of the author':('biography','front_matter'),'sobre el autor':('biography','front_matter'),
+       'sobre la autora':('biography','front_matter'),'vida del autor':('biography','front_matter'),
+       'vida de la autora':('biography','front_matter'),'biografia':('biography','front_matter'),'biography':('biography','front_matter')}
 BACK={'index':('index','back_matter'),'bibliography':('bibliography','back_matter'),'bibliografia':('bibliography','back_matter'),
       'appendix':('appendix','back_matter'),'appendices':('appendix','back_matter'),'apendice':('appendix','back_matter'),
       'epilogue':('epilogue','back_matter'),'epilogo':('epilogue','back_matter'),'notes':('notes','back_matter'),'notas':('notes','back_matter'),
-      'glossary':('glossary','back_matter'),'glosario':('glossary','back_matter')}
+      'glossary':('glossary','back_matter'),'glosario':('glossary','back_matter'),
+      'references':('bibliography','back_matter'),'referencias':('bibliography','back_matter')}
 CHAPTER=re.compile(r'^(?:(?:chapter|capitulo)\s+\S+|[ivxlcdm]+[.]?$)',re.I)
 FIRST=re.compile(r'^(?:(?:chapter|capitulo)\s+(?:1|i|one|uno|primero)\b|i[.]?$)',re.I)
 
@@ -46,16 +51,21 @@ def analyze(book):
             if subkind=='toc' and i>len(chapters)*.75 and key=='indice':kind='back_matter';subkind='index'
             vote(kind,6,'section_title',key)
         if evidence in ('table-of-contents','outline','manual'):vote('chapter',3,'structural_boundary',evidence)
-        if CHAPTER.match(normalized) and evidence=='heading':vote('chapter',5,'numbered_heading',title)
+        explicit=re.match(r'^(?:chapter|capitulo)\s+\S+',normalized)
+        numbered=CHAPTER.match(normalized) or re.match(r'^\d+[.)]\s+\S+',normalized)
+        if explicit or (numbered and evidence=='heading'):vote('chapter',5,'numbered_heading',title)
         if re.match(r'^(part|parte)\s+\S+',normalized):
             subkind='part_divider';vote('chapter',3,'part_heading',title)
+            previous_number=None
         if first is not None and i<first and evidence in ('spine','legacy-spine','page-fallback'):
-            vote('front_matter',2,'before_first_chapter',first)
+            # Position is a review hint, not evidence that arbitrary prose is biography.
+            signals.append({'kind':'unclassified','weight':0,'reason':'before_first_chapter','evidence':first})
         typography=c.get('typography') or {}
         if typography.get('heading_ratio',0)>=1.35 and CHAPTER.match(normalized):vote('chapter',2,'heading_typography',typography)
         if role in ('chapter','front_matter','back_matter','unclassified'):
             kind=role;confidence='confirmed' if evidence=='manual' else 'document';level='high';reasons=['manual' if evidence=='manual' else 'epub_semantics']
             signals.insert(0,{'kind':kind,'weight':100,'reason':reasons[0],'evidence':role})
+            if subkind and any(s['kind']!=kind and s['weight']>0 for s in signals[1:]):subkind=None
         elif votes:
             ordered=votes.most_common();kind,score=ordered[0];margin=score-(ordered[1][1] if len(ordered)>1 else 0)
             confidence='document' if not keyword and evidence in ('table-of-contents','outline') else 'inferred'
@@ -84,8 +94,8 @@ def analyze(book):
                          'confidence':confidence,'confidence_level':level,'reasons':reasons,'signals':signals,'flags':flags,
                          'review':confidence=='inferred' or kind=='unclassified' or bool(flags),'sentences':len(c['sentences']),
                          'words':words,'excerpt':' '.join(c['sentences'][:2])[:600]})
-    start=next((s['index'] for s in sections if s['kind']=='chapter'),None)
+    start=next((s['index'] for s in sections if s['kind']=='chapter' and not (s['subkind']=='part_divider' and s['words']<20)),None)
     if start is None:start=next((s['index'] for s in sections if s['kind']=='unclassified'),0)
     count=sum(s['review'] for s in sections)
-    return {'version':2,'revision':3,'method':'local-source-retrieval','start_chapter':start,'sections':sections,'needs_review':bool(count),'review_count':count,
+    return {'version':2,'revision':4,'method':'local-source-retrieval','start_chapter':start,'sections':sections,'needs_review':bool(count),'review_count':count,
             'warnings':['review_inferred_boundaries'] if count else [],'flags':[dict(section=s['index'],**f) for s in sections for f in s['flags']]}

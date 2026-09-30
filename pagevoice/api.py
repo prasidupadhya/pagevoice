@@ -199,6 +199,7 @@ def create_app(data=None):
             "language": (state.get("book") or {}).get(
                 "language", state.get("parse_options", {}).get("language", "en")
             ),
+            "language_detection": (state.get("book") or {}).get("language_detection", {}),
             "status": state["status"],
             "error": state.get("error"),
             "engine": state["engine"],
@@ -241,7 +242,9 @@ def create_app(data=None):
                 root,
                 engine=engine,
                 voice=voice,
-                language=(state.get("book") or {}).get("language"),
+                language=(state.get("book") or {}).get("language")
+                if (state.get("book") or {}).get("language_detection", {}).get("source") == "manual"
+                else None,
                 output_format=state["format"],
                 device=state["device"],
                 ocr=state["parse_options"].get("ocr", "auto"),
@@ -431,7 +434,7 @@ def create_app(data=None):
     @app.post("/api/projects", status_code=202)
     def upload(
         file: UploadFile = File(...),
-        language: Literal["en", "es"] = Form("en"),
+        language: Literal["auto", "en", "es"] = Form("auto"),
         ocr: Literal["auto", "always", "never"] = Form("auto"),
     ):
         suffix = Path(file.filename or "").suffix.lower()
