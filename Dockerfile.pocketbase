@@ -1,0 +1,19 @@
+FROM alpine:3.22
+ARG PB_VERSION=0.40.4
+ARG TARGETARCH=amd64
+RUN apk add --no-cache ca-certificates unzip wget \
+    && wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${TARGETARCH}.zip" -O /tmp/pocketbase.zip \
+    && unzip /tmp/pocketbase.zip -d /pb \
+    && rm /tmp/pocketbase.zip \
+    && addgroup -S -g 10002 pocketbase \
+    && adduser -S -D -H -u 10002 -G pocketbase pocketbase \
+    && mkdir -p /pb/pb_data /pb/pb_migrations \
+    && chown -R pocketbase:pocketbase /pb
+COPY --chown=pocketbase:pocketbase pb_migrations/ /pb/pb_migrations/
+USER 10002:10002
+WORKDIR /pb
+VOLUME /pb/pb_data
+EXPOSE 8090
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD wget -qO- http://127.0.0.1:8090/api/health >/dev/null || exit 1
+ENTRYPOINT ["/pb/pocketbase"]
+CMD ["serve", "--http=0.0.0.0:8090"]

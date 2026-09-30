@@ -37,7 +37,17 @@ import {
   progressEvents,
   setAccessToken,
   uploadBook,
+  API_BASE,
 } from "./backends/ApiBackend";
+import {
+  POCKETBASE_URL,
+  ensureGuestIdentity,
+  markBookDeleted,
+  purgeBookMetadata,
+  purgeExpiredBookMetadata,
+  restoreBookMetadata,
+  saveBookMetadata,
+} from "./pocketbase";
 import { DeleteBook, UndoDeletion } from "./DeleteBook";
 import { Casting } from "./Casting";
 import { Listener, forwardRows, bufferStatus } from "./listener";
@@ -360,6 +370,7 @@ export default function App() {
   const [auth, setAuth] = useState(false),
     [token, setToken] = useState(""),
     [hosted, setHosted] = useState(false),
+    [guestLibrary, setGuestLibrary] = useState(Boolean(POCKETBASE_URL)),
     [authError, setAuthError] = useState("");
   useEffect(() => {
     api("/api/health")
@@ -367,10 +378,21 @@ export default function App() {
       .catch(() => {});
   }, []);
   useEffect(() => {
-    const required = () => setAuth(true);
+    const required = () => {
+      if (!POCKETBASE_URL) {
+        setAuth(true);
+        return;
+      }
+      ensureGuestIdentity()
+        .then((identity) => {
+          setAccessToken(identity.token);
+          refresh();
+        })
+        .catch((error) => setError(error.message || t.guestSetupError));
+    };
     window.addEventListener("pagevoice-auth", required);
     return () => window.removeEventListener("pagevoice-auth", required);
-  }, []);
+  }, [t.guestSetupError]);
   const [deleting, setDeleting] = useState(null),
     [undo, setUndo] = useState([]);
   const removed = useRef(new Set()),
@@ -498,10 +520,31 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
+      // Keep existing token-protected servers usable. A public PocketBase
+      // deployment requires its browser origin, but legacy private hosts do not.
+      if (API_BASE && !POCKETBASE_URL) {
+        const info = await api("/api/health");
+        if (info.auth_mode === "pocketbase") throw Error(t.guestSetupError);
+      }
+      if (POCKETBASE_URL) {
+        const identity = await ensureGuestIdentity();
+        setAccessToken(identity.token);
+        setGuestLibrary(true);
+        await purgeExpiredBookMetadata();
+      } else {
+        setGuestLibrary(false);
+      }
       const [books, available] = await Promise.all([
         api("/api/projects"),
         api("/api/engines"),
       ]);
+      if (POCKETBASE_URL) {
+        const synced = await Promise.allSettled(
+          books.map((book) => saveBookMetadata(book)),
+        );
+        if (synced.some((result) => result.status === "rejected"))
+          setNotice(t.librarySyncError);
+      }
       setProjects(books);
       setEngines(available);
       api("/api/storage")
@@ -546,6 +589,8 @@ export default function App() {
         setListenStart(p.listening?.chapter || 0);
       }
       setProject(p);
+      if (POCKETBASE_URL)
+        saveBookMetadata(p).catch(() => setNotice(t.librarySyncError));
       setProjects((all) =>
         all.some((x) => x.id === p.id)
           ? all.map((x) => (x.id === p.id ? p : x))
@@ -642,6 +687,8 @@ export default function App() {
   function removeFromLibrary(id) {
     persist("pagevoice-position-" + id, "null");
     persist("pagevoice-bookmarks-" + id, "[]");
+    if (POCKETBASE_URL)
+      markBookDeleted(id).catch(() => setNotice(t.librarySyncError));
     removed.current.add(id);
     stopDeleted(id);
     setProjects((all) => all.filter((p) => p.id !== id));
@@ -654,11 +701,15 @@ export default function App() {
   }
   function expired(id) {
     setUndo((all) => all.filter((p) => p.id !== id));
+    if (POCKETBASE_URL)
+      purgeBookMetadata(id).catch(() => setNotice(t.librarySyncError));
   }
   function restored(p) {
     removed.current.delete(p.id);
     setProjects((all) => [p, ...all.filter((x) => x.id !== p.id)]);
-    expired(p.id);
+    setUndo((all) => all.filter((receipt) => receipt.id !== p.id));
+    if (POCKETBASE_URL)
+      restoreBookMetadata(p).catch(() => setNotice(t.librarySyncError));
     chooseProject(p.id);
   }
   function chooseProject(id) {
@@ -905,7 +956,7 @@ export default function App() {
         </a>
         <span className="local-badge">
           <ShieldCheck size={16} />
-          {hosted ? t.hostedStorage : t.local}
+          {guestLibrary ? t.guestStorage : hosted ? t.hostedStorage : t.local}
         </span>
         <div className="top-controls">
           <span className="connection-state" role="status">
@@ -1022,7 +1073,11 @@ export default function App() {
             )}
             <p className="small muted privacy-note">
               <ShieldCheck size={16} />
-              {hosted ? t.hostedPrivacy : t.localHint}
+              {guestLibrary
+                ? t.guestPrivacy
+                : hosted
+                  ? t.hostedPrivacy
+                  : t.localHint}
             </p>
           </div>
         </aside>
@@ -1502,7 +1557,11 @@ export default function App() {
                     {settings?.engine === "edge" && (
                       <div className="online-note">
                         <p className="small">
-                          {hosted ? t.hostedPrivacy : t.onlineNotice}
+                          {guestLibrary
+                            ? t.guestPrivacy
+                            : hosted
+                              ? t.hostedPrivacy
+                              : t.onlineNotice}
                         </p>
                         <label className="check-field">
                           <input
@@ -1592,7 +1651,11 @@ export default function App() {
                         </button>
                       )}
                       <p className="small muted">
-                        {busy ? t.backgroundHint : t.engineHint}
+                        {busy
+                          ? t.backgroundHint
+                          : guestLibrary
+                            ? t.guestEngineHint
+                            : t.engineHint}
                       </p>
                       {busy &&
                         project.status === "synthesizing" &&

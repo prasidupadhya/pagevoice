@@ -201,55 +201,39 @@ CLI: `pagevoice delete sessions/<id>` waits for the same safe deletion/purge.
 
 ### Hosted deployment
 
-The React reader can run on Vercel; the Python worker needs a separate persistent
-container host. See [deployment instructions](docs/deployment.md) for Docker,
-explicit domain allowlists, private-library access, storage limits and verification.
-Hosted mode stores books on your backend server. Local mode remains the default.
+The React reader can run on Vercel. Public, persistent guest libraries require
+PocketBase and the Python worker on an HTTPS container host with persistent volumes.
+No signup form is shown: each browser gets a random private guest key. Books and
+finished audio are stored on the PageVoice server; library metadata is also stored
+in PocketBase. Visitors cannot see each other's books. Losing browser storage loses
+access to that guest library, so this is not a recoverable account system.
+See [deployment instructions](docs/deployment.md). Local mode remains available.
 
-### Run on Vercel (temporary browser mode)
+### Run on Vercel (private guest libraries)
 
-The frontend also works on Vercel without a PageVoice server. Set the Vercel
-project root to the repository root; the checked-in `vercel.json` runs the web
-install/build commands and publishes `web/dist` using Node 22. No environment
-variables are needed for this mode.
+Deploy from the repository root with Node 22. The checked-in `vercel.json` builds
+`web/` and serves its static output. Vite embeds an exact-origin browser CSP from
+these **public** Vercel environment variables:
 
-Choose **Add a book** and select an English or Spanish PDF or EPUB. Parsing,
-chapter review, sentence splitting and accent-insensitive lexical search run in
-a local Web Worker in your browser tab. PDF bookmarks are used when available;
-PDF scans with no text layer are reported because temporary mode does not run OCR.
-Listening uses voices supplied by the browser or operating system, so voices vary
-by device and some may use cloud processing outside PageVoice's control. PageVoice
-itself sends no book data anywhere in temporary browser mode. Search is local
-lexical search, not AI.
+| Variable | Example | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `https://api.example.com` | PageVoice FastAPI/worker origin |
+| `VITE_POCKETBASE_URL` | `https://identity.example.com` | PocketBase guest identity and metadata origin |
 
-The temporary-mode voice picker now offers only the eleven names in the verified
-catalogue below, filtered to the book's language; English defaults to Aria and
-Spanish to Elvira. For playback, it first looks for the selected name and region
-in device voices, then uses an available voice for the requested region, then any
-device voice for the same language. The reader displays the actual device voice
-used, which may sound different from the selected Edge voice. Listening is only
-disabled when the browser has no voice for the book's language. Exact Edge Online
-synthesis and preview require the API-backed PageVoice server and its explicit
-narration consent.
+Set both for Production, redeploy, and configure those two services on a persistent
+HTTPS host as described in [docs/deployment.md](docs/deployment.md). No access token
+or PocketBase superuser credential belongs in Vercel. A frontend-only deployment
+cannot make Edge audio, OCR, M4B/MP3, or persistent books; it shows setup guidance
+until the two origins are configured. This is a real hosting requirement, not a
+frontend setting that can synthesize audio on its own.
 
-The named Edge Online catalogue in [Voices](#voices) is served by the full
-PageVoice API and requires the explicit Microsoft narration consent. Temporary
-browser mode does not contact Microsoft or claim a device voice is the named Edge
-voice; the selector remains limited to the verified Edge profiles while its
-status message identifies the actual browser/device voice used.
-
-Books and covers exist only in the current page's memory. They disappear after a
-refresh or when the tab closes. Temporary mode cannot prepare or download M4B/MP3
-files, regenerate audio, or continue background work after you leave the page.
-It does not record synthesized speech. Use **Clear everything** to remove the
-current session sooner.
-
-For the existing API-backed reader, set `VITE_API_BASE_URL` before building and
-run the PageVoice API separately. `VITE_API_BASE_URL=/` uses the existing Vite
-`/api` proxy in local development; a PageVoice server opened directly on its local
-port is selected automatically. This selects the existing API path; an external
-API origin also needs to be added to the Vercel CSP `connect-src` allowlist. The
-default Vercel build does not make API requests.
+The older in-memory browser reader remains available in local development without
+either variable. It parses EPUB/PDF in a Web Worker and uses available device
+voices, with no export and no storage across refresh. The hosted guest setup uses
+the eleven verified Edge profiles in [Voices](#voices) and requires explicit
+Microsoft narration consent. Existing shared-token API deployments still work
+when explicitly configured, but share one library and are unsuitable for a public
+site.
 
 See the [browser-mode design notes and responsive screenshots](docs/design.md)
 for the visual principles, theme tokens and before/after captures.

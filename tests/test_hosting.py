@@ -1,4 +1,5 @@
 import zipfile
+import json
 import pytest
 from fastapi.testclient import TestClient
 from pagevoice.api import create_app
@@ -40,8 +41,7 @@ def test_local_backend_accepts_only_configured_vercel_origin(tmp_path, monkeypat
         assert denied.status_code == 403
 
 
-def test_vercel_csp_allows_only_the_local_pagevoice_http_backend():
-    import json
+def test_vercel_header_allows_https_and_only_loopback_http():
     from pathlib import Path
 
     config = json.loads(Path("vercel.json").read_text())
@@ -51,14 +51,10 @@ def test_vercel_csp_allows_only_the_local_pagevoice_http_backend():
         for header in rule["headers"]
         if header["key"] == "Content-Security-Policy"
     )
-    directives = {
-        name: sources.split()
-        for name, sources in (part.strip().split(" ", 1) for part in policy.split(";"))
-    }
-    assert "http://127.0.0.1:8765" in directives["connect-src"]
-    assert "http://127.0.0.1:8765" in directives["media-src"]
-    assert "http:" not in directives["connect-src"]
-    assert "upgrade-insecure-requests" not in directives
+    assert "connect-src 'self' https: http://127.0.0.1:8765" in policy
+    assert "media-src 'self' blob: https: http://127.0.0.1:8765" in policy
+    assert "frame-ancestors 'none'" in policy
+    assert "http:" not in policy.replace("http://127.0.0.1:8765", "")
 
 
 def test_auth_cors_hosts_and_media_capabilities(tmp_path, monkeypatch):
@@ -124,6 +120,54 @@ def test_upload_validation_quota_and_isolation(tmp_path, monkeypatch):
         assert "Storage quota reached" in response.text
         assert b.get("/api/projects").json() == []
         assert a.get("/api/projects").json() == []
+
+
+def test_pocketbase_guests_can_only_read_and_spend_their_own_library(tmp_path, monkeypatch):
+    monkeypatch.setenv("PAGEVOICE_HOSTED", "1")
+    monkeypatch.setenv("PAGEVOICE_AUTH_MODE", "pocketbase")
+    monkeypatch.setenv("PAGEVOICE_ACCESS_TOKEN", "")
+    monkeypatch.setenv("PAGEVOICE_POCKETBASE_URL", "https://identity.example")
+    monkeypatch.setenv("PAGEVOICE_POCKETBASE_AUTH_COLLECTION", "guests")
+    monkeypatch.setenv("PAGEVOICE_MEDIA_SECRET", "m" * 48)
+    monkeypatch.setenv("PAGEVOICE_ALLOWED_HOSTS", "books.example")
+    monkeypatch.setenv("PAGEVOICE_ALLOWED_ORIGINS", "https://reader.example")
+    owners = {"guest-a": "guestAAAA00000001", "guest-b": "guestBBBB00000002"}
+
+    async def verify(token, _config):
+        return owners.get(token), True
+
+    monkeypatch.setattr("pagevoice.security.pocketbase_owner", verify)
+    with TestClient(create_app(tmp_path), base_url="https://books.example") as client:
+        headers_a = {"Authorization": "Bearer guest-a", "Origin": "https://reader.example"}
+        headers_b = {"Authorization": "Bearer guest-b", "Origin": "https://reader.example"}
+        assert client.get("/api/projects").status_code == 401
+        assert client.get("/api/projects", headers={"Authorization": "Bearer invalid"}).status_code == 401
+        book = make_sample(tmp_path / "guest-book.epub")
+        uploaded = client.post(
+            "/api/projects", headers=headers_a, files={"file": ("guest-book.epub", book.read_bytes())}
+        )
+        assert uploaded.status_code == 202
+        project_id = uploaded.json()["id"]
+        manifest = json.loads((tmp_path / "sessions" / project_id / "session.json").read_text())
+        assert manifest["owner_id"] == owners["guest-a"]
+        assert [p["id"] for p in client.get("/api/projects", headers=headers_a).json()] == [project_id]
+        assert client.get("/api/projects", headers=headers_b).json() == []
+        assert client.get(f"/api/projects/{project_id}", headers=headers_b).status_code == 404
+        assert client.get(f"/api/projects/{project_id}/deletion", headers=headers_b).status_code == 404
+        assert client.delete(f"/api/projects/{project_id}", headers=headers_b).status_code == 404
+        assert client.get("/api/storage", headers=headers_a).json()["bytes"] > 0
+        assert client.get("/api/storage", headers=headers_b).json()["bytes"] == 0
+        capability = media_url(f"/api/projects/{project_id}/download", client.app.state.config)
+        # Read-only media URLs are separate, short-lived capabilities; normal
+        # project actions still require a guest token and pass the owner check.
+        assert client.get(capability, headers=headers_a).status_code == 409
+        sibling = client.post(f"/api/projects/{project_id}/reanalyze", headers=headers_a)
+        assert sibling.status_code == 202
+        sibling_id = sibling.json()["id"]
+        assert sibling_id != project_id
+        sibling_manifest = json.loads((tmp_path / "sessions" / sibling_id / "session.json").read_text())
+        assert sibling_manifest["owner_id"] == owners["guest-a"]
+        assert client.get(f"/api/projects/{sibling_id}", headers=headers_b).status_code == 404
 
 
 def test_epub_bomb_and_traversal_rejected(tmp_path):

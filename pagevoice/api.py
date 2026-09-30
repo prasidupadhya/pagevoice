@@ -22,8 +22,8 @@ from .pipeline import new_session, load, signature, reusable
 from .listening import BUFFER_SENTENCES, priority, set_priority, pause, paused
 from .storage import save, digest
 from .trash import safe_path
-from .config import Config, check_quota
-from .security import Security, media_url
+from .config import Config, check_quota, check_tenant_quota, tenant_usage
+from .security import Security, current_media_capability, current_owner, media_url
 from .uploads import validate_upload
 from .languages import default_voice
 from .voices import catalogue
@@ -117,6 +117,20 @@ def create_app(data=None):
         path = safe_path(root, f"sessions/{project}")
         if not (path / "session.json").is_file():
             raise HTTPException(404, "Project not found.")
+        if config.hosted and config.auth_mode == "pocketbase":
+            owner = current_owner()
+            media_capability = current_media_capability()
+            try:
+                stored_owner = json.loads((path / "session.json").read_text(encoding="utf-8")).get("owner_id")
+            except (OSError, ValueError):
+                raise HTTPException(404, "Project not found.") from None
+            if media_capability:
+                return path
+            if not owner:
+                raise HTTPException(401, "A private guest library is required.")
+            if stored_owner != owner:
+                # Deliberately indistinguishable from a missing project.
+                raise HTTPException(404, "Project not found.")
         return path
 
     def present(project):
@@ -235,6 +249,8 @@ def create_app(data=None):
             )
             fresh = load(path)
             fresh.update(original_name=state.get("original_name", source.name), pace=state.get("pace", 1.0))
+            if config.hosted and config.auth_mode == "pocketbase":
+                fresh["owner_id"] = state["owner_id"]
             save(path / "session.json", fresh)
             jobs.submit(path.name, "prepare")
             return present(path.name)
@@ -365,7 +381,13 @@ def create_app(data=None):
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "languages": ["en", "es"], "hosted": config.hosted}
+        return {
+            "status": "ok",
+            "languages": ["en", "es"],
+            "hosted": config.hosted,
+            "auth_mode": config.auth_mode if config.hosted else "local",
+            "pocketbase": config.auth_mode == "pocketbase" and config.hosted,
+        }
 
     @app.get("/api/hardware")
     def system():
@@ -415,6 +437,9 @@ def create_app(data=None):
         suffix = Path(file.filename or "").suffix.lower()
         if suffix not in (".epub", ".pdf"):
             raise HTTPException(415, "Choose an EPUB or PDF file.")
+        owner = current_owner() if config.hosted and config.auth_mode == "pocketbase" else None
+        if config.hosted and config.auth_mode == "pocketbase" and not owner:
+            raise HTTPException(401, "A private guest library is required.")
         with tempfile.TemporaryDirectory(prefix="pagevoice-upload-") as folder:
             source = Path(folder) / ("book" + suffix)
             size = 0
@@ -428,10 +453,15 @@ def create_app(data=None):
                 raise HTTPException(400, "The book is empty.")
             validate_upload(source)
             with jobs.trash.lock:
-                check_quota(root, size + 1024**2)
+                if owner:
+                    check_tenant_quota(root, owner, size + 1024**2)
+                else:
+                    check_quota(root, size + 1024**2)
                 path = new_session(source, root, language=language, ocr=ocr)
             state = load(path)
             state["original_name"] = Path(file.filename).name
+            if owner:
+                state["owner_id"] = owner
             save(path / "session.json", state)
         jobs.submit(path.name, "prepare")
         return present(path.name)
@@ -462,6 +492,16 @@ def create_app(data=None):
 
     @app.post("/api/trash/{project}/restore")
     def restore_project(project: str):
+        if config.hosted and config.auth_mode == "pocketbase":
+            if not re.fullmatch(r"[0-9a-f]{32}", project):
+                raise HTTPException(404, "Deleted project not found.")
+            saved_manifest = safe_path(root, f"trash/{project}/files/sessions/{project}/session.json")
+            try:
+                owner = json.loads(saved_manifest.read_text(encoding="utf-8")).get("owner_id")
+            except (OSError, ValueError):
+                raise HTTPException(404, "Deleted project not found.") from None
+            if owner != current_owner():
+                raise HTTPException(404, "Deleted project not found.")
         with jobs.guard:
             try:
                 jobs.trash.restore(project)
@@ -675,7 +715,12 @@ def create_app(data=None):
     @app.get("/api/storage")
     def storage_usage():
         from .config import disk_usage
-
+        if config.hosted and config.auth_mode == "pocketbase":
+            owner = current_owner()
+            return {
+                "bytes": tenant_usage(root, owner),
+                "quota_bytes": int(os.getenv("PAGEVOICE_USER_QUOTA_MB", "2048")) * 1024**2,
+            }
         return {"bytes": disk_usage(root), "quota_bytes": config.quota}
 
     @app.get("/api/projects/{project}/cover")

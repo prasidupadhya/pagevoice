@@ -3879,3 +3879,80 @@ dialog::backdrop {
   color: var(--ink);
   font-weight: 600;
 }
+/* Honest, calm holding page when a public build has not been connected to its
+   persistent services. The normal reader remains the dominant application. */
+.deployment-required {
+  min-height: 100dvh;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.deployment-required__main {
+  min-height: calc(100dvh - 76px);
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 5vw, 72px);
+}
+
+.deployment-required__sheet {
+  width: min(100%, 720px);
+  padding: clamp(28px, 6vw, 60px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius, 8px);
+  background: var(--sheet);
+  box-shadow: 0 22px 64px rgb(31 28 23 / 8%);
+}
+
+.deployment-required__sheet .eyebrow {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.deployment-required__sheet h1 {
+  max-width: 15ch;
+  margin: 12px 0 18px;
+  font: 400 clamp(2rem, 5vw, 3.4rem) / 1.08 var(--font-reading, Georgia, serif);
+}
+
+.deployment-required__lead {
+  max-width: 58ch;
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+.deployment-required__sheet h2 {
+  margin-top: 32px;
+  font-size: 1rem;
+}
+
+.deployment-required__sheet ul {
+  display: grid;
+  gap: 12px;
+  padding-left: 22px;
+}
+
+.deployment-required__sheet code {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.deployment-required__note {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deployment-required *,
+  .deployment-required *::before,
+  .deployment-required *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
