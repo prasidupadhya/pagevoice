@@ -7,11 +7,11 @@ name = "pagevoice"
 version = "0.1.0"
 description = "Local-first book narration pipeline"
 requires-python = ">=3.10,<3.14"
-dependencies = ["snowballstemmer==3.1.1", "beautifulsoup4==4.13.3", "defusedxml==0.7.1", "pypdf==6.19.0", "pypdfium2==5.13.0", "pillow==12.3.0", "filelock==4.0.1", "edge-tts==7.2.3"]
+dependencies = ["snowballstemmer==3.1.1", "beautifulsoup4==4.13.3", "defusedxml==0.7.1", "pypdf==6.19.0", "pypdfium2==5.13.0", "pillow==12.3.0", "filelock==4.0.1", "edge-tts==7.2.8"]
 
 [project.optional-dependencies]
 semantic = ["onnxruntime==1.23.2", "tokenizers==0.23.2", "numpy==2.2.6"]
-edge = ["edge-tts==7.2.3"]
+edge = ["edge-tts==7.2.8"]
 api = ["fastapi==0.141.1", "uvicorn==0.53.0", "python-multipart==0.0.32", "pydantic==2.13.5", "httpx==0.28.1"]
 quality = ["ruff==0.16.9", "mypy==2.3.1"]
 test = ["hypothesis==6.168.3", "pytest==9.0.3", "reportlab==5.0.1", "httpx==0.28.1"]
