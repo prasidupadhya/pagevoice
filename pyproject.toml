@@ -14,7 +14,7 @@ semantic = ["onnxruntime==1.23.2", "tokenizers==0.23.2", "numpy==2.2.6"]
 edge = ["edge-tts==7.2.3"]
 api = ["fastapi==0.141.1", "uvicorn==0.53.0", "python-multipart==0.0.32", "pydantic==2.13.5", "httpx==0.28.1"]
 quality = ["ruff==0.16.9", "mypy==2.3.1"]
-test = ["hypothesis==6.168.3", "pytest==9.0.3", "reportlab==5.0.1", "httpx==0.28.1"]
+test = ["hypothesis==6.168.3", "pytest==9.1.1", "reportlab==5.0.1", "httpx==0.28.1"]
 
 [project.scripts]
 pagevoice = "pagevoice.cli:main"
