@@ -9,7 +9,7 @@ import zipfile
 
 from bs4 import BeautifulSoup, NavigableString, Comment
 from defusedxml import ElementTree as ET
-from .languages import language_code
+from .languages import language_code, detect_language
 
 
 @dataclass
@@ -28,6 +28,7 @@ class Book:
     language: str
     chapters: list[Chapter]
     source_pages: list[dict] = field(default_factory=list)
+    language_detection: dict = field(default_factory=dict)
 
     def to_dict(self):
         return asdict(self)
@@ -86,7 +87,6 @@ def read_epub(path: Path, language: str | None = None) -> Book:
         def meta(key, default):
             element = metadata.find('{*}' + key) if metadata is not None else None
             return clean(element.text or '') if element is not None else default
-        lang = language_code(language or meta('language', 'en'))
         manifest = {e.attrib['id']: e.attrib for e in root.findall('./{*}manifest/{*}item')}
         # Resolve both EPUB 3 navigation and nested EPUB 2 NCX destinations.
         navigation = {}
@@ -129,7 +129,7 @@ def read_epub(path: Path, language: str | None = None) -> Book:
                 if parts:
                     text = clean(' '.join(parts))
                     if text:
-                        chapters.append(Chapter(title or f'Section {len(chapters) + 1}', sentences(text, lang), anchor, evidence, role))
+                        chapters.append(Chapter(title or f'Section {len(chapters) + 1}', [text], anchor, evidence, role))
             # Read blocks in document order; concatenate inline tags without inserting
             # spaces inside words, but retain paragraph boundaries between blocks.
             for br in body.find_all('br'): br.replace_with(' ')
@@ -171,4 +171,9 @@ def read_epub(path: Path, language: str | None = None) -> Book:
             flush()
         if not chapters:
             raise ValueError('EPUB has no readable linear chapters.')
-        return Book(meta('title', path.stem), meta('creator', 'Unknown author'), lang, chapters)
+        detection = detect_language([c.sentences[0] for c in chapters], meta('language', ''), language)
+        lang = detection['language']
+        for chapter in chapters:
+            chapter.sentences = sentences(chapter.sentences[0], lang)
+        return Book(meta('title', path.stem), meta('creator', 'Unknown author'), lang, chapters,
+                    language_detection=detection)

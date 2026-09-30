@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { analyzeSections, applySectionReview } from "./analysis";
+import structureCases from "../../../rag/eval/structure_challenge.json";
 import { buildSearchIndex, searchBook } from "./search";
 
 describe("honest local structure analysis", () => {
+  it.each(structureCases)(
+    "handles the shared structural edge case: $title",
+    (example) => {
+      const result = analyzeSections({
+        chapters: [{ ...example, sentences: ["A source passage for review."] }],
+      });
+      expect(result.sections[0].kind).toBe(example.expected);
+    },
+  );
   it("lets a document role override navigation and title heuristics", () => {
     const analysis = analyzeSections({
       chapters: [

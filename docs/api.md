@@ -13,7 +13,7 @@ prevents two queues from modifying the same local data.
 | GET /api/hardware | Local acceleration/tool detection |
 | GET /api/engines | Edge catalogue and eleven built-in voices |
 | GET /api/projects | Saved projects |
-| POST /api/projects | Multipart PDF/EPUB upload; language en/es, OCR auto/always/never |
+| POST /api/projects | Multipart PDF/EPUB upload; language auto (default)/en/es, OCR auto/always/never |
 | GET /api/projects/{id} | Chapters, sentences, progress, current output |
 | PATCH /api/projects/{id}/settings | Engine, voice, device, M4B/MP3 settings |
 | POST /api/projects/{id}/preview | Render one chapter, JSON chapter index |
@@ -27,6 +27,12 @@ prevents two queues from modifying the same local data.
 
 Render requests take `{ "allow_network": false }`; Edge requires explicit true.
 Language selection is limited to English/Spanish and does not translate the book.
+Omit `language` for automatic body-text/metadata detection before sentence splitting.
+An explicit `en` or `es` remains authoritative. Project detail adds
+`language_detection` with `language`, `source` (text/metadata/fallback/manual),
+heuristic `confidence`, `review`, `scores`, `metadata` and `metadata_mismatch`.
+These scores are marker counts, not probabilities. Automatic OCR uses `eng+spa`.
+Reanalysis detects again unless a project contains a recorded manual override.
 The browser interface is served from `web/dist` when built.
 
 The queue writes `jobs/<id>.json` before executing. Jobs that were queued/running

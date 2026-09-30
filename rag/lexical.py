@@ -8,13 +8,13 @@ from difflib import get_close_matches
 from pathlib import Path
 from filelock import FileLock
 from .query import parse,tokens,stem,expression
-from .structure import analyze
+from .structure import analyze, STRUCTURE_REVISION
 
 SCHEMA=4
 
 
 def fingerprint(book):
-    relevant={'language':book.get('language','en'),'chapters':book['chapters'],'schema':SCHEMA}
+    relevant={'language':book.get('language','en'),'chapters':book['chapters'],'schema':SCHEMA,'structure_revision':STRUCTURE_REVISION}
     return hashlib.sha256(json.dumps(relevant,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
 
 
@@ -123,7 +123,7 @@ def search(folder,book,query,chapter=None,kind=None,match_type=None,limit=8,mode
                 identity=row['stable_id']
                 if identity in candidates:continue
                 surface=set(tokens(row['text']+' '+row['title']));stemmed={stem(t,language) for t in surface}
-                matched=[t for t in q.terms if t in surface or (match=='stem' and stem(t,language) in stemmed) or (t in q.prefixes and any(s.startswith(t) for s in surface)) or (corrections and corrections.get(t) in surface)]
+                matched=[t for t in q.terms if t in surface or ((match=='stem' or match=='partial' and tier==19) and stem(t,language) in stemmed) or (t in q.prefixes and any(s.startswith(t) for s in surface)) or (corrections and corrections.get(t) in surface)]
                 coverage=len(matched)/len(q.terms)
                 phrase_boost=sum(' '.join(p) in ' '.join(tokens(row['text'])) for p in q.phrases)*.2
                 score=tier+coverage+phrase_boost+min(1,abs(row['bm']))*.1
@@ -132,6 +132,7 @@ def search(folder,book,query,chapter=None,kind=None,match_type=None,limit=8,mode
         fetch(expression(q,language,True),'stem',30)
         # Preserve labelled partial evidence; explicit operators remain constraints.
         fetch(expression(q,language,joiner=' OR '),'partial',20)
+        fetch(expression(q,language,True,joiner=' OR '),'partial',19)
         if not candidates and not q.phrases and not q.near and not q.required and not q.excluded and not q.prefixes:
             # Candidate vocabulary bounded by first letter/length, never an all-vocab
             # quadratic comparison. Typo support does not invent synonyms.

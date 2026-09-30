@@ -35,14 +35,19 @@ The server binds to localhost. Port8765 is the default if no override is given.
 
 ## Use the reader
 
-1. Upload a PDF or EPUB (maximum100MB) and choose the book's language. Interface
+1. Upload a PDF or EPUB (maximum100MB). PageVoice detects English or Spanish from
+   distributed body-text samples and metadata before splitting sentences. Interface
    language is independent; English/Spanish and light/dark themes are available.
+   The detected language selects the default voice. Weak or conflicting evidence
+   is labelled for review; this is a two-language heuristic, not a universal detector.
 2. Review **Explore your book**. It shows section types, source anchors, evidence,
    excerpts and uncertain boundaries. Correct a section's title/type or choose
    the section from which listening should start. Corrections preserve sentence
    audio but invalidate the final export because its chapter metadata changed.
-3. Select a voice and narration pace (0.5–2×). Explicitly check the Microsoft
-   network-consent box before previewing or generating speech. Save changed settings.
+3. The default voice is ready; optionally change voice and narration pace (0.5–2×).
+   The visible Microsoft text-transfer option starts checked. Upload and analysis
+   never start narration; clicking Preview, Listen or Create audiobook sends text
+   to Microsoft. Uncheck the option to require another confirmation. Save changed settings.
 4. Choose a chapter and press **Create audiobook** or **Listen from here**. The
    click arms playback. Listening starts after20 consecutive sentences are downloaded and decoded,
    or all remaining sentences when fewer than20 remain. If the browser blocks
@@ -185,9 +190,29 @@ continues preparing the audiobook. Existing Mexican voice selections migrate to
 Spain's default when settings are next saved; existing audio is preserved on disk.
 
 
-Edge permission is unchecked by default. Narration requires explicitly selecting
-the Microsoft text-transfer checkbox or confirming the online narration dialog.
-CLI/API requests require their explicit network flag.
+Edge permission is checked by default in the reader, with a visible text-transfer
+notice and opt-out. A narration action is still required; there is no speech request
+on upload or page load. CLI/API requests still require `allow_network: true` or
+`--allow-network`.
+
+### Automatic book language and analysis
+
+Both the server and browser reader sample up to 24 distributed sections, with at
+most 6,000 characters per section and capped EN/ES function-word counts. Clear text
+evidence takes priority over an incorrect EN/ES metadata label. Weak evidence uses
+supported metadata or an explicitly labelled English fallback. Unsupported language
+metadata is rejected; untagged foreign-language text cannot be reliably identified
+by this two-language heuristic. A bilingual or very short book may need an API/CLI
+override (`language=en|es` / `--language`). The result includes source, marker counts,
+heuristic confidence level and a review flag. No model download or external analysis
+service is used. Automatic PDF OCR uses both local `eng+spa` language packs.
+
+Structure analysis retains uncertain sections, distinguishes author biography from
+generic “About…” narrative headings, recognizes numbered headings and references,
+and skips short part dividers when suggesting a narrative listening start. Manual
+reviews and document roles stay authoritative. Partial stem search is labelled as
+partial evidence, below complete exact/phrase/stem matches; it does not invent
+synonyms or answers. See [measured verification](docs/automatic-reader-verification.md).
 
 ## Remove a book
 

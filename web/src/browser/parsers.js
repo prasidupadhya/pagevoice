@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { DOMParser } from "@xmldom/xmldom";
 import { splitSentences } from "./sentences";
+import { detectLanguage } from "./languages";
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_ENTRIES = 50_000;
@@ -352,7 +353,7 @@ async function parseEpub(file, language, progress) {
     let prose = [];
     const flush = () => {
       const text = clean(prose.join(" "));
-      if (text) current.sentences.push(...splitSentences(text, language));
+      if (text) current.sentences.push(text);
       prose = [];
       if (current.sentences.length) chapters.push(current);
       current = {
@@ -393,12 +394,23 @@ async function parseEpub(file, language, progress) {
       }
     }
     const lastText = clean(prose.join(" "));
-    if (lastText) current.sentences.push(...splitSentences(lastText, language));
+    if (lastText) current.sentences.push(lastText);
     if (current.sentences.length) chapters.push(current);
     index++;
     progress({ stage: "reading", current: index, total: spineItems.length });
   }
   if (!chapters.length) throw new ReaderError("noReadableText");
+
+  const languageDetection = detectLanguage(
+    chapters.map((chapter) => chapter.sentences.join(" ")),
+    metadataValue("language", ""),
+    language,
+  );
+  for (const chapter of chapters)
+    chapter.sentences = splitSentences(
+      chapter.sentences.join(" "),
+      languageDetection.language,
+    );
 
   let cover = null;
   const coverMeta = nodes(metadata || packageDoc, "meta").find(
@@ -422,7 +434,8 @@ async function parseEpub(file, language, progress) {
   return {
     title: metadataValue("title", file.name.replace(/\.epub$/iu, "")),
     author: metadataValue("creator", ""),
-    language,
+    language: languageDetection.language,
+    languageDetection,
     format: "epub",
     chapters,
     cover,
@@ -561,6 +574,19 @@ async function parsePdf(file, language, progress, loader = pdfWorkerLibrary) {
       await close();
       throw new ReaderError("scannedPdf");
     }
+
+    let info = {};
+    try {
+      info = (await pdf.getMetadata())?.info || {};
+    } catch {
+      // Optional metadata never prevents reading the text layer.
+    }
+    const languageDetection = detectLanguage(
+      pageData.map((page) => page.lines.map((line) => line.text).join(" ")),
+      info.Language || info.Lang || "",
+      language,
+    );
+    language = languageDetection.language;
 
     const topCounts = new Map();
     const bottomCounts = new Map();
@@ -703,16 +729,11 @@ async function parsePdf(file, language, progress, loader = pdfWorkerLibrary) {
     }
     flush();
     if (!chapters.length) throw new ReaderError("noReadableText");
-    let info = {};
-    try {
-      info = (await pdf.getMetadata())?.info || {};
-    } catch {
-      // Metadata is optional; keep the text available if a PDF omits it.
-    }
     const book = {
       title: clean(info.Title) || file.name.replace(/\.pdf$/iu, ""),
       author: clean(info.Author),
       language,
+      languageDetection,
       format: "pdf",
       chapters,
       warnings: pageData.flatMap((page) =>
@@ -730,14 +751,14 @@ async function parsePdf(file, language, progress, loader = pdfWorkerLibrary) {
 
 export async function parseBookFile(
   file,
-  language = "en",
+  language = "auto",
   progress = () => {},
   { pdfLoader = pdfWorkerLibrary } = {},
 ) {
   if (!file || !/\.(pdf|epub)$/iu.test(file.name || ""))
     throw new ReaderError("unsupportedFile");
   if (file.size > MAX_FILE_BYTES) throw new ReaderError("fileTooLarge");
-  const lang = language === "es" ? "es" : "en";
+  const lang = language;
   progress({ stage: "reading", current: 0, total: 1 });
   if (/\.epub$/iu.test(file.name)) {
     const book = await parseEpub(file, lang, progress);

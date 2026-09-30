@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { BrowserBackend } from "./backends/BrowserBackend";
+import LanguageNotice from "./LanguageNotice";
 import { SpeechController } from "./browser/SpeechController";
 import {
   DEFAULT_EDGE_VOICE,
@@ -86,17 +87,9 @@ function stableCoverHue(book) {
   return 190 + (Math.abs(hash) % 68);
 }
 
-function BrowserUploadDialog({
-  initialFile,
-  backend,
-  locale,
-  t,
-  onCreated,
-  onClose,
-}) {
+function BrowserUploadDialog({ initialFile, backend, t, onCreated, onClose }) {
   const b = t.browser;
   const [file, setFile] = useState(initialFile || null);
-  const [language, setLanguage] = useState(locale);
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState("");
   const controller = useRef(null);
@@ -120,7 +113,7 @@ function BrowserUploadDialog({
     setProgress({ stage: "reading", current: 0, total: 1 });
     setError("");
     try {
-      const book = await backend.importBook(file, language, {
+      const book = await backend.importBook(file, "auto", {
         signal: controller.current.signal,
         onProgress: setProgress,
       });
@@ -175,17 +168,7 @@ function BrowserUploadDialog({
             {b.largeFileWarning}
           </p>
         )}
-        <label>
-          {b.bookLanguage}
-          <select
-            value={language}
-            onChange={(event) => setLanguage(event.target.value)}
-            disabled={busy}
-          >
-            <option value="en">{b.english}</option>
-            <option value="es">{b.spanish}</option>
-          </select>
-        </label>
+        <p className="import-hint">{t.autoLanguageHint}</p>
         {error && (
           <p className="browser-error" role="alert">
             {b[error] || b.processingError}
@@ -875,7 +858,9 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
       </div>
 
       <div className="app-layout browser-layout">
-        <aside className="library-rail browser-library">
+        <aside
+          className={`library-rail browser-library ${books.length ? "" : "library-empty"}`}
+        >
           <div className="rail-heading">
             <h2>{b.library}</h2>
             <button
@@ -970,7 +955,6 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                 <BookOpen size={34} />
                 <span className="browser-ink-line" />
               </div>
-              <p className="browser-eyebrow">PageVoice · {b.badge}</p>
               <h1>{b.noBooks}</h1>
               <p className="browser-empty-copy">{b.emptyHint}</p>
               <button className="browser-dropzone" onClick={() => openUpload()}>
@@ -1029,6 +1013,12 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                   </button>
                 </div>
               </section>
+
+              <LanguageNotice
+                detection={activeBook.languageDetection}
+                language={activeBook.language}
+                t={t}
+              />
 
               {removeErrorWarnings.length > 0 && (
                 <details className="browser-warning browser-margin-warning">
@@ -1122,7 +1112,6 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                         <Headphones size={19} />
                       </span>
                       <div>
-                        <p className="browser-eyebrow">{b.audioTitle}</p>
                         <h2>
                           {playback.status === "playing"
                             ? displayChapterTitle(
@@ -1130,7 +1119,7 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                                 playback.chapter,
                                 b,
                               )
-                            : b.voice}
+                            : b.audioTitle}
                         </h2>
                       </div>
                     </div>
@@ -1189,8 +1178,8 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                           </>
                         ) : (
                           <>
-                            {b.voiceFallback}: {selectedSpeechVoice.name} ·{" "}
-                            {selectedSpeechVoice.lang}. {b.voiceFallbackNote}
+                            {b.deviceVoiceUsed}: {selectedSpeechVoice.name} ·{" "}
+                            {selectedSpeechVoice.lang}. {b.deviceVoiceDifferent}
                           </>
                         )}
                       </p>
@@ -1321,7 +1310,6 @@ export function BrowserApp({ backend: suppliedBackend } = {}) {
                         <Search size={17} />
                       </span>
                       <div>
-                        <p className="browser-eyebrow">{b.analyze}</p>
                         <h2>{b.search}</h2>
                       </div>
                     </div>

@@ -55,6 +55,71 @@ function server(current = project) {
   );
 }
 describe("reader interactions", () => {
+  it("waits for detected language before choosing clean initial voice settings", async () => {
+    let progress;
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        addEventListener(name, callback) {
+          if (name === "progress") progress = callback;
+        }
+        close() {}
+      },
+    );
+    const pending = {
+      ...project,
+      engine: "edge",
+      voice: null,
+      language: "auto",
+      chapters: [],
+      job: { status: "running" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path) => ({
+        ok: true,
+        json: async () =>
+          path === "/api/projects"
+            ? [pending]
+            : path === "/api/engines"
+              ? [
+                  {
+                    id: "edge",
+                    installed: true,
+                    voices: [
+                      {
+                        id: "es-ES-ElviraNeural",
+                        language: "es",
+                        name: "Elvira",
+                      },
+                    ],
+                  },
+                ]
+              : path === "/api/voices"
+                ? []
+                : path === "/api/hardware"
+                  ? {}
+                  : pending,
+      })),
+    );
+    render(<ApiApp />);
+    await waitFor(() => expect(progress).toBeTypeOf("function"));
+    progress({
+      data: JSON.stringify({
+        ...project,
+        engine: "edge",
+        language: "es",
+        voice: "es-ES-ElviraNeural",
+      }),
+    });
+    await screen.findByRole("combobox", { name: messages.en.voice });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: messages.en.voice }).value,
+      ).toBe("es-ES-ElviraNeural"),
+    );
+    expect(screen.queryByRole("button", { name: messages.en.save })).toBeNull();
+  });
   it("offers an export bundle with the completed audiobook", async () => {
     const ready = {
       ...project,
@@ -129,7 +194,7 @@ describe("reader interactions", () => {
     await user.click(screen.getByRole("button", { name: "Save & regenerate" }));
     expect(saved).toHaveBeenCalledWith("Updated sentence.", "Narrator");
   });
-  it("uploads with explicit Spanish book language", async () => {
+  it("uploads without forcing interface language onto the book", async () => {
     server();
     let uploaded;
     vi.stubGlobal(
@@ -161,10 +226,10 @@ describe("reader interactions", () => {
       screen.getByLabelText("PDF or EPUB"),
       new File(["book"], "novela.epub", { type: "application/epub+zip" }),
     );
-    await user.selectOptions(screen.getByLabelText("Book language"), "es");
+    expect(screen.queryByLabelText("Book language")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Read this book" }));
     await waitFor(() => expect(created).toHaveBeenCalled());
-    expect(uploaded.get("language")).toBe("es");
+    expect(uploaded.get("language")).toBeNull();
   });
   it("keeps both translation dictionaries complete", () => {
     expect(Object.keys(messages.en).sort()).toEqual(
@@ -186,7 +251,7 @@ it("exposes a read-only project tool with validated input", async () => {
   expect(registerTool.mock.calls[0][1].signal.aborted).toBe(true);
 });
 
-it("Listen from here requires explicit online permission, saves settings and starts at sentence 20", async () => {
+it("Listen from here uses the checked network option, saves settings and starts at sentence 20", async () => {
   const rows = Array.from({ length: 25 }, (_, i) => ({
     id: `0000-${String(i).padStart(5, "0")}`,
     text: `Sentence ${i + 1}.`,
@@ -263,14 +328,11 @@ it("Listen from here requires explicit online permission, saves settings and sta
   await waitFor(() => expect(buttons[0].disabled).toBe(false));
   expect(
     screen.getByRole("checkbox", { name: messages.en.onlineConsent }).checked,
-  ).toBe(false);
-  await userEvent.click(buttons[0]);
+  ).toBe(true);
   expect(fetch.mock.calls.some(([path]) => path.endsWith("/listen"))).toBe(
     false,
   );
-  await userEvent.click(
-    screen.getByRole("button", { name: messages.en.allowAndListen }),
-  );
+  await userEvent.click(buttons[0]);
   await waitFor(() =>
     expect(fetch.mock.calls.some(([path]) => path.endsWith("/listen"))).toBe(
       true,

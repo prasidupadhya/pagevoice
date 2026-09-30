@@ -115,6 +115,26 @@ function textItem(str, x, y, size = 12) {
 }
 
 describe("browser EPUB parser", () => {
+  it("detects Spanish body text despite incorrect English metadata", async () => {
+    const zip = await JSZip.loadAsync(
+      await readFile(
+        resolve(process.cwd(), "src/browser/fixtures/sample-epub3.epub"),
+      ),
+    );
+    for (const resource of ["OPS/text/front.xhtml", "OPS/text/chapter.xhtml"]) {
+      zip.file(
+        resource,
+        "<html><body><h1>Capítulo uno</h1><p>La mujer abrió el libro y miró hacia la ventana. Los niños estaban en la casa cuando ella llegó del río. El hombre le dijo que no saliera por la puerta.</p></body></html>",
+      );
+    }
+    const data = await zip.generateAsync({ type: "uint8array" });
+    const book = await parseBookFile(
+      Object.assign(new Blob([data]), { name: "novela.epub" }),
+    );
+    expect(book.language).toBe("es");
+    expect(book.languageDetection.metadata_mismatch).toBe(true);
+    expect(book.chapters[0].sentences).toHaveLength(3);
+  });
   it.each([
     [3, "sample-epub3.epub"],
     [2, "sample-epub2.epub"],
@@ -180,6 +200,25 @@ describe("browser EPUB parser", () => {
 });
 
 describe("native text PDF structure extraction", () => {
+  it("detects Spanish in a PDF with no language tag", async () => {
+    const loader = fakePdfLoader([
+      [
+        textItem(
+          "La mujer abrió el libro y miró hacia la ventana. Los niños estaban en la casa cuando ella llegó del río. El hombre le dijo que no saliera por la puerta.",
+          72,
+          650,
+        ),
+      ],
+    ]);
+    const book = await parseBookFile(
+      fileFrom(new TextEncoder().encode("%PDF-1.4"), "novela.pdf"),
+      undefined,
+      () => {},
+      { pdfLoader: loader },
+    );
+    expect(book.language).toBe("es");
+    expect(book.languageDetection.source).toBe("text");
+  });
   const fixture = resolve(
     process.cwd(),
     "src/browser/fixtures/native-text.pdf",

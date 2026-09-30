@@ -151,11 +151,7 @@ describe("temporary browser reader UI", () => {
         screen.getByRole("button", { name: /The Lantern PageVoice Test/ }),
       );
 
-      expect(
-        await screen.findByText(
-          /This browser will use an available device voice instead/,
-        ),
-      ).toBeTruthy();
+      expect(await screen.findByText(/^Device voice:/)).toBeTruthy();
       expect(screen.getByText(/Samantha · en-US/)).toBeTruthy();
       const voiceSelect = screen.getByLabelText("Voice (verified catalogue)");
       expect(voiceSelect.value).toBe("en-US-AriaNeural");

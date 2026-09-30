@@ -135,6 +135,11 @@ def _execute(session, state, allow_network=False, prepare_only=False, chapter_in
             raise ValueError('XTTS was removed. Select Edge online and save settings first.')
         book = session_book(state)
         book.language = language_code(book.language)
+        # An automatically reanalyzed legacy book may change language while
+        # retaining its previous voice. Keep same-language choices; correct only
+        # mismatched Edge voices before saving the prepared project.
+        if state['engine'] == 'edge' and state.get('voice') and not state['voice'].startswith(book.language + '-'):
+            state['voice'] = None
         state['voice'] = state['voice'] or default_voice(state['engine'] if state['engine'] in REGISTRY else 'edge', book.language)
         if prepare_only:
             state['status'] = 'ready'

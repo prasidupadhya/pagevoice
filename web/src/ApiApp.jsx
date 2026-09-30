@@ -49,6 +49,7 @@ import {
   saveBookMetadata,
 } from "./pocketbase";
 import { DeleteBook, UndoDeletion } from "./DeleteBook";
+import LanguageNotice from "./LanguageNotice";
 import { Casting } from "./Casting";
 import { Listener, forwardRows, bufferStatus } from "./listener";
 const BookAnalysis = lazy(() =>
@@ -109,9 +110,8 @@ function ErrorNotice({ error, t }) {
   );
 }
 
-export function UploadDialog({ initialFile, onClose, onCreated, t, locale }) {
+export function UploadDialog({ initialFile, onClose, onCreated, t }) {
   const [file, setFile] = useState(initialFile),
-    [language, setLanguage] = useState(locale),
     [ocr, setOcr] = useState("auto"),
     [pending, setPending] = useState(false),
     [error, setError] = useState("");
@@ -136,7 +136,6 @@ export function UploadDialog({ initialFile, onClose, onCreated, t, locale }) {
     setError("");
     const body = new FormData();
     body.append("file", file);
-    body.append("language", language);
     body.append("ocr", ocr);
     controller.current = new AbortController();
     setPercent(0);
@@ -171,24 +170,18 @@ export function UploadDialog({ initialFile, onClose, onCreated, t, locale }) {
             {file.name}
           </p>
         )}
-        <label>
-          {t.bookLanguage}
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-          >
-            <option value="en">EN</option>
-            <option value="es">ES</option>
-          </select>
-        </label>
-        <label>
-          {t.ocr}
-          <select value={ocr} onChange={(e) => setOcr(e.target.value)}>
-            <option value="auto">{t.auto}</option>
-            <option value="always">{t.always}</option>
-            <option value="never">{t.never}</option>
-          </select>
-        </label>
+        <p className="import-hint">{t.autoLanguageHint}</p>
+        <details className="import-options">
+          <summary>{t.importOptions}</summary>
+          <label>
+            {t.ocr}
+            <select value={ocr} onChange={(e) => setOcr(e.target.value)}>
+              <option value="auto">{t.auto}</option>
+              <option value="always">{t.always}</option>
+              <option value="never">{t.never}</option>
+            </select>
+          </label>
+        </details>
         <ErrorNotice error={error} t={t} />
         {pending && (
           <label>
@@ -315,7 +308,7 @@ export default function App() {
     [playing, setPlaying] = useState(null);
   const [settings, setSettings] = useState(null),
     [dirty, setDirty] = useState(false),
-    [allowNetwork, setAllowNetwork] = useState(false);
+    [allowNetwork, setAllowNetwork] = useState(true);
   const [listenConsent, setListenConsent] = useState(null);
   const [startSentence, setStartSentence] = useState(0),
     [focusRequest, setFocusRequest] = useState(null),
@@ -568,7 +561,7 @@ export default function App() {
     refresh();
   }, []);
   useEffect(() => {
-    setAllowNetwork(false);
+    setAllowNetwork(true);
     if (!activeId) {
       setProject(null);
       return;
@@ -626,7 +619,12 @@ export default function App() {
     };
   }, [activeId]);
   useEffect(() => {
-    if (project && !dirty && engines.length) {
+    if (
+      project?.chapters?.length &&
+      ["en", "es"].includes(project.language) &&
+      !dirty &&
+      engines.length
+    ) {
       const retired = !engines.some((e) => e.id === project.engine);
       const unavailable = !engines
         .find((e) => e.id === project.engine)
@@ -992,7 +990,9 @@ export default function App() {
         </div>
       </header>
       <div className="app-layout">
-        <aside className="library-rail">
+        <aside
+          className={`library-rail ${projects.length ? "" : "library-empty"}`}
+        >
           <div className="rail-heading">
             <h2>{t.books}</h2>
             <button
@@ -1082,22 +1082,6 @@ export default function App() {
           </div>
         </aside>
         <main id="reading-area" className="main-area" tabIndex={-1}>
-          <ol className="workflow" aria-label={t.workflow}>
-            <li className={!project ? "current" : "done"}>
-              <span>1</span>
-              {t.stepUpload}
-            </li>
-            <li
-              className={project && !busy && !project.output ? "current" : ""}
-            >
-              <span>2</span>
-              {t.stepVoice}
-            </li>
-            <li className={busy || project?.output ? "current" : ""}>
-              <span>3</span>
-              {t.stepListen}
-            </li>
-          </ol>
           <ErrorNotice error={error} t={t} />
           {notice && (
             <div className="notice success" role="status">
@@ -1183,6 +1167,11 @@ export default function App() {
                   {t.newBook}
                 </button>
               </section>
+              <LanguageNotice
+                detection={project.language_detection}
+                language={project.language}
+                t={t}
+              />
               {(project.error || project.job?.error) && (
                 <ErrorNotice
                   error={project.job?.error || project.error}
@@ -1473,30 +1462,23 @@ export default function App() {
                       <h2>{t.settings}</h2>
                     </div>
                     <fieldset disabled={busy} className="form-stack">
-                      <fieldset className="voice-cards">
-                        <legend>{t.voice}</legend>
-                        {voiceOptions.map((v) => (
-                          <label
-                            key={v.id}
-                            className={settings?.voice === v.id ? "chosen" : ""}
-                          >
-                            <input
-                              type="radio"
-                              name="narrator"
-                              value={v.id}
-                              checked={settings?.voice === v.id}
-                              onChange={() => updateSettings("voice", v.id)}
-                            />
-                            <span>
-                              <strong>{v.name}</strong>
-                              <small>
-                                {v.gender ? t[v.gender] : ""}
-                                {v.region ? " · " + v.region : ""}
-                              </small>
-                            </span>
-                          </label>
-                        ))}
-                      </fieldset>
+                      <label>
+                        {t.voice}
+                        <select
+                          value={settings?.voice || ""}
+                          onChange={(e) =>
+                            updateSettings("voice", e.target.value)
+                          }
+                        >
+                          {voiceOptions.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name}
+                              {v.gender ? ` · ${t[v.gender]}` : ""}
+                              {v.region ? ` · ${v.region}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <button
                         type="button"
                         className="secondary"
@@ -1573,13 +1555,16 @@ export default function App() {
                         </label>
                       </div>
                     )}
-                    <Casting
-                      project={project}
-                      voices={voiceOptions}
-                      busy={busy || dirty}
-                      t={t}
-                      onChange={changeCasting}
-                    />
+                    <details className="casting-options">
+                      <summary>{t.cast}</summary>
+                      <Casting
+                        project={project}
+                        voices={voiceOptions}
+                        busy={busy || dirty}
+                        t={t}
+                        onChange={changeCasting}
+                      />
+                    </details>
                     <div className="render-section">
                       <div className="progress-caption">
                         <span>{t.wholeBook}</span>
