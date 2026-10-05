@@ -51,6 +51,7 @@ export class AudioPlayer {
     await this.playRow(chapter, sentence);
   }
   async notifyReady() {
+    if (this.notifying) return;
     if (this.state?.status !== "buffering") return;
     const book = this.store.get(this.bookId);
     if (!book || book.deletedAt) {
@@ -58,11 +59,17 @@ export class AudioPlayer {
       return;
     }
     const run = readyRun(book, this.target.chapter, this.target.sentence);
-    if (run.count >= run.required)
-      await this.playRow(this.target.chapter, this.target.sentence);
+    if (run.count >= run.required) {
+      this.notifying = true;
+      try {
+        await this.playRow(this.target.chapter, this.target.sentence);
+      } finally {
+        this.notifying = false;
+      }
+    }
   }
   async playRow(chapter, sentence) {
-    const generation = this.generation,
+    const generation = ++this.generation,
       book = this.store.get(this.bookId);
     if (!book || book.deletedAt) return;
     const row = listRows(book).find(
@@ -110,13 +117,26 @@ export class AudioPlayer {
     await this.playRow(row.chapter, row.sentence);
   }
   pause() {
+    this.generation++;
     this.audio.pause();
     this.emit("paused");
   }
   async resume() {
+    if (!this.url || !this.row) {
+      const book = this.store.get(this.bookId);
+      if (!book || book.deletedAt) return;
+      const target = this.target || book.position;
+      const run = readyRun(book, target.chapter, target.sentence);
+      if (run.count < run.required) {
+        this.emit("buffering");
+        return;
+      }
+      return this.playRow(target.chapter, target.sentence);
+    }
+    const generation = this.generation;
     try {
       await this.audio.play();
-      this.emit("playing");
+      if (generation === this.generation) this.emit("playing");
     } catch {
       this.emit("gesture");
     }

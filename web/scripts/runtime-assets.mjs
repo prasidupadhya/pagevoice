@@ -4,6 +4,7 @@ import {
   readFile,
   writeFile,
   readdir,
+  cp,
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve, dirname } from "node:path";
@@ -24,7 +25,7 @@ const groups = {
   ],
   ocr: [
     "node_modules/tesseract.js-core",
-    /^tesseract-core-(?:simd-)?lstm\.wasm(?:\.js)?$/,
+    /^tesseract-core-(?:(?:relaxed)?simd-)?lstm\.wasm(?:\.js)?$/,
   ],
   ffmpeg: ["node_modules/@ffmpeg/core/dist/esm", /^ffmpeg-core\.(?:wasm|js)$/],
 };
@@ -70,3 +71,4 @@ await writeFile(
 console.log(
   "Prepared self-hosted, version-pinned inference/OCR/export runtimes.",
 );
+await cp(resolve(root,'LICENSES'),resolve(root,'public/licenses/notices'),{recursive:true});

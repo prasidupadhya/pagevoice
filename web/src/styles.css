@@ -11,7 +11,7 @@
   --surface: #f7f1e5;
   --raised: #fff9ed;
   --ink: #34382f;
-  --muted: #665e51;
+  --muted: #5f574c;
   --graphite: #6d6252;
   --accent: #78472e;
   --accent-soft: #e7d4b7;
@@ -2394,4 +2394,10 @@ mark {
   .book-open:hover .cover-wrap {
     transform: none;
   }
+}
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 35%);
+  z-index: 44;
 }

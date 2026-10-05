@@ -549,12 +549,34 @@ async function parsePdf(
     data: new Uint8Array(await file.arrayBuffer()),
     isEvalSupported: false,
     useWorkerFetch: false,
+    CanvasFactory:
+      typeof OffscreenCanvas !== "undefined"
+        ? class {
+            create(width, height) {
+              const canvas = new OffscreenCanvas(width, height);
+              return { canvas, context: canvas.getContext("2d") };
+            }
+            reset(target, width, height) {
+              target.canvas.width = width;
+              target.canvas.height = height;
+            }
+            destroy(target) {
+              target.canvas.width = 0;
+              target.canvas.height = 0;
+              target.canvas = null;
+              target.context = null;
+            }
+          }
+        : undefined,
     worker: pdfjs.localWorker,
   });
   let pdf;
   try {
     pdf = await task.promise;
   } catch (error) {
+    await task.destroy().catch(() => {});
+    pdfjs.localWorker?.destroy();
+    pdfjs.localPort?.terminate();
     if (error?.name === "PasswordException")
       throw new ReaderError("encryptedBook");
     throw new ReaderError("invalidBook");

@@ -156,3 +156,26 @@ it("falls back to session storage when IndexedDB is unavailable", async () => {
   await a.clear();
   expect(a.list()).toEqual([]);
 });
+it("a stale tab cannot resurrect a deleted book or lose a concurrent write", async () => {
+  const a = await store(),
+    bookRecord = await a.add(book()),
+    b = await store();
+  await a.update(bookRecord.id, { position: { chapter: 0, sentence: 1 } });
+  await b.update(bookRecord.id, { title: "Changed in another tab" });
+  expect(b.get(bookRecord.id).position.sentence).toBe(1);
+  await a.softDelete(bookRecord.id);
+  expect(await b.update(bookRecord.id, { title: "Do not restore" })).toBeNull();
+  expect(b.list()).toHaveLength(0);
+  await a.purge(bookRecord.id);
+  expect(await b.update(bookRecord.id, { title: "Still removed" })).toBeNull();
+  expect((await store()).list()).toHaveLength(0);
+});
+it("purging a book wins over an in-flight render result", async () => {
+  const a = await store(),
+    b = await a.add(book());
+  await a.softDelete(b.id);
+  await a.putAudio(b.id, "0:0", await hashText("speech"), new Blob(["speech"]));
+  expect(Object.keys(a.get(b.id).prepared)).toHaveLength(0);
+  await a.purge(b.id);
+  expect((await store()).list()).toHaveLength(0);
+});

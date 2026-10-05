@@ -62,6 +62,16 @@
       "sha256": "eef5f8b2f8e20e150680b20adaec4a60babafee3adbe8a94583c81fee46e8680"
     },
     {
+      "url": "/runtime/ocr/tesseract-core-relaxedsimd-lstm.wasm",
+      "size": 2862266,
+      "sha256": "7985c92d4c64e7267d24cadffe1b2a1da6bf8aa55fdcaf953fe94fe122a24545"
+    },
+    {
+      "url": "/runtime/ocr/tesseract-core-relaxedsimd-lstm.wasm.js",
+      "size": 3905767,
+      "sha256": "861a536cf9ef8e63cb644d57bab39c388f37f7d6b6f60024b741c5f6b39a59b3"
+    },
+    {
       "url": "/runtime/ocr/tesseract-core-simd-lstm.wasm",
       "size": 2857601,
       "sha256": "34e8d50cac216427d86bf397d610fdd9f49492539bbcdfbfccc4eda20c810bea"

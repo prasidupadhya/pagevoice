@@ -168,11 +168,7 @@ export default function App() {
         {t("read")}
       </a>
       <header className="masthead">
-        <button
-          className="brand"
-          onClick={() => setSelected(null)}
-          aria-label="PageVoice"
-        >
+        <button className="brand" onClick={() => setSelected(null)}>
           <span className="brand-symbol">
             <BookOpen size={24} strokeWidth={1.5} />
           </span>
@@ -190,6 +186,7 @@ export default function App() {
           </span>
           <button
             className="tools-button"
+            aria-label={t("models")}
             onClick={() => setTools(true)}
             disabled={api.loading}
           >
@@ -198,7 +195,7 @@ export default function App() {
           </button>
           <button
             className="icon-button"
-            aria-label={t("interface")}
+            aria-label={`${t("interface")} · ${locale.toUpperCase()}`}
             title={t("interface")}
             onClick={() => setLocale(locale === "en" ? "es" : "en")}
           >

@@ -1,5 +1,7 @@
 import { guardInferenceFetch } from "./assets";
 import { hashText } from "./library";
+import { passageRows } from "./passages";
+import models from "./model-assets.json";
 guardInferenceFetch();
 const loaded = {};
 async function pipelineFor(kind) {
@@ -37,59 +39,58 @@ async function process({ id, kind, book, query }) {
     const records = [],
       entities = [];
     let count = 0;
-    const total = book.chapters.reduce(
-      (n, c) => n + Math.ceil(c.sentences.length / 3),
-      0,
-    );
+    const passages = passageRows(book);
+    const total = passages.length;
     if (total > 12000) throw Error("analysisLimit");
-    for (const [chapter, c] of book.chapters.entries()) {
-      for (let sentence = 0; sentence < c.sentences.length; sentence += 3) {
-        const text = c.sentences
-          .slice(sentence, sentence + 3)
-          .join(" ")
-          .slice(0, 1800);
-        if (kind === "embeddings") {
-          const signature = await hashText(text);
-          const previous = book.semantics?.records.find(
-            (r) => r.signature === signature,
+    for (const { chapter, sentence, text, offset } of passages) {
+      if (kind === "embeddings") {
+        const signature = await hashText(
+          `${models.embeddings.revision}:${text}`,
+        );
+        const previous = book.semantics?.records.find(
+          (r) => r.signature === signature,
+        );
+        const vector =
+          previous?.vector ||
+          Array.from(
+            (await model(text, { pooling: "mean", normalize: true })).data,
           );
-          const vector =
-            previous?.vector ||
-            Array.from(
-              (await model(text, { pooling: "mean", normalize: true })).data,
-            );
-          records.push({ chapter, sentence, signature, vector });
-        } else {
-          const tokens = await model(text, { ignore_labels: ["O"] });
-          let current;
-          for (const token of tokens) {
-            const label = token.entity?.replace(/^[BI]-/u, "");
-            if (label !== "PER") {
-              current = null;
-              continue;
-            }
-            const word = token.word.replace(/^##/u, "");
-            if (token.entity.startsWith("B-") || !current) {
-              current = {
-                name: word,
-                label,
-                chapter,
-                sentence,
-                score: token.score,
-              };
-              entities.push(current);
-            } else
-              current.name += (token.word.startsWith("##") ? "" : " ") + word;
+        records.push({ chapter, sentence, offset, signature, vector });
+      } else {
+        const tokens = await model(text, { ignore_labels: ["O"] });
+        let current;
+        for (const token of tokens) {
+          const label = token.entity?.replace(/^[BI]-/u, "");
+          if (label !== "PER") {
+            current = null;
+            continue;
           }
+          const word = token.word.replace(/^##/u, "");
+          if (token.entity.startsWith("B-") || !current) {
+            current = {
+              name: word,
+              label,
+              chapter,
+              sentence,
+              score: token.score,
+            };
+            entities.push(current);
+          } else
+            current.name += (token.word.startsWith("##") ? "" : " ") + word;
         }
-        self.postMessage({ id, progress: { current: ++count, total } });
       }
+      self.postMessage({ id, progress: { current: ++count, total } });
     }
     self.postMessage({
       id,
       result:
         kind === "embeddings"
-          ? { records, version: 1, model: "multilingual-MiniLM-L12-v2-q8" }
+          ? {
+              records,
+              version: 2,
+              model: "multilingual-MiniLM-L12-v2-q8",
+              revision: models.embeddings.revision,
+            }
           : entities,
     });
   } catch (error) {

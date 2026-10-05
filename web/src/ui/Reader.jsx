@@ -63,6 +63,7 @@ export default function Reader({
   const scroll = useRef(null),
     searchRef = useRef(null),
     searchWorker = useRef(null),
+    drawerRef = useRef(null),
     searchSequence = useRef(0);
   const c = book.chapters[chapter] || book.chapters[0],
     position =
@@ -145,6 +146,43 @@ export default function Reader({
     if (scroll.current) scroll.current.scrollTop = 0;
   }, [chapter]);
   useEffect(() => {
+    if (tab !== "read" || chapter !== book.position.chapter) return;
+    const timer = setTimeout(
+      () => virtual.scrollToIndex(book.position.sentence, { align: "center" }),
+      70,
+    );
+    return () => clearTimeout(timer);
+  }, [book.id, tab]);
+  useEffect(() => {
+    if (!drawer) return;
+    const previous = document.activeElement;
+    const focusable = () =>
+      [...drawerRef.current.querySelectorAll("button,a[href]")].filter(
+        (el) => el.getClientRects().length,
+      );
+    focusable()[0]?.focus();
+    const key = (e) => {
+      if (e.key === "Escape") setDrawer(false);
+      if (e.key === "Tab") {
+        const els = focusable(),
+          first = els[0],
+          last = els.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [drawer]);
+  useEffect(() => {
     if (playback.status === "playing" && playback.row) {
       if (playback.row.chapter !== chapter) setChapter(playback.row.chapter);
       else virtual.scrollToIndex(playback.row.sentence, { align: "center" });
@@ -224,7 +262,17 @@ export default function Reader({
         </button>
       </div>
       <div className="reader-layout">
+        {drawer && (
+          <div
+            className="drawer-backdrop"
+            aria-hidden="true"
+            onClick={() => setDrawer(false)}
+          />
+        )}
         <aside
+          ref={drawerRef}
+          role={drawer ? "dialog" : undefined}
+          aria-modal={drawer ? "true" : undefined}
           className={`chapter-drawer ${drawer ? "open" : ""}`}
           aria-label={t("chapters")}
         >
@@ -432,13 +480,13 @@ export default function Reader({
                     onClick={() => show(chapter - 1)}
                   >
                     <ChevronLeft size={16} />
-                    {t("previous")}
+                    {t("previousChapter")}
                   </button>
                   <button
                     disabled={chapter === book.chapters.length - 1}
                     onClick={() => show(chapter + 1)}
                   >
-                    {t("next")}
+                    {t("nextChapter")}
                     <ChevronRight size={16} />
                   </button>
                 </div>
@@ -625,6 +673,19 @@ export default function Reader({
               <p className="eyebrow">{t("voiceLocal")}</p>
               <h1>{t("voice")}</h1>
               <div className="form-grid">
+                <label>
+                  {t("bookLanguage")}
+                  <select
+                    aria-label={t("bookLanguage")}
+                    value={book.language}
+                    onChange={(e) =>
+                      run(() => api.changeLanguage(book.id, e.target.value))
+                    }
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                  </select>
+                </label>
                 <label>
                   {t("engine")}
                   <select
@@ -1029,6 +1090,7 @@ export default function Reader({
             <div className="preparation-panel">
               <div
                 className="ink-buffer"
+                role="img"
                 aria-label={t("readyBuffer", {
                   ready: buffer.count,
                   required: buffer.required,

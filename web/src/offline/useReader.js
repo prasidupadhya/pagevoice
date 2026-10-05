@@ -24,7 +24,20 @@ export function useReader() {
     previewURL = useRef(null);
   const sync = () => setBooks(refs.current.store.list());
   useEffect(() => {
-    const store = new LibraryStore(),
+    const store = new LibraryStore({
+        onChange: (id, book) => {
+          if (!active) return;
+          if (!book || book.deletedAt) {
+            refs.current.queue?.stop(id);
+            if (
+              refs.current.player?.bookId === id ||
+              refs.current.speechBook === id
+            )
+              stopPlayback();
+          }
+          sync();
+        },
+      }),
       assets = new AssetManager(),
       engine = new LocalEngine();
     let active = true;
@@ -80,9 +93,17 @@ export function useReader() {
       setDeviceVoices(globalThis.speechSynthesis?.getVoices() || []);
     voices();
     globalThis.speechSynthesis?.addEventListener("voiceschanged", voices);
-    const unload = () => {
-      store.dispose();
-      URL.revokeObjectURL(previewURL.current);
+    const unload = ({ persisted }) => {
+      player.pause();
+      speech.stop();
+      refs.current.previewAudio?.pause();
+      if (!persisted) {
+        store.dispose();
+        queue.dispose();
+        refs.current.queryWorker?.terminate();
+        refs.current.exportWorker?.terminate();
+        URL.revokeObjectURL(previewURL.current);
+      }
     };
     window.addEventListener("pagehide", unload);
     return () => {
@@ -144,8 +165,11 @@ export function useReader() {
             else if (["complete", "error"].includes(data.type)) {
               worker.terminate();
               if (data.type === "complete") resolve(data.book);
-              else
+              else {
+                if (data.message)
+                  console.warn("Book processing failed:", data.message);
                 reject(Error(data.code || data.message || "processingError"));
+              }
             }
           };
           worker.onerror = () => {
@@ -205,6 +229,36 @@ export function useReader() {
         }
       }
     } else await update(id, { settings: next });
+  }
+  async function changeLanguage(id, language) {
+    if (!["en", "es"].includes(language)) throw Error("unsupportedLanguage");
+    refs.current.queue.stop(id);
+    stopPlayback();
+    const book = refs.current.store.get(id);
+    for (const a of Object.values(book.prepared))
+      await refs.current.store.deleteAudio(a.key);
+    const next = {
+      ...book,
+      language,
+      prepared: {},
+      semantics: null,
+      entities: null,
+      settings: {
+        ...book.settings,
+        engine: language === "es" ? "piper" : "kokoro",
+        voice: language === "es" ? "davefx" : "af_heart",
+        cast: {},
+        device: "wasm",
+      },
+      languageDetection: {
+        ...book.languageDetection,
+        source: "manual",
+        review: false,
+      },
+    };
+    next.searchIndex = buildSearchIndex(next);
+    next.analysis = analyzeSections(next);
+    await update(id, next);
   }
   function stopPlayback() {
     refs.current.player.stop();
@@ -333,6 +387,7 @@ export function useReader() {
     setTimeout(
       () =>
         refs.current.store.get(id)?.deletedAt &&
+        Date.now() - refs.current.store.get(id).deletedAt >= 8000 &&
         refs.current.store
           .purge(id)
           .then(sync)
@@ -377,11 +432,34 @@ export function useReader() {
       }
     }
     const characters = detectCharacters({ ...book, chapters });
-    if (speaker) characters.speakers[`${chapter}:${sentence}`] = speaker;
+    const remap = (key) => {
+      const [ch, s] = key.split(":").map(Number);
+      if (ch !== chapter || s < sentence) return key;
+      if (s === sentence) return `${ch}:${s}`;
+      return `${ch}:${s + lines.length - 1}`;
+    };
+    const manualSpeakers = Object.fromEntries(
+      Object.entries(book.manualSpeakers || {}).map(([key, name]) => [
+        remap(key),
+        name,
+      ]),
+    );
+    if (speaker) manualSpeakers[`${chapter}:${sentence}`] = speaker;
+    else delete manualSpeakers[`${chapter}:${sentence}`];
+    Object.assign(characters.speakers, manualSpeakers);
     await update(id, {
       chapters,
       prepared,
       characters,
+      manualSpeakers,
+      bookmarks: (book.bookmarks || []).map(remap),
+      position: {
+        ...book.position,
+        sentence:
+          book.position.chapter === chapter && book.position.sentence > sentence
+            ? book.position.sentence + lines.length - 1
+            : book.position.sentence,
+      },
       semantics: null,
       entities: null,
       searchIndex: buildSearchIndex({ ...book, chapters }),
@@ -457,11 +535,11 @@ export function useReader() {
     )
       throw Error("analysisChanged");
     if (kind === "embeddings") await update(id, { semantics: result });
-    else
-      await update(id, {
-        entities: result,
-        characters: detectCharacters(latest, result),
-      });
+    else {
+      const characters = detectCharacters(latest, result);
+      Object.assign(characters.speakers, latest.manualSpeakers || {});
+      await update(id, { entities: result, characters });
+    }
   }
   async function semanticQuery(query) {
     refs.current.queryPending ||= new Map();
@@ -562,6 +640,7 @@ export function useReader() {
       upload([lastFile.current.file], lastFile.current.keep),
     update,
     settings,
+    changeLanguage,
     listen,
     togglePlayback,
     preview,

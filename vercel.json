@@ -6,7 +6,7 @@
   "outputDirectory": "web/dist",
   "rewrites": [
     {
-      "source": "/((?!assets/|runtime/|language-data/|licenses/|sw\\.js|workbox-|manifest\\.webmanifest|icon-|favicon\\.svg).*)",
+      "source": "/((?!assets/|runtime/|language-data/|licenses/|robots\\.txt|sw\\.js|workbox-|manifest\\.webmanifest|icon-|favicon\\.svg).*)",
       "destination": "/index.html"
     }
   ],

@@ -60,10 +60,16 @@ export function mergeSemanticHits(book, query, lexical, vector, chapter = "") {
   )
     return lexical;
   const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
-  const semantic = book.semantics.records
+  const candidates = book.semantics.records
     .filter((r) => chapter === "" || r.chapter === Number(chapter))
     .map((r) => ({ ...r, similarity: dot(r.vector, vector) }))
     .filter((r) => r.similarity >= 0.45)
+    .sort((a, b) => b.similarity - a.similarity);
+  const semantic = [
+    ...new Map(
+      candidates.map((r) => [`${r.chapter}:${r.sentence}`, r]).reverse(),
+    ).values(),
+  ]
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, 20);
   const ranked = new Map(

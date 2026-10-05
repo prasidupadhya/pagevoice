@@ -169,6 +169,8 @@ export default {
   pause: "Pause",
   previous: "Previous sentence",
   next: "Next sentence",
+  nextChapter: "Next section",
+  previousChapter: "Previous section",
   starting: "Starting audio",
   playing: "Listening",
   paused: "Paused",

@@ -166,6 +166,8 @@ export default {
   pause: "Pausar",
   previous: "Frase anterior",
   next: "Frase siguiente",
+  nextChapter: "Sección siguiente",
+  previousChapter: "Sección anterior",
   starting: "Iniciando audio",
   playing: "Escuchando",
   paused: "En pausa",

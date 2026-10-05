@@ -20,4 +20,6 @@ trash/
 .vercel/
 node_modules/
 web/public/runtime/
+web/public/licenses/notices/
 web/playwright-report/
+.vercel

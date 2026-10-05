@@ -35,7 +35,11 @@ export async function hashText(value) {
 
 /** Book records are atomic; audio uses OPFS when available, IndexedDB otherwise. */
 export class LibraryStore {
-  constructor({ name = "pagevoice-offline-v1", opfs = true } = {}) {
+  constructor({
+    name = "pagevoice-offline-v1",
+    opfs = true,
+    onChange = () => {},
+  } = {}) {
     this.name = name;
     this.useOPFS = opfs;
     this.books = new Map();
@@ -43,6 +47,8 @@ export class LibraryStore {
     this.urls = new Map();
     this.writes = new Map();
     this.prefs = new Map();
+    this.onChange = onChange;
+    this.deletions = new Map();
   }
   async init() {
     if (!globalThis.indexedDB) {
@@ -81,8 +87,28 @@ export class LibraryStore {
       this.books.set(book.id, book);
       if (book.deletedAt && Date.now() - book.deletedAt >= 8000)
         await this.purge(book.id);
+      else if (book.deletedAt) this.schedulePurge(book);
     }
     await this.lockAudio(() => this.recoverAudioFiles());
+    if (globalThis.BroadcastChannel) {
+      this.channel = new BroadcastChannel(this.name);
+      this.channel.onmessage = async ({ data: id }) => {
+        if (!this.db || typeof id !== "string") return;
+        try {
+          const current = await request(
+            this.db.transaction("books").objectStore("books").get(id),
+          );
+          if (current) this.books.set(id, current);
+          else {
+            this.books.delete(id);
+            this.revokeCover(id);
+          }
+          this.onChange(id, current);
+        } catch {
+          /* A closing tab has no live subscribers. */
+        }
+      };
+    }
     return this;
   }
   async recoverAudioFiles() {
@@ -136,22 +162,40 @@ export class LibraryStore {
     if (this.books.has(value.id)) throw new Error("duplicateBook");
     if (keep) await this.write("books", value);
     this.books.set(value.id, value);
+    this.channel?.postMessage(value.id);
     return value;
   }
-  async update(id, patch) {
+  async update(id, patch, allowDeleted = false) {
     const next = (this.writes.get(id) || Promise.resolve())
       .catch(() => {})
       .then(async () => {
-        const current = this.get(id);
-        if (!current || current.deletedAt) return null;
-        const value = {
-          ...current,
-          ...(typeof patch === "function" ? patch(current) : patch),
+        const apply = (current) => {
+          if (!current || (current.deletedAt && !allowDeleted)) return null;
+          const changes = typeof patch === "function" ? patch(current) : patch;
+          return changes ? { ...current, ...changes } : null;
         };
-        // Publish before the await so a concurrent delete cannot be overwritten.
-        this.books.set(id, value);
-        if (value.keep) await this.write("books", value);
-        return this.get(id)?.deletedAt ? null : value;
+        let value;
+        if (this.get(id)?.keep && this.db) {
+          // Read/modify/write in ONE IDB transaction. A stale tab cannot overwrite
+          // a deletion or lose another tab's position/audio changes.
+          const tx = this.db.transaction("books", "readwrite"),
+            done = complete(tx),
+            table = tx.objectStore("books");
+          const get = table.get(id);
+          get.onsuccess = () => {
+            const current = get.result;
+            value = apply(current);
+            if (value) table.put(value);
+            else if (current) this.books.set(id, current);
+            else this.books.delete(id);
+          };
+          await done;
+        } else value = apply(this.get(id));
+        if (value) {
+          this.books.set(id, value);
+          this.channel?.postMessage(id);
+        }
+        return value || null;
       });
     this.writes.set(id, next);
     try {
@@ -264,24 +308,51 @@ export class LibraryStore {
   async softDelete(id) {
     const book = this.get(id);
     if (!book || book.deletedAt) return null;
-    await this.writes.get(id)?.catch(() => {});
-    const deleted = { ...this.get(id), deletedAt: Date.now() };
-    this.books.set(id, deleted);
-    if (book.keep) await this.write("books", deleted);
+    const deleted = await this.update(id, { deletedAt: Date.now() });
     this.revokeCover(id);
+    if (deleted) this.schedulePurge(deleted);
     return deleted;
+  }
+  schedulePurge(book) {
+    clearTimeout(this.deletions.get(book.id));
+    const timer = setTimeout(
+      () => {
+        if (this.get(book.id)?.deletedAt === book.deletedAt)
+          this.purge(book.id).catch((error) => {
+            this.lastError = error.message;
+            this.onChange(book.id, this.get(book.id));
+          });
+      },
+      Math.max(0, 8000 - (Date.now() - book.deletedAt)),
+    );
+    timer.unref?.();
+    this.deletions.set(book.id, timer);
   }
   async restore(id) {
     const book = this.get(id);
     if (!book?.deletedAt || Date.now() - book.deletedAt >= 8000) return null;
-    const restored = { ...book, deletedAt: null };
-    if (book.keep) await this.write("books", restored);
-    this.books.set(id, restored);
+    const restored = await this.update(
+      id,
+      (current) =>
+        current.deletedAt && Date.now() - current.deletedAt < 8000
+          ? { deletedAt: null }
+          : null,
+      true,
+    );
+    if (restored) {
+      clearTimeout(this.deletions.get(id));
+      this.deletions.delete(id);
+    }
     return restored;
   }
   async purge(id) {
+    return this.lockAudio(() => this.purgeFiles(id));
+  }
+  async purgeFiles(id) {
     const book = this.get(id);
     if (!book) return;
+    clearTimeout(this.deletions.get(id));
+    this.deletions.delete(id);
     this.revokeCover(id);
     this.books.delete(id);
     const persisted = this.db
@@ -303,6 +374,8 @@ export class LibraryStore {
       tx.objectStore("books").delete(id);
       await done;
     }
+    this.channel?.postMessage(id);
+    this.onChange(id, undefined);
   }
   async clear() {
     for (const id of [...this.books.keys()]) await this.purge(id);
@@ -332,6 +405,8 @@ export class LibraryStore {
   dispose() {
     for (const id of this.urls.keys()) this.revokeCover(id);
     this.db?.close();
+    this.channel?.close();
+    for (const timer of this.deletions.values()) clearTimeout(timer);
   }
   async backup(onProgress = () => {}) {
     const zip = new JSZip();
