@@ -19,3 +19,5 @@ trash/
 .delete-*.lock
 .vercel/
 node_modules/
+web/public/runtime/
+web/playwright-report/

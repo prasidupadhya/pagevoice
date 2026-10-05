@@ -20,7 +20,7 @@ export function foldSearchText(value) {
     .replace(/\uE000/g, "ñ");
 }
 
-function tokens(value, language) {
+export function queryTerms(value, language) {
   return (
     foldSearchText(value)
       .match(/[\p{L}\p{N}]+/gu)
@@ -36,14 +36,14 @@ export function buildSearchIndex(book) {
     (chapter.sentences || []).map((text, sentenceIndex) => ({
       chapter: chapterIndex,
       sentence: sentenceIndex,
-      tokens: tokens(text, language),
+      tokens: queryTerms(text, language),
     })),
   );
 }
 
 export function searchBook(book, query, chapterFilter = "") {
   const language = book.language === "es" ? "es" : "en";
-  const terms = [...new Set(tokens(query, language))];
+  const terms = [...new Set(queryTerms(String(query).slice(0, 500), language))];
   if (!terms.length) return [];
   const index = book.searchIndex || buildSearchIndex(book);
   return index

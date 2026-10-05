@@ -41,7 +41,7 @@ def test_local_backend_accepts_only_configured_vercel_origin(tmp_path, monkeypat
         assert denied.status_code == 403
 
 
-def test_vercel_header_allows_https_and_only_loopback_http():
+def test_vercel_static_policy_allows_only_model_cdns_and_local_media():
     from pathlib import Path
 
     config = json.loads(Path("vercel.json").read_text())
@@ -51,10 +51,13 @@ def test_vercel_header_allows_https_and_only_loopback_http():
         for header in rule["headers"]
         if header["key"] == "Content-Security-Policy"
     )
-    assert "connect-src 'self' https: http://127.0.0.1:8765" in policy
-    assert "media-src 'self' blob: https: http://127.0.0.1:8765" in policy
+    assert "connect-src 'self' blob: https://huggingface.co" in policy
+    assert "media-src 'self' blob:;" in policy
+    assert "worker-src 'self' blob:" in policy
+    assert " https: " not in policy
+    assert "microsoft" not in policy.lower()
     assert "frame-ancestors 'none'" in policy
-    assert "http:" not in policy.replace("http://127.0.0.1:8765", "")
+    assert "http:" not in policy
 
 
 def test_auth_cors_hosts_and_media_capabilities(tmp_path, monkeypatch):

@@ -1,0 +1,92 @@
+{
+  "ort": [
+    {
+      "url": "/runtime/ort/ort-wasm-simd-threaded.mjs",
+      "size": 24381,
+      "sha256": "e13f7f94fc51b4ca72b12faeb1ee95f4ace6dfbc8939bc718aabdc0a27c4299b"
+    },
+    {
+      "url": "/runtime/ort/ort-wasm-simd-threaded.wasm",
+      "size": 14239897,
+      "sha256": "3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2"
+    }
+  ],
+  "transformers": [
+    {
+      "url": "/runtime/transformers/ort-wasm-simd-threaded.jsep.mjs",
+      "size": 44484,
+      "sha256": "08fb86ec433c78bfb032c5d84a68b8e8e5a8d81268fa39e24314179a5767a5b9"
+    },
+    {
+      "url": "/runtime/transformers/ort-wasm-simd-threaded.jsep.wasm",
+      "size": 21596019,
+      "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+    },
+    {
+      "url": "/runtime/transformers/ort-wasm-simd-threaded.mjs",
+      "size": 20856,
+      "sha256": "43c25054b6b9ac000f786c65545ff83a45f871e0e310e8c2f4d48a363bb66db4"
+    },
+    {
+      "url": "/runtime/transformers/ort-wasm-simd-threaded.wasm",
+      "size": 11133407,
+      "sha256": "f061472c6e77d6d50d079aacdc0ff9b63fee287ddd2cbf46cf62438d3891de2b"
+    }
+  ],
+  "piper": [
+    {
+      "url": "/runtime/piper/piper_phonemize.data",
+      "size": 18077249,
+      "sha256": "29f1025eb23a5b5c192cd14a6efbce4509402ff265405072ee6f7d1a09b78f8c"
+    },
+    {
+      "url": "/runtime/piper/piper_phonemize.js",
+      "size": 120752,
+      "sha256": "e7a60b1651333fe4fe3d2a9738cd0ab11d6c963f3029744b9a106d0cde5c8b88"
+    },
+    {
+      "url": "/runtime/piper/piper_phonemize.wasm",
+      "size": 635212,
+      "sha256": "b777cd107a91d2bcc6a1ea46f2c26a662a7407394fe84589198aeaa83dd7a9d6"
+    }
+  ],
+  "ocr": [
+    {
+      "url": "/runtime/ocr/tesseract-core-lstm.wasm",
+      "size": 2855361,
+      "sha256": "66b17df6e20c5329a17ffa9c202a47eaa3e32500b253d4c7f38e7f2bc01457c3"
+    },
+    {
+      "url": "/runtime/ocr/tesseract-core-lstm.wasm.js",
+      "size": 3896484,
+      "sha256": "eef5f8b2f8e20e150680b20adaec4a60babafee3adbe8a94583c81fee46e8680"
+    },
+    {
+      "url": "/runtime/ocr/tesseract-core-simd-lstm.wasm",
+      "size": 2857601,
+      "sha256": "34e8d50cac216427d86bf397d610fdd9f49492539bbcdfbfccc4eda20c810bea"
+    },
+    {
+      "url": "/runtime/ocr/tesseract-core-simd-lstm.wasm.js",
+      "size": 3899472,
+      "sha256": "c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38"
+    },
+    {
+      "url": "/runtime/ocr/worker.min.js",
+      "size": 111307,
+      "sha256": "576b7df7e3393e137e51849357c9adb53fe7ac1bb69bfa06cf3d61520f182c6d"
+    }
+  ],
+  "ffmpeg": [
+    {
+      "url": "/runtime/ffmpeg/ffmpeg-core.js",
+      "size": 111804,
+      "sha256": "67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3"
+    },
+    {
+      "url": "/runtime/ffmpeg/ffmpeg-core.wasm",
+      "size": 32232419,
+      "sha256": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7"
+    }
+  ]
+}

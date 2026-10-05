@@ -288,6 +288,6 @@ describe("native text PDF structure extraction", () => {
     );
     await expect(
       parseBookFile(scan, "es", () => {}, { pdfLoader: loader }),
-    ).rejects.toMatchObject({ code: "scannedPdf" });
+    ).rejects.toMatchObject({ code: "ocrRequired" });
   });
 });
