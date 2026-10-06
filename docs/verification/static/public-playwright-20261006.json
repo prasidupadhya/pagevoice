@@ -1,0 +1,81 @@
+{
+  "target": "https://pagevoice-sepia.vercel.app/",
+  "command": "PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e",
+  "modelTransport": "Small CDN assets replayed from hash-verified local downloads; large model requests pass through to CDN. Real production worker inference. Offline phases block network after caching.",
+  "stats": {
+    "startTime": "2026-10-06T07:14:06.365Z",
+    "duration": 219469.14800000002,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "file": "ocr-progress.spec.js",
+      "title": "scanned PDF OCR runs locally and after language data is cached offline",
+      "status": "expected",
+      "runs": [
+        {
+          "status": "passed",
+          "durationMs": 8871
+        }
+      ]
+    },
+    {
+      "file": "ocr-progress.spec.js",
+      "title": "selected chapter waits for 20 consecutive sentences, prepares ahead and deletion cancels work",
+      "status": "expected",
+      "runs": [
+        {
+          "status": "passed",
+          "durationMs": 48958
+        }
+      ]
+    },
+    {
+      "file": "offline-reader.spec.js",
+      "title": "real English and Spanish speech, persistence, ZIP, undo and fully offline core flow",
+      "status": "expected",
+      "runs": [
+        {
+          "status": "passed",
+          "durationMs": 104660
+        }
+      ]
+    },
+    {
+      "file": "optional-tools.spec.js",
+      "title": "measures Spanish Piper versus Supertonic, local embeddings/NER, and chaptered M4B",
+      "status": "expected",
+      "runs": [
+        {
+          "status": "passed",
+          "durationMs": 40483
+        }
+      ]
+    },
+    {
+      "file": "parser-ui.spec.js",
+      "title": "native PDF actually parses in the bundled worker",
+      "status": "expected",
+      "runs": [
+        {
+          "status": "passed",
+          "durationMs": 1633
+        }
+      ]
+    },
+    {
+      "file": "ui-a11y.spec.js",
+      "title": "shelf and reader work at four sizes and three themes with keyboard dialogs",
+      "status": "expected",
+      "runs": [
+        {
+          "status": "passed",
+          "durationMs": 13845
+        }
+      ]
+    }
+  ]
+}

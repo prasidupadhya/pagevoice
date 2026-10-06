@@ -3,10 +3,10 @@ import { buildSearchIndex } from "./search";
 import { parseBookFile } from "./parsers";
 
 self.addEventListener("message", async (event) => {
-  const { file, language } = event.data || {};
+  const { file, language, options } = event.data || {};
   const progress = (value) => self.postMessage({ type: "progress", value });
   try {
-    const book = await parseBookFile(file, language, progress);
+    const book = await parseBookFile(file, language, progress, options);
     progress({ stage: "structuring", current: 1, total: 1 });
     book.analysis = analyzeSections(book);
     book.startChapter = book.analysis.startChapter;

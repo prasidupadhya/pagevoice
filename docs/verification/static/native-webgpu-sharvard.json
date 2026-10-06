@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "duration": 2.8444444444444446,
+      "engine": "piper",
+      "rms": 0.07388862397013554,
+      "rtf": 0.9394101563002915,
+      "seconds": 2.6721000001430513,
+      "voice": "sharvard:0"
+    },
+    {
+      "duration": 3.01859410430839,
+      "engine": "piper",
+      "rms": 0.10207764818326888,
+      "rtf": 0.22540294474313177,
+      "seconds": 0.6804000000953674,
+      "voice": "sharvard:1"
+    },
+    {
+      "device": "webgpu",
+      "duration": 3.825,
+      "engine": "kokoro",
+      "rms": 0.07327351856226719,
+      "rtf": 1.9866143790725008,
+      "run": 1,
+      "seconds": 7.598799999952316
+    },
+    {
+      "device": "webgpu",
+      "duration": 3.825,
+      "engine": "kokoro",
+      "rms": 0.07327351856226719,
+      "rtf": 0.16211764703389087,
+      "run": 2,
+      "seconds": 0.6200999999046326
+    }
+  ],
+  "state": "complete"
+}

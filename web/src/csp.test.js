@@ -3,20 +3,20 @@ import { browserPolicy } from "../vite.config";
 import vercelConfig from "../../vercel.json";
 import { existsSync } from "node:fs";
 
-it("narrows the built page to the configured API and identity origins", () => {
-  const policy = browserPolicy({
-    VITE_API_BASE_URL: "https://books.example",
-    VITE_POCKETBASE_URL: "https://identity.example",
-  });
-  expect(policy).toContain(
-    "connect-src 'self' https://books.example https://identity.example",
+it("permits only static artifacts, local workers and local audio", () => {
+  const policy = browserPolicy();
+  expect(policy).toContain("'wasm-unsafe-eval'");
+  expect(policy).toContain("https://huggingface.co");
+  expect(policy).toContain("media-src 'self' blob:;");
+  expect(policy).not.toMatch(/https:(?:\s|;|$)/u);
+  expect(policy).not.toMatch(
+    /pocketbase|127\.0\.0\.1|microsoft|books\.example/u,
   );
-  expect(policy).toContain("media-src 'self' blob: https://books.example");
-  expect(policy).not.toMatch(/(?:^|\s)https:(?:\s|;|$)/u);
-  expect(browserPolicy({})).toContain("connect-src 'self';");
-  expect(() =>
-    browserPolicy({ VITE_API_BASE_URL: "http://public.example" }),
-  ).toThrow(/HTTPS origin/u);
+  expect(
+    vercelConfig.headers[0].headers.find(
+      (h) => h.key === "Content-Security-Policy",
+    ).value,
+  ).toBe(policy + "; frame-ancestors 'none'");
 });
 
 it("ships only static Vercel configuration with string header values", () => {

@@ -507,7 +507,17 @@ async function pdfWorkerLibrary() {
     import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
   ]);
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-  return pdfjs;
+  // pdf.js normally expects a Window as its host. Supplying an explicit nested
+  // worker port avoids its Window-only URL check and the fake-worker fallback
+  // (whose protocol messages would otherwise reach our parsing worker's parent).
+  const port = new Worker(new URL(worker.default, self.location.origin), {
+    type: "module",
+  });
+  return {
+    ...pdfjs,
+    localWorker: new pdfjs.PDFWorker({ port }),
+    localPort: port,
+  };
 }
 
 function flattenOutline(items, output = []) {
@@ -521,34 +531,69 @@ function flattenOutline(items, output = []) {
   return output;
 }
 
-async function parsePdf(file, language, progress, loader = pdfWorkerLibrary) {
+async function parsePdf(
+  file,
+  language,
+  progress,
+  loader = pdfWorkerLibrary,
+  options = {},
+) {
   let pdfjs;
   try {
     pdfjs = await loader();
-  } catch {
+  } catch (error) {
+    console.warn("PDF module load failed:", error.message);
     throw new ReaderError("pdfUnavailable");
   }
   const task = pdfjs.getDocument({
     data: new Uint8Array(await file.arrayBuffer()),
     isEvalSupported: false,
     useWorkerFetch: false,
+    CanvasFactory:
+      typeof OffscreenCanvas !== "undefined"
+        ? class {
+            create(width, height) {
+              const canvas = new OffscreenCanvas(width, height);
+              return { canvas, context: canvas.getContext("2d") };
+            }
+            reset(target, width, height) {
+              target.canvas.width = width;
+              target.canvas.height = height;
+            }
+            destroy(target) {
+              target.canvas.width = 0;
+              target.canvas.height = 0;
+              target.canvas = null;
+              target.context = null;
+            }
+          }
+        : undefined,
+    worker: pdfjs.localWorker,
   });
   let pdf;
   try {
     pdf = await task.promise;
   } catch (error) {
+    await task.destroy().catch(() => {});
+    pdfjs.localWorker?.destroy();
+    pdfjs.localPort?.terminate();
     if (error?.name === "PasswordException")
       throw new ReaderError("encryptedBook");
     throw new ReaderError("invalidBook");
   }
   let closed = false;
+  let ocr;
   const close = async () => {
     if (closed) return;
     closed = true;
+    await ocr?.dispose();
     try {
       await task.destroy();
     } catch {
       // The PDF is already released or its worker has stopped.
+    } finally {
+      pdfjs.localWorker?.destroy();
+      pdfjs.localPort?.terminate();
     }
   };
   try {
@@ -561,13 +606,37 @@ async function parsePdf(file, language, progress, loader = pdfWorkerLibrary) {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      const lines = lineGroups(content.items);
+      let lines = lineGroups(content.items);
+      let scanned = !lines.some((l) => /\p{L}/u.test(l.text));
+      if (scanned && page.getOperatorList && pdfjs.OPS) {
+        const operations = await page.getOperatorList();
+        scanned = operations.fnArray.some((fn) =>
+          [
+            pdfjs.OPS.paintImageXObject,
+            pdfjs.OPS.paintInlineImageXObject,
+            pdfjs.OPS.paintImageMaskXObject,
+          ].includes(fn),
+        );
+      }
+      if (scanned) {
+        if (!options.ocr) throw new ReaderError("ocrRequired");
+        ocr ||= await (
+          options.ocrFactory || (await import("../offline/ocr")).createOCR
+        )((value) =>
+          progress({ ...value, current: pageNumber, total: pdf.numPages }),
+        );
+        lines = await ocr.read(page);
+      }
       charCount += lines.reduce((sum, line) => sum + line.text.length, 0);
       if (charCount > MAX_TEXT_CHARS) {
         await close();
         throw new ReaderError("pdfTextLimit");
       }
-      pageData.push({ page: pageNumber, lines, warnings: [] });
+      pageData.push({
+        page: pageNumber,
+        lines,
+        warnings: scanned ? ["ocr_inferred_text"] : [],
+      });
       progress({ stage: "reading", current: pageNumber, total: pdf.numPages });
     }
     if (charCount === 0) {
@@ -686,7 +755,15 @@ async function parsePdf(file, language, progress, loader = pdfWorkerLibrary) {
     };
     let prose = [];
     const flush = () => {
-      const text = clean(prose.join(" "));
+      const text = clean(
+        prose.reduce(
+          (joined, line) =>
+            /\p{L}-$/u.test(joined) && /^\p{Ll}/u.test(line)
+              ? joined.slice(0, -1) + line
+              : joined + " " + line,
+          "",
+        ),
+      );
       if (text) current.sentences.push(...splitSentences(text, language));
       prose = [];
       if (current.sentences.length) chapters.push(current);
@@ -753,7 +830,7 @@ export async function parseBookFile(
   file,
   language = "auto",
   progress = () => {},
-  { pdfLoader = pdfWorkerLibrary } = {},
+  { pdfLoader = pdfWorkerLibrary, ...options } = {},
 ) {
   if (!file || !/\.(pdf|epub)$/iu.test(file.name || ""))
     throw new ReaderError("unsupportedFile");
@@ -768,7 +845,7 @@ export async function parseBookFile(
   const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
   if (new TextDecoder().decode(header) !== "%PDF-")
     throw new ReaderError("invalidBook");
-  const book = await parsePdf(file, lang, progress, pdfLoader);
+  const book = await parsePdf(file, lang, progress, pdfLoader, options);
   progress({ stage: "structuring", current: 0, total: 1 });
   return book;
 }

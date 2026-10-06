@@ -1,274 +1,158 @@
 # PageVoice
 
-Turn English or Spanish PDFs and EPUBs into chaptered M4B or MP3 audiobooks.
-**Your library, extraction, book analysis and exports are local. Narration uses
-Microsoft Edge's online speech service and sends the narration text to Microsoft.**
-Internet is required to generate new speech; saved audio plays offline.
+Read and listen to English and Spanish PDFs and EPUBs in your browser.
+The website is a **static offline PWA**. It needs no backend, account, API key,
+PocketBase, or Edge service. Books never leave the browser.
 
-XTTSv2 and voice cloning have been removed. Edge is the only narration engine
-shown in the website. There are no accounts, API keys or automatic model downloads.
+![PageVoice reader](docs/screenshots/static/reader-sepia-1440.png)
 
-## Setup
+## Run locally
 
-Tested with Python **3.10.12**, Node **22.13.1**, npm **10.9.2**, FFmpeg/ffprobe
-**8.1** and macOS arm64. Python 3.10–3.13 and Node22.12+ are declared supported;
-other operating systems have not received the same real-audio verification.
-Dependencies are pinned in `pyproject.toml`, `requirements-core.lock` and
-`web/package-lock.json`.
-
-Install Python, Node and FFmpeg first. On macOS, `brew install ffmpeg tesseract
-tesseract-lang` supplies audio tools and English/Spanish OCR data. Then:
+Node **22.13.1** and npm **10.9.2** are the verified setup. Versions are pinned in
+`web/package-lock.json`; Vercel uses Node 22. No Python setup is needed for the web app.
 
 ```sh
-bash scripts/setup.sh
+npm ci --prefix web && npm --prefix web run dev
 ```
 
-Start the local app:
+Open http://127.0.0.1:5173. For the installable, offline production build:
 
 ```sh
-PAGEVOICE_PORT=8766 .venv/bin/pagevoice-server
+npm --prefix web run build
+npm --prefix web run preview
 ```
 
-Open **http://127.0.0.1:8766/**. `.env.example` documents environment variables;
-export them in your shell—PageVoice does not automatically load `.env` files.
-The server binds to localhost. Port8765 is the default if no override is given.
+HTTPS or localhost is required for service workers, OPFS and WebGPU. The build
+copies pinned npm runtimes to static files. It does not download model weights.
+
+## Deploy on Vercel
+
+Import this repository and select the repository root. `vercel.json` sets the
+install/build commands and `web/dist` output. Choose Node 22. **No environment
+variables are required.** Remove old `VITE_API_BASE_URL` and `VITE_POCKETBASE_URL`
+settings; this frontend ignores them and has no server connection code.
+
+Vercel serves HTML, JavaScript, fonts and WASM files only. Model/language downloads
+are fixed, hash-verified GET requests to public static CDNs. No book text appears
+in those requests. The website never calls `/api`, Microsoft TTS, or a database.
+See [static deployment details](docs/static-deployment.md).
 
 ## Use the reader
 
-1. Upload a PDF or EPUB (maximum100MB). PageVoice detects English or Spanish from
-   distributed body-text samples and metadata before splitting sentences. Interface
-   language is independent; English/Spanish and light/dark themes are available.
-   The detected language selects the default voice. Weak or conflicting evidence
-   is labelled for review; this is a two-language heuristic, not a universal detector.
-2. Review **Explore your book**. It shows section types, source anchors, evidence,
-   excerpts and uncertain boundaries. Correct a section's title/type or choose
-   the section from which listening should start. Corrections preserve sentence
-   audio but invalidate the final export because its chapter metadata changed.
-3. The default voice is ready; optionally change voice and narration pace (0.5–2×).
-   The visible Microsoft text-transfer option starts checked. Upload and analysis
-   never start narration; clicking Preview, Listen or Create audiobook sends text
-   to Microsoft. Uncheck the option to require another confirmation. Save changed settings.
-4. Choose a chapter and press **Create audiobook** or **Listen from here**. The
-   click arms playback. Listening starts after20 consecutive sentences are downloaded and decoded,
-   or all remaining sentences when fewer than20 remain. If the browser blocks
-   audio, use **Tap to enable audio**.
-5. Preparation continues while you listen. The selected chapter and subsequent
-   chapters take priority; earlier sections finish afterward for the complete
-   export. Pausing listening does not pause preparation. Both controls are available.
-6. Edit/regenerate a single sentence, or download the completed M4B/MP3. M4B
-   includes chapter metadata. MP3 chapter display depends on the player. The
-   separate export bundle contains the audio, chapter list and source citations.
+1. Upload an EPUB or PDF, up to 100 MB. English/Spanish detection is automatic;
+   mixed or short books may need the manual language correction in Voice & cast.
+   EPUB chapters, metadata and covers are extracted. PDF bookmarks/headings supply
+   sections; unstructured pages stay continuous. Review warnings describe removed
+   repeating margins. Scanned PDFs need the optional English/Spanish OCR download.
+2. **Keep in this browser** starts on. IndexedDB stores book/source/analysis records;
+   OPFS stores sentence WAVs, with IndexedDB audio fallback. Turn the checkbox off
+   for a session-only book. Each browser profile has its own shelf. People sharing
+   one browser profile share that profile's shelf. Storage is not a cloud backup.
+3. Open **Offline tools** and explicitly download the voice model you need. Progress,
+   Pause/Resume, cached status and model removal are available. Completed files stay;
+   partial downloads resume if the CDN supports ranges, otherwise that file restarts.
+4. English uses Kokoro; Spain Spanish uses Piper DaveFX by default. Preview the
+   selected voice. Pace and playback speed both range from 0.5 to 2×. Character
+   attribution is inferred and reviewable; casting overrides are manual.
+5. Click a sentence's **Listen from here**. Playback waits for 20 consecutive prepared
+   sentences, or all remaining sentences for a shorter ending. The buffer can be
+   changed. Preparation prioritizes that passage and later chapters, then fills the
+   earlier chapters. Listening and preparation can be paused independently. If
+   autoplay is blocked, tap **Tap to enable audio**.
+6. Explore shows source-labelled structure, manual title/kind/start corrections,
+   local keyword search and citations. Optional cached multilingual embeddings and
+   NER add inferred matches/names. No LLM summaries or generated answers are offered.
+7. Edit/regenerate just a changed sentence. Export prepared chapters as an **MP3 ZIP**
+   with metadata and citations. **M4B** is best effort, using optional single-threaded
+   FFmpeg WASM. Export one chapter at a time for larger books.
 
-### Existing books and older audio
+The shelf offers sorting, search, reading progress, storage usage, remove/8-second
+Undo, Clear everything and ZIP library backup/import. A backup contains source
+files and prepared audio; importing gives books new IDs. Saved audio and reading
+positions survive refresh. Session-only books disappear on refresh. Removal stops
+playback/preparation and purges the owned source, cover, analysis and audio.
+Downloaded models remain until removed separately. Browser storage may be evicted;
+use **Protect local storage** and export backups.
 
-New code does **not** rewrite already generated audio. Use **Reanalyze into a new
-project** for older books: it reparses the stored source with the current sentence
-and chapter rules and prepares a separate project. Existing audio, edits and
-original uploads remain intact. Select Edge and enable network consent when ready
-to generate the improved copy. Old XTTS projects remain readable and can be
-reanalyzed; XTTS cannot synthesize or be selected in current settings.
+Light, sepia and dark themes, EN/ES interface language, text size, chapter drawer,
+bookmarks, sleep timer, media-session controls and keyboard help are included.
+Interface language is independent of book language. Sentence highlighting tracks
+sentence audio files, not individual words.
 
-## Voices
+## Offline engines and download sizes
 
-Eleven Edge voices are offered, filtered to the book's language:
+Sizes below are decimal MB for a cold cache, including that engine's runtime.
+Shared runtimes reduce later downloads. All inference runs in Web Workers.
 
-| Language | Female voices | Male voices |
-|---|---|---|
-| English (US) | Aria, Jenny | Guy, Christopher |
-| British English | Sonia, Libby | Ryan, Thomas |
-| Spanish | Elvira, Ximena (Spain) | Álvaro (Spain) |
+| Tool | First download | License / limitation |
+| --- | ---: | --- |
+| Kokoro English, WASM q8 | 118.2 MB | Apache-2.0 model; English phonemizer only |
+| Kokoro English, WebGPU fp32 | 362.5 MB | Optional GPU path; browser/adapter support varies |
+| Piper DaveFX, Spain Spanish | 96.3 MB | MIT repository, CC0 dataset; GPL phonemizer |
+| Piper Sharvard, Spain Spanish, 2 speakers | 109.8 MB | MIT repository, CC-BY-3.0 corpus; GPL phonemizer |
+| Supertonic 2, experimental EN/ES | 278.2 MB | OpenRAIL-M restrictions; archived upstream |
+| English + Spanish OCR | 25.4 MB | Apache-2.0 |
+| Multilingual meaning search | 157.0 MB | Apache-2.0; inferred similarity, not evidence of an answer |
+| Multilingual NER | 203.1 MB | AFL-3.0; news-domain model, fiction accuracy unmeasured |
+| FFmpeg M4B | 32.3 MB | GPL/LGPL components; memory-limited browser export |
 
-The catalogue was checked against the live service. It currently exposes only one
-male Spain voice, so we do not substitute a Mexican voice to invent a second choice.
-Microsoft does not publish reliable young/old age labels for these voices; the
-app uses names, gender and region instead of inventing ages. Voice quality is
-subjective; audition the voice with **Preview this voice**. No cloned voices or
-unverified alternative neural models are offered.
+English voice styles are Heart, Bella, Michael, Adam, Emma, Isabella, George and
+Daniel. Spanish offers DaveFX and Sharvard's two speaker IDs. Names, regions and
+model metadata are shown; no age labels or unverified gender labels are invented.
+Kokoro Spanish is not offered because kokoro-js's phonemizer here is English-only.
 
-## Why sentence flow changed
+Supertonic 2 is a comparison engine, not the default. Measured runtime and signal
+checks do not establish better pronunciation or naturalness. Device speech is an
+explicit last-resort option: quality and offline availability depend on the OS,
+and its voices may use cloud services outside PageVoice's control. Device speech
+cannot produce downloadable audio.
 
-The previous220-character synthesis window cut long sentences mid-thought.
-Normal sentences now go to Edge in one request. Requests exceeding3500 UTF-8 bytes
-split at clause punctuation where possible, otherwise at a whole-word boundary.
-Only near-silent padding at artificial joins is trimmed; interior speech and
-explicit pauses are preserved. Edge's external padding is capped at40ms before
-speech and220ms after speech. Pace adjustment preserves pitch.
+Full model/runtime credits, licenses, source links and corpus attribution are in
+**Credits & licenses**, [web/LICENSES](web/LICENSES), and the shipped static notices.
+The original PageVoice code remains MIT; third-party runtime licenses differ.
 
-Our English/Spanish splitter handles sentences within quotation marks, missing
-spaces after periods, decimals, common abbreviations, initials, URLs and numbered
-lists. It never splits a word to meet a model character limit. Headings are chapter
-metadata rather than fragments attached to the opening sentence. Editors accept
-up to10,000 characters per sentence. Unusually long single words/URLs beyond the
-service request budget require an edit instead of silent truncation.
-
-Inline controls remain supported: `[pause:1.5]` adds1.5seconds of silence;
-`[voice:en-US-ChristopherNeural]Text.[/voice]` switches to a valid voice. Voice names
-can also refer to casting assignments. Speaker detection is a reviewable heuristic,
-not reliable automatic character identification.
-
-## Book analysis and the `rag/` folder
-
-This is an **offline retrieval and structure-analysis system**, not an LLM chatbot.
-It does not claim semantic understanding or generate unsupported answers.
-
-- EPUB3 navigation, EPUB2 NCX, fragment anchors, headings and EPUB section semantics
-  supply structure. Front/back matter stays available; it is never silently deleted.
-- PDF nested bookmarks and heading lines supply boundaries. Without reliable
-  headings, pages remain continuous so a page break cannot split a sentence.
-  OCR uses local Tesseract only when needed. Repeated margins/page numbers are
-  suppressed conservatively and recorded in `source_pages.removed_margins` with
-  review warnings. Original page-cache text is retained.
-- Analysis distinguishes document evidence, inferred decisions and manual reviews.
-  Unknown sections remain unclassified. Users can correct titles/types and start
-  position. Chapter boundaries can also be split between sentences or merged;
-  sentence audio is retained and stable citations continue to point to source text.
-- Each project has a SQLite FTS5 index in `sessions/<id>/rag/book.sqlite`.
-  Search removes English/Spanish stopwords, tries all important terms first, then
-  labels partial matches. Results include neighbouring sentences, chapter/sentence
-  citations and a source anchor. Search can be restricted to a section.
-- An index fingerprint refreshes retrieval after edits. Search stays local and
-  does not send book passages to an AI service. It is lexical retrieval, not
-  embeddings: synonyms and paraphrases may not match.
-
-See [the module](rag/README.md), [TTS research](docs/tts-research.md) and
-[API reference](docs/api.md), and [recorded verification](docs/quality-verification.md).
-
-## CLI and recovery
+## Verification and limits
 
 ```sh
-.venv/bin/pagevoice doctor
+npm --prefix web test
+npm --prefix web run lint
+npm --prefix web run format:check
+npm --prefix web run build
+# Downloads real pinned fixture models for the browser tests; opt-in, not setup.
+node web/scripts/cache-e2e-models.mjs
+npm --prefix web run test:e2e
+# Optional: exercise the deployed static reader instead of the local preview.
+PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e
+```
+
+The browser tests run real models, inspect non-silent WAVs and durations, export
+MP3/M4B, reload saved data, remove/Undo and block the network after caching. The
+[verification report](docs/static-verification.md) records commands, actual results,
+RTF measurements, Lighthouse audits, screenshots and incomplete device coverage.
+No word-accuracy or subjective speech-quality benchmark has been performed.
+
+CPU Kokoro may prepare slower than real time. RTF and a rough ETA are shown on the
+device. Browsers can suspend background tabs; a closed tab cannot keep preparing.
+Memory and storage quotas vary, especially on phones. Exports cap loaded WAV data
+at 256 MB; backup import caps uncompressed data at 512 MB. Optional analysis caps
+12,000 short passages. OCR, dialogue attribution, language detection and section
+classification can need correction. DRM/encrypted books and unsupported languages
+are rejected. PDF OCR does not reconstruct every multi-column or damaged scan.
+
+## Optional Python power mode
+
+The `pagevoice/` and `rag/` implementations are unchanged. They remain an optional
+local CLI/API with FFmpeg, Tesseract and explicit online Edge consent. This is
+separate from the current website, which never calls them. Existing Python project
+files remain on disk and are not migrated to browser storage.
+
+```sh
+bash scripts/setup.sh
 .venv/bin/pagevoice inspect book.epub --language es
 .venv/bin/pagevoice convert book.epub --engine edge --language es --allow-network
-.venv/bin/pagevoice resume sessions/<id> --allow-network
-.venv/bin/pagevoice regen sessions/<id> 0000-00001 --text "Una frase corregida." --allow-network
-```
-
-Use `--format mp3` or `--voice es-ES-AlvaroNeural` as needed. `PAGEVOICE_DATA` or
-`--data-dir` selects the library root. Completed sentence WAVs are immutable
-checksum-verified generations; interrupted jobs resume and reuse valid audio.
-Only one server may own a library's job queue. The macOS `say` adapter remains a
-legacy CLI/test diagnostic to read old projects; it is not offered in the website
-or recommended as an audiobook voice.
-
-Folders: `uploads/`, `sessions/`, `outputs/`, `voices/` (old recordings only),
-`jobs/` and `logs/`. Existing consent-based recordings are preserved, but new
-profile upload returns410 because cloning is no longer supported.
-
-## Verification
-
-```sh
 .venv/bin/python -m pytest -q
-npm --prefix web test
-npm --prefix web run build
-# Explicit online diagnostic; sends only original EN/ES test prose:
-.venv/bin/python scripts/check-edge-quality.py --allow-network
 ```
 
-Tests cover native/scanned PDFs, EPUB text preservation, sentence boundaries,
-retrieval/review, audio joins, metadata, crash recovery, sentence regeneration,
-network consent and20-sentence playback. Real Edge checks verify requests and
-WAV output; silence measurements are not a substitute for subjective listening
-or a word-accuracy benchmark. Historical phase reports describe earlier versions.
-
-## Known limits
-
-Edge is an online service used through `edge-tts`; availability, voice inventory
-and service behaviour can change. There is no offline neural fallback. OCR cannot
-perfectly recover damaged scans or arbitrary multi-column layouts. Abbreviations,
-hyphenation, running headers and chapter classification can be ambiguous and need
-review. DRM/encrypted books are unsupported. Very large books need disk space for
-per-sentence WAVs and final assembly. No product can promise perfect narration of
-every document; the app exposes source evidence and corrections rather than hiding
-these limits.
-
-
-“Listen from here” is clickable before online consent and after changing settings.
-It requests explicit Microsoft permission when needed, saves pending settings,
-then prepares audio from the selected chapter. Playback begins at20 consecutive
-ready sentences (or all remaining sentences when fewer remain), while the worker
-continues preparing the audiobook. Existing Mexican voice selections migrate to
-Spain's default when settings are next saved; existing audio is preserved on disk.
-
-
-Edge permission is checked by default in the reader, with a visible text-transfer
-notice and opt-out. A narration action is still required; there is no speech request
-on upload or page load. CLI/API requests still require `allow_network: true` or
-`--allow-network`.
-
-### Automatic book language and analysis
-
-Both the server and browser reader sample up to 24 distributed sections, with at
-most 6,000 characters per section and capped EN/ES function-word counts. Clear text
-evidence takes priority over an incorrect EN/ES metadata label. Weak evidence uses
-supported metadata or an explicitly labelled English fallback. Unsupported language
-metadata is rejected; untagged foreign-language text cannot be reliably identified
-by this two-language heuristic. A bilingual or very short book may need an API/CLI
-override (`language=en|es` / `--language`). The result includes source, marker counts,
-heuristic confidence level and a review flag. No model download or external analysis
-service is used. Automatic PDF OCR uses both local `eng+spa` language packs.
-
-Structure analysis retains uncertain sections, distinguishes author biography from
-generic “About…” narrative headings, recognizes numbered headings and references,
-and skips short part dividers when suggesting a narrative listening start. Manual
-reviews and document roles stay authoritative. Partial stem search is labelled as
-partial evidence, below complete exact/phrase/stem matches; it does not invent
-synonyms or answers. See [measured verification](docs/automatic-reader-verification.md).
-
-## Remove a book
-
-Use **Remove book** in the library or reader. The dialog lists owned data and byte
-usage; when generated audio exists, type DELETE (ELIMINAR in Spanish). An active
-job finishes its current sentence before files move to trash. **Undo** is available
-for eight seconds after the move; then the background worker permanently purges it.
-Shared uploads stay until no remaining live or Undo project references them.
-Your original file outside PageVoice and shared server logs are never deleted.
-CLI: `pagevoice delete sessions/<id>` waits for the same safe deletion/purge.
-
-### Hosted deployment
-
-The React reader can run on Vercel. Public, persistent guest libraries require
-PocketBase and the Python worker on an HTTPS container host with persistent volumes.
-No signup form is shown: each browser gets a random private guest key. Books and
-finished audio are stored on the PageVoice server; library metadata is also stored
-in PocketBase. Visitors cannot see each other's books. Losing browser storage loses
-access to that guest library, so this is not a recoverable account system.
-See [deployment instructions](docs/deployment.md). Local mode remains available.
-
-### Run on Vercel (private guest libraries)
-
-Deploy from the repository root with Node 22. The checked-in `vercel.json` builds
-`web/` and serves its static output. Vite embeds an exact-origin browser CSP from
-these **public** Vercel environment variables:
-
-| Variable | Example | Purpose |
-| --- | --- | --- |
-| `VITE_API_BASE_URL` | `https://api.example.com` | PageVoice FastAPI/worker origin |
-| `VITE_POCKETBASE_URL` | `https://identity.example.com` | PocketBase guest identity and metadata origin |
-
-Set both for Production, redeploy, and configure those two services on a persistent
-HTTPS host as described in [docs/deployment.md](docs/deployment.md). No access token
-or PocketBase superuser credential belongs in Vercel. A frontend-only deployment
-cannot make Edge audio, OCR, M4B/MP3, or persistent books; it shows setup guidance
-until the two origins are configured. This is a real hosting requirement, not a
-frontend setting that can synthesize audio on its own.
-
-The older in-memory browser reader remains available in local development without
-either variable. It parses EPUB/PDF in a Web Worker and uses available device
-voices, with no export and no storage across refresh. The hosted guest setup uses
-the eleven verified Edge profiles in [Voices](#voices) and requires explicit
-Microsoft narration consent. Existing shared-token API deployments still work
-when explicitly configured, but share one library and are unsuitable for a public
-site.
-
-See the [browser-mode design notes and responsive screenshots](docs/design.md)
-for the visual principles, theme tokens and before/after captures.
-
-### Measured local book analysis
-
-Default analysis/search remains offline and non-generative. EN/ES stemming,
-phrase/proximity queries, labelled typo fallback, source citations and extractive
-book features are documented in [rag/README.md](rag/README.md). The fixed 112-query
-regression corpus improved recall@5 from 82% to 94% and MRR from .770 to .937;
-these are development-corpus results, not universal accuracy. The richer index is
-larger/slower than baseline but meets the measured 600-page performance targets.
-See [evaluation details and limitations](docs/rag-eval.md).
+[Python power mode documentation](docs/python-power-mode.md) preserves the earlier
+CLI/server instructions. Backend deployment documents are historical for the web
+app; no backend host or domain is needed for this static release.

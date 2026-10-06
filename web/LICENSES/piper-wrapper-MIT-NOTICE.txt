@@ -1,0 +1,13 @@
+@diffusionstudio/piper-wasm 1.0.0
+Author: Konstantin Paulus
+The npm package declares the wrapper's license as MIT.
+Its upstream repository does not publish a separate LICENSE file.
+https://github.com/diffusion-studio/piper-wasm
+https://www.npmjs.com/package/@diffusionstudio/piper-wasm
+
+This declaration does not change the GPL-3.0 licensing of the compiled
+Piper phonemizer and eSpeak NG components. Their source and build instructions:
+https://github.com/rhasspy/piper-phonemize
+https://github.com/espeak-ng/espeak-ng
+The only change PageVoice makes to the wrapper is an ES-module export statement,
+recorded in web/scripts/runtime-assets.mjs. Original binary bytes are unchanged.

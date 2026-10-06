@@ -1,0 +1,8 @@
+{
+  "date": "2026-10-06",
+  "description": "Full web/dist comparison before and after source-map-js 1.2.2 and global-agent 4.1.3 lockfile updates; npm run build rerun.",
+  "files": 89,
+  "changed": [],
+  "removed": [],
+  "manifestSha256": "bd7109c67d0c79d0469c5e0de36417ce9b59a5bb77e0ce2373f6eeb5933dc6a7"
+}
