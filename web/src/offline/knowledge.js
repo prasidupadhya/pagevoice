@@ -3,6 +3,9 @@ import { searchBook, queryTerms } from "../browser/search";
 export function detectCharacters(book, entities = []) {
   const counts = new Map(),
     speakers = {};
+  for (const character of book.characters?.characters || [])
+    if (character.source === "manual review")
+      counts.set(character.name, { ...character, count: 0 });
   const add = (name, row, source) => {
     const cleaned = name.replace(/^[\s—–"“«]+|[\s”».,:;!?]+$/gu, "").trim();
     if (
@@ -50,7 +53,7 @@ export function detectCharacters(book, entities = []) {
     characters: [...counts.values()]
       .sort((a, b) => b.count - a.count)
       .slice(0, 80),
-    speakers,
+    speakers: { ...speakers, ...book.manualSpeakers },
   };
 }
 export function mergeSemanticHits(book, query, lexical, vector, chapter = "") {

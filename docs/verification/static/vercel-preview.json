@@ -1,0 +1,30 @@
+{
+  "url": "https://pagevoice-badyqp8yb-prasidupadhyas-projects.vercel.app",
+  "nativeBrowser": "Redirected to Vercel preview protection login; not a public browser smoke test.",
+  "checks": [
+    {
+      "file": "html",
+      "bytes": 1464,
+      "sha256": "92f16cdb0bf8715bd645bd9ff0fd301678741fbba13efe5025a979fa9fb1c0a6",
+      "headers": {
+        "status": "HTTP/2 200",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob: https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.hf.co https://cdn-lfs-eu-1.hf.co https://cas-bridge.xethub.hf.co https://us.aws.cdn.hf.co https://eu.aws.cdn.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "file": "piperWasm",
+      "bytes": 635212,
+      "sha256": "b777cd107a91d2bcc6a1ea46f2c26a662a7407394fe84589198aeaa83dd7a9d6",
+      "headers": {
+        "status": "HTTP/2 200",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-security-policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob: https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.hf.co https://cdn-lfs-eu-1.hf.co https://cas-bridge.xethub.hf.co https://us.aws.cdn.hf.co https://eu.aws.cdn.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+        "content-type": "application/wasm",
+        "x-content-type-options": "nosniff"
+      }
+    }
+  ]
+}

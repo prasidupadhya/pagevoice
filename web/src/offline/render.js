@@ -71,6 +71,14 @@ export class RenderQueue {
       book.settings.voice,
       ...Object.values(book.settings.cast || {}),
     ]);
+    for (const row of rowsOf(book))
+      if (row.text.includes("[voice:"))
+        for (const part of speechParts(
+          row.text,
+          effectiveVoice(book, row),
+          book.settings.cast,
+        ))
+          if (part.voice) voices.add(part.voice);
     for (const voice of voices)
       if (
         !(
@@ -133,7 +141,7 @@ export class RenderQueue {
           !latestRow ||
           (await signatureFor(latest, latestRow)) !== signature
         ) {
-          this.order.unshift(latestRow || row);
+          if (latestRow) this.order.unshift(latestRow);
           continue;
         }
         const blob = encodeWav(result.samples, result.sampleRate);

@@ -54,3 +54,19 @@ it("dialogue attribution is reviewable and rejects anonymous pronouns", () => {
     }).characters,
   ).toEqual([]);
 });
+it("manual character names and speaker corrections survive reanalysis", () => {
+  const reviewed = {
+    ...book,
+    characters: {
+      characters: [{ name: "Rosa", source: "manual review", count: 0 }],
+    },
+    manualSpeakers: { "0:1": "Rosa" },
+  };
+  const result = detectCharacters(reviewed);
+  expect(
+    result.characters.some(
+      (c) => c.name === "Rosa" && c.source === "manual review",
+    ),
+  ).toBe(true);
+  expect(result.speakers["0:1"]).toBe("Rosa");
+});

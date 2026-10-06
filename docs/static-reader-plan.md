@@ -8,7 +8,8 @@ search are reusable. The memory store does not survive refresh, scanning has no
 OCR path, and device speech cannot produce downloadable audio.
 
 Implementation: replace the web entry point and remove its server clients;
-leave pagevoice/, rag/ and Python tests unchanged. Add IndexedDB/OPFS storage,
+leave pagevoice/ and rag/ implementations unchanged. Adapt only the hosting-policy
+test to the new static CDN CSP. Add IndexedDB/OPFS storage,
 transactional book records, hashed sentence audio and a versioned ZIP backup.
 Provide cached static asset downloads with cancellation/resume and local worker
 adapters for Kokoro English, Piper Spain Spanish and a measured Supertonic 2
@@ -27,6 +28,6 @@ blocked core flow after cache. Record download/bundle sizes and actual RTF;
 Lighthouse results and PWA checks separately. A mobile viewport is not a phone
 performance benchmark. No unmeasured speech-quality or device claims.
 
-One branch, at most four commits, one PR. The PR will remain open for review
-unless the user requests merge for this replacement. Model/library licenses and
+One branch, at most four commits, one PR. Verify the branch checks before merge,
+as the user previously requested. Model/library licenses and
 the required redistributable notices go in the app credits and web/LICENSES/.

@@ -1,0 +1,33 @@
+{
+  "mp3": [
+    {
+      "chapter": "001 - Chapter One.mp3",
+      "duration": 6.984,
+      "rms": 0.060866147566331616,
+      "bytes": 111744
+    }
+  ],
+  "m4b": {
+    "chapters": [
+      {
+        "id": 0,
+        "time_base": "1/1000",
+        "start": 0,
+        "start_time": "0.000000",
+        "end": 9453,
+        "end_time": "9.453000",
+        "tags": {
+          "title": "Cap\u00edtulo I: El mar"
+        }
+      }
+    ],
+    "format": {
+      "duration": "9.481995",
+      "tags": {
+        "title": "La casa del mar",
+        "artist": "PageVoice fixture",
+        "comment": "Generated speech; supertonic"
+      }
+    }
+  }
+}

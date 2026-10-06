@@ -323,6 +323,8 @@ export default {
   bookmarkRemoved: "Bookmark removed",
   sectionSaved: "Section correction saved",
   sentenceSaved: "Sentence saved; affected audio cleared",
+  sentenceChanged:
+    "The sentence or its voice changed during preparation. Regenerate the current version.",
   modelRemoved: "Model removed",
   help: "Help",
 };

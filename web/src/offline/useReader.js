@@ -222,6 +222,7 @@ export function useReader() {
         ) {
           await refs.current.store.deleteAudio(a.key);
           await update(id, (b) => {
+            if (b.prepared[row]?.key !== a.key) return {};
             const prepared = { ...b.prepared };
             delete prepared[row];
             return { prepared };
@@ -473,6 +474,7 @@ export function useReader() {
       row = rowsOf(book).find(
         (r) => r.chapter === chapter && r.sentence === sentence,
       );
+    const signature = await signatureFor(book, row);
     const result = await refs.current.engine.synthesize({
       engine: book.settings.engine,
       language: book.language,
@@ -484,10 +486,19 @@ export function useReader() {
       device: book.settings.device || "wasm",
       text: row.text,
     });
+    const latest = refs.current.store.get(id),
+      latestRow = latest && rowsOf(latest).find((r) => r.id === row.id);
+    if (
+      !latest ||
+      latest.deletedAt ||
+      !latestRow ||
+      (await signatureFor(latest, latestRow)) !== signature
+    )
+      throw Error("sentenceChanged");
     await refs.current.store.putAudio(
       id,
       row.id,
-      await signatureFor(book, row),
+      signature,
       encodeWav(result.samples, result.sampleRate),
       { duration: result.duration, rtf: result.rtf },
     );

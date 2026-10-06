@@ -320,6 +320,8 @@ export default {
   bookmarkRemoved: "Marcador eliminado",
   sectionSaved: "Corrección guardada",
   sentenceSaved: "Frase guardada; audio afectado eliminado",
+  sentenceChanged:
+    "La frase o su voz cambiaron durante la preparación. Regenera la versión actual.",
   modelRemoved: "Modelo eliminado",
   help: "Ayuda",
 };

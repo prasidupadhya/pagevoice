@@ -298,10 +298,15 @@ export class AssetManager {
   async remove(id) {
     this.pause(id);
     const cache = await this.caches.open(ASSET_CACHE);
+    const retained = new Set();
+    for (const [other, group] of Object.entries(MODEL_GROUPS))
+      if (other !== id && (await this.status(other)).ready)
+        for (const asset of group.files) retained.add(asset.url);
     // Shared runtimes remain cached so removing one voice cannot break another.
     for (const a of MODEL_GROUPS[id].files.filter(
       (a) => !a.url.startsWith("/runtime/"),
     )) {
+      if (retained.has(a.url)) continue;
       await cache.delete(absolute(a.url));
       if (a.alias) await cache.delete(absolute(a.alias));
     }
