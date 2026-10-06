@@ -121,6 +121,8 @@ npm --prefix web run build
 # Downloads real pinned fixture models for the browser tests; opt-in, not setup.
 node web/scripts/cache-e2e-models.mjs
 npm --prefix web run test:e2e
+# Optional: exercise the deployed static reader instead of the local preview.
+PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e
 ```
 
 The browser tests run real models, inspect non-silent WAVs and durations, export

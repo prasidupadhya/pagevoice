@@ -1,6 +1,7 @@
 # Static offline reader: verification
 
-Recorded on 2026-10-05. The website is replaced by a static browser PWA; the
+Baseline recorded on 2026-10-05; public-site verification repeated on 2026-10-06.
+The website is replaced by a static browser PWA; the
 `pagevoice/` and `rag/` Python implementations are unchanged. The hosting-policy
 test was updated to check the new, narrowly allowed static model CDN origins.
 The initial audit and implementation plan is in [static-reader-plan.md](static-reader-plan.md).
@@ -21,6 +22,7 @@ npm 10.9.2, Chromium 153. These are desktop measurements, not phone measurements
 | `npm audit --prefix web --audit-level=low` | 0 vulnerabilities |
 | `node web/scripts/cache-e2e-models.mjs` | Downloaded/hash-verified real test model assets; explicit test setup only |
 | `npm --prefix web run test:e2e` | 6 browser tests passed; real inference, no speech mocks |
+| `PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e` | 6 passed on the public Vercel site on October 6; 219.5 seconds |
 | `.venv/bin/python -m pytest -q` | 157 passed, one existing Starlette/httpx deprecation warning |
 | `npx --yes vercel@60.1.3 build --yes` | Passed; `.vercel/output` contains static files, no functions |
 
@@ -30,8 +32,32 @@ do not establish large-book robustness. The manual GitHub workflow
 `browser-evidence.yml` provides the same real-model suite; its remote run is not
 part of the local results above.
 
-The final suite result is [playwright-summary.json](verification/static/playwright-summary.json):
+The local baseline is [playwright-summary.json](verification/static/playwright-summary.json):
 6 expected, 0 unexpected, 0 skipped, 0 flaky, 194.6 seconds.
+The repeat against the public site is
+[public-playwright-20261006.json](verification/static/public-playwright-20261006.json):
+6 expected, 0 unexpected, 0 skipped, 0 flaky, 219.5 seconds. Today's Python repeat
+passed 157 tests in 63.30 seconds with the same existing warning. Today's frontend
+repeat passed all 101 unit tests, lint, formatting and production build.
+
+The first October 6 dependency-audit repeat reported seven findings from two
+advisories added to the audit response: [source-map-js](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)
+and [sprintf-js](https://github.com/advisories/GHSA-hp3w-g68c-fv3c). The final lockfile
+pins source-map-js 1.2.2 and replaces ONNX Node's global-agent dependency with
+4.1.3, removing the obsolete roarr/sprintf-js chain. Transformer/Kokoro/browser
+runtime versions are retained. A clean `npm ci`, Node proxy bootstrap/ONNX import,
+frontend checks and audit are rerun after this change; the final audit reports
+zero vulnerabilities. [Audit evidence](verification/static/npm-audit-20261006.json).
+All 89 emitted production files are byte-identical to the public-site-tested
+build after these tooling/Node-only dependency updates; the recorded live speech
+and Lighthouse results still apply. [Build comparison](verification/static/build-comparison-20261006.json).
+
+`PAGEVOICE_TEST_BASE_URL` is only a test-runner override. It does not configure
+the app, require a backend or create a production environment variable. Tests
+load the actual deployed app and its workers. The test harness serves some small
+CDN assets from previously downloaded, SHA-256-verified files; large model
+requests continue to the CDN. Inference is real. Offline phases block the network
+after the app has cached those files. These tests do not promise CDN availability.
 
 A real Vercel preview was published with
 `npx --yes vercel@60.1.3 deploy --prebuilt --yes`. Authenticated `vercel curl`
@@ -39,6 +65,9 @@ checks returned HTML and Piper WASM with HTTP 200, the intended CSP/content type
 and the WASM's expected SHA-256. The collaborative browser redirected to Vercel's
 preview-protection login, so this is a hosted-file/header check rather than a
 public browser flow. [Preview evidence](verification/static/vercel-preview.json).
+The preview was subsequently promoted to `https://pagevoice-sepia.vercel.app/`.
+The full public browser suite above now verifies the production reader, cached
+service worker, OCR, speech, exports and removal, rather than just hosted files.
 
 ### What the browser tests actually exercised
 
@@ -64,6 +93,9 @@ public browser flow. [Preview evidence](verification/static/vercel-preview.json)
 [Buffer evidence](verification/static/progressive-buffer.json),
 [audio evidence](verification/static/desktop-audio.json),
 [optional-model evidence](verification/static/local-model-benchmark.json).
+October 6 repeats are in [public-audio-20261006.json](verification/static/public-audio-20261006.json),
+[public-models-20261006.json](verification/static/public-models-20261006.json) and
+[public-buffer-20261006.json](verification/static/public-buffer-20261006.json).
 Cache/storage unit tests additionally cover SHA mismatch, rejected POST requests,
 range resume, shared-runtime/model removal, session-only data, crash recovery,
 cross-tab removal, in-flight deletion, backup validation and object-URL cleanup.
@@ -178,16 +210,17 @@ the empty shelf, excluding neural-model downloads/inference. Results:
 [mobile](verification/static/lighthouse-mobile-final.json),
 [desktop](verification/static/lighthouse-desktop-final.json).
 
-Axe found **zero violations in 18 audited screens**: empty shelf and reader in
-light, sepia and dark at 375, 768 and 1440 px. No horizontal overflow was found.
+Axe found **zero violations in 24 audited public-site screens** on October 6:
+empty shelf and reader in light, sepia and dark at 360, 375, 768 and 1440 px.
+No horizontal overflow was found. The reader test explicitly waits for its lazy
+chunk and actual sentence text before auditing.
 Tests exercised keyboard drawer/help dismissal and focus restoration, interface
 language switching and reduced-motion mode. Automated audits do not establish
-complete WCAG conformance or real screen-reader usability. The 360 px minimum is
-implemented in CSS; the recorded screenshot/audit widths start at 375 px.
+complete WCAG conformance or real screen-reader usability.
 [Axe evidence](verification/static/accessibility.json).
 
 [Before/after screenshots](screenshots/static) contain the previous backend gate
-and 19 new shelf/reader images. [Design notes](static-design.md) describe the paper
+and 25 new shelf/reader images. [Design notes](static-design.md) describe the paper
 themes, ink readiness, typography, focus and motion rules.
 
 ## Requirement checklist
@@ -220,16 +253,21 @@ themes, ink readiness, typography, focus and motion rules.
    model caching/worker engines, progressive playback, analysis, exports and PWA.
 2. `600f3ab`: production OCR runtime, buffering/playback races, deletion and
    storage safety, real browser acceptance fixtures.
-3. `f5b9d17`: retain manual casting across analysis and discard obsolete audio
-   when edits/settings change during synthesis.
-4. Final verification/documentation commit: retain shared assets when removing a
-   model, publish measured evidence, credits/deployment guidance and screenshots.
+3. `1f13eb6`: retain manual casting, discard obsolete audio after edits/settings
+   changes, keep shared assets when removing a model, and publish measured
+   evidence, credits/deployment guidance and screenshots. The two original
+   unmerged follow-up commits were consolidated without changing their final tree.
+4. October 6 verification commit: add a reusable public-site test target, audit
+   the actual reader at 360/375/768/1440 px in all themes, and record the six-test
+   public acceptance run. Pin the two security dependency updates found by
+   today's audit. This retains the four-commit limit on the branch.
 
 ## Known limits and deployment scope
 
-Local Chromium tests and Vercel's static build pass. This record does not itself
-claim that a production deployment has been updated; deployment/PR status is
-reported separately. No backend URL or Vercel environment variable is required.
+Local Chromium tests and Vercel's static build pass. The public production site
+was loaded and tested on October 6, including the blocked-network core flow.
+The PR/merge status is reported separately. No backend URL or Vercel environment
+variable is required.
 
 Offline models need a substantial first download. CPU English may prepare slower
 than playback. Tab suspension or closing stops preparation; reopening retains

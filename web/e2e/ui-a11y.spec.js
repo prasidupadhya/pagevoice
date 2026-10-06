@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fixture, upload } from "./helpers";
-test("shelf and reader work at three sizes and themes with keyboard dialogs", async ({
+test("shelf and reader work at four sizes and three themes with keyboard dialogs", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -16,7 +16,7 @@ test("shelf and reader work at three sizes and themes with keyboard dialogs", as
       theme
     )
       await page.getByRole("button", { name: /Reading theme/ }).click();
-    for (const width of [375, 768, 1440]) {
+    for (const width of [360, 375, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.screenshot({
         path: `../docs/screenshots/static/empty-${theme}-${width}.png`,
@@ -57,13 +57,15 @@ test("shelf and reader work at three sizes and themes with keyboard dialogs", as
     .first()
     .getByRole("button", { name: /Open book/ })
     .click();
+  // A hosted lazy chunk can arrive after the click; audit actual reading text.
+  await expect(page.locator(".sentence").first()).toBeVisible();
   for (const theme of ["light", "sepia", "dark"]) {
     while (
       (await page.evaluate(() => document.documentElement.dataset.theme)) !==
       theme
     )
       await page.getByRole("button", { name: /Reading theme/ }).click();
-    for (const width of [375, 768, 1440]) {
+    for (const width of [360, 375, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.screenshot({
         path: `../docs/screenshots/static/reader-${theme}-${width}.png`,

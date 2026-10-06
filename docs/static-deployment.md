@@ -49,8 +49,18 @@ is an exception: its offline behavior is outside the app's control.
 - Export chapter MP3 ZIP; optional M4B contains AAC audio and chapter metadata.
 - Remove a playing/preparing book; Undo within eight seconds; remove and wait for
   purge. Confirm no audio/source records remain.
-- Open the credits page offline. Check light/sepia/dark at 375/768/1440 px.
+- Open the credits page offline. Check light/sepia/dark at 360/375/768/1440 px.
 
-Local results are recorded in [static-verification.md](static-verification.md).
-A successful local production build does not prove a live Vercel deployment.
+Local and public-site results are recorded in [static-verification.md](static-verification.md).
+A successful local production build does not prove a live Vercel deployment. To
+run the real browser suite against a deployed static site after installing its
+test models, use the test-only override:
+
+```sh
+node web/scripts/cache-e2e-models.mjs
+PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e
+```
+
+This runs in isolated test browser profiles and does not modify other visitors'
+libraries. No Vercel environment variable is needed for this command.
 No backend origin or account setup is required for this release.

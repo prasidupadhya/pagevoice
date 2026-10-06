@@ -2,6 +2,12 @@
   {
     "screen": "empty",
     "theme": "light",
+    "width": 360,
+    "violations": []
+  },
+  {
+    "screen": "empty",
+    "theme": "light",
     "width": 375,
     "violations": []
   },
@@ -15,6 +21,12 @@
     "screen": "empty",
     "theme": "light",
     "width": 1440,
+    "violations": []
+  },
+  {
+    "screen": "empty",
+    "theme": "sepia",
+    "width": 360,
     "violations": []
   },
   {
@@ -38,6 +50,12 @@
   {
     "screen": "empty",
     "theme": "dark",
+    "width": 360,
+    "violations": []
+  },
+  {
+    "screen": "empty",
+    "theme": "dark",
     "width": 375,
     "violations": []
   },
@@ -56,6 +74,12 @@
   {
     "screen": "reader",
     "theme": "light",
+    "width": 360,
+    "violations": []
+  },
+  {
+    "screen": "reader",
+    "theme": "light",
     "width": 375,
     "violations": []
   },
@@ -74,6 +98,12 @@
   {
     "screen": "reader",
     "theme": "sepia",
+    "width": 360,
+    "violations": []
+  },
+  {
+    "screen": "reader",
+    "theme": "sepia",
     "width": 375,
     "violations": []
   },
@@ -87,6 +117,12 @@
     "screen": "reader",
     "theme": "sepia",
     "width": 1440,
+    "violations": []
+  },
+  {
+    "screen": "reader",
+    "theme": "dark",
+    "width": 360,
     "violations": []
   },
   {

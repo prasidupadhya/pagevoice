@@ -1,0 +1,185 @@
+{
+  "piper": [
+    {
+      "bookId": "9bc72932-328d-44f0-8a15-f7ca275b2125",
+      "row": "0:0",
+      "duration": 2.705124716553288,
+      "rms": 0.17454508928438914,
+      "peak": 0.95477294921875,
+      "rtf": 0.6438150482480075,
+      "bytes": 119340
+    },
+    {
+      "bookId": "9bc72932-328d-44f0-8a15-f7ca275b2125",
+      "row": "0:1",
+      "duration": 2.124625850340136,
+      "rms": 0.17585338574861836,
+      "peak": 0.9761962890625,
+      "rtf": 0.1968346567847384,
+      "bytes": 93740
+    },
+    {
+      "bookId": "9bc72932-328d-44f0-8a15-f7ca275b2125",
+      "row": "0:2",
+      "duration": 1.4512471655328798,
+      "rms": 0.158430420441333,
+      "peak": 0.9549560546875,
+      "rtf": 0.1964517186842859,
+      "bytes": 64044
+    }
+  ],
+  "supertonic": [
+    {
+      "bookId": "9bc72932-328d-44f0-8a15-f7ca275b2125",
+      "row": "0:0",
+      "duration": 3.9476417233560093,
+      "rms": 0.05225315834504258,
+      "peak": 0.271820068359375,
+      "rtf": 0.5615757851020771,
+      "bytes": 348226
+    },
+    {
+      "bookId": "9bc72932-328d-44f0-8a15-f7ca275b2125",
+      "row": "0:1",
+      "duration": 3.1539002267573695,
+      "rms": 0.04586182196692124,
+      "peak": 0.256103515625,
+      "rtf": 0.4271219453026419,
+      "bytes": 278218
+    },
+    {
+      "bookId": "9bc72932-328d-44f0-8a15-f7ca275b2125",
+      "row": "0:2",
+      "duration": 2.3512925170068026,
+      "rms": 0.03724299784513655,
+      "peak": 0.19134521484375,
+      "rtf": 0.503170061396333,
+      "bytes": 207428
+    }
+  ],
+  "semanticWindows": 3,
+  "semanticChecks": [
+    {
+      "query": "olas",
+      "latencyMs": 724.2999999523163,
+      "ranked": [
+        {
+          "chapter": 0,
+          "sentence": 0,
+          "similarity": 0.19292836695330282
+        },
+        {
+          "chapter": 0,
+          "sentence": 2,
+          "similarity": 0.16856624784325383
+        },
+        {
+          "chapter": 0,
+          "sentence": 1,
+          "similarity": 0.13899978302682958
+        }
+      ]
+    },
+    {
+      "query": "el sonido del mar",
+      "latencyMs": 17.5,
+      "ranked": [
+        {
+          "chapter": 0,
+          "sentence": 0,
+          "similarity": 0.4248038224235803
+        },
+        {
+          "chapter": 0,
+          "sentence": 2,
+          "similarity": 0.1443897427888062
+        },
+        {
+          "chapter": 0,
+          "sentence": 1,
+          "similarity": 0.10207906086694869
+        }
+      ]
+    },
+    {
+      "query": "costa y océano",
+      "latencyMs": 16.299999952316284,
+      "ranked": [
+        {
+          "chapter": 0,
+          "sentence": 0,
+          "similarity": 0.3010361962659237
+        },
+        {
+          "chapter": 0,
+          "sentence": 2,
+          "similarity": 0.1604245400232916
+        },
+        {
+          "chapter": 0,
+          "sentence": 1,
+          "similarity": 0.10750594912864048
+        }
+      ]
+    },
+    {
+      "query": "galaxia tuberculosis",
+      "latencyMs": 14.400000095367432,
+      "ranked": [
+        {
+          "chapter": 0,
+          "sentence": 0,
+          "similarity": 0.06546158742236657
+        },
+        {
+          "chapter": 0,
+          "sentence": 2,
+          "similarity": 0.018185254697137297
+        },
+        {
+          "chapter": 0,
+          "sentence": 1,
+          "similarity": -0.04829633764188356
+        }
+      ]
+    },
+    {
+      "query": "el y la",
+      "latencyMs": 12.200000047683716,
+      "ranked": [
+        {
+          "chapter": 0,
+          "sentence": 2,
+          "similarity": 0.29153103735860936
+        },
+        {
+          "chapter": 0,
+          "sentence": 0,
+          "similarity": 0.1454431245810359
+        },
+        {
+          "chapter": 0,
+          "sentence": 1,
+          "similarity": 0.07430451581461511
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "name": "María",
+      "label": "PER",
+      "chapter": 0,
+      "sentence": 0,
+      "score": 0.9998050928115845
+    },
+    {
+      "name": "María",
+      "label": "PER",
+      "chapter": 0,
+      "sentence": 2,
+      "score": 0.9998676180839539
+    }
+  ],
+  "subjectiveQuality": "Not measured; Piper remains the Spanish default."
+}
