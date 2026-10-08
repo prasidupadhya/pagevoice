@@ -310,7 +310,7 @@ export default {
   licenses: "Open licenses & source notices",
   modelLicense: "Model / voice license",
   creditsNames:
-    "Kokoro and ONNX conversion: hexgrad / onnx-community. Piper voices: Rhasspy and contributors; DaveFX dataset CC0, Sharvard corpus CC-BY-3.0. eSpeak NG / Piper phonemizer GPL-3.0. Supertonic 2: Supertone, OpenRAIL-M. Multilingual MiniLM: Sentence Transformers, Apache-2.0. Davlan multilingual NER: AFL-3.0. Tesseract / eng+spa data: Apache-2.0. ONNX Runtime / Transformers.js: MIT / Apache-2.0. MP3: lamejs, LGPL-3.0. FFmpeg core: GPL/LGPL components. Newsreader / Source Sans 3: SIL OFL-1.1.",
+    "Kokoro and ONNX conversion: hexgrad / onnx-community. Piper voices: Rhasspy and contributors; DaveFX dataset CC0, Sharvard corpus CC-BY-3.0. eSpeak NG / Piper phonemizer GPL-3.0. Supertonic 2: Supertone, OpenRAIL-M. Multilingual MiniLM: Sentence Transformers, Apache-2.0. Davlan multilingual NER: AFL-3.0. Tesseract / eng+spa data: Apache-2.0. ONNX Runtime / Transformers.js: MIT / Apache-2.0. MP3: lamejs, LGPL-3.0. FFmpeg core: GPL/LGPL components. Newsreader / Fraunces / Geist: SIL OFL-1.1.",
   limits: "Real limits",
   limitsBody:
     "Voice quality varies by language, model and device. OCR and dialogue detection can be wrong. Browser memory limits long exports. Background tabs may stop preparing. Browser storage can be evicted. No cloned voices, online TTS, generated summaries or quality guarantees.",
@@ -431,4 +431,7 @@ export default {
   savedForSession:
     "Added for this session only: this browser could not save the file permanently (this happens in some private-browsing modes). It will disappear when you close the tab.",
   importingQueue: "{index} of {total}",
+  emptyKicker: "hello, reader",
+  exportNeedsAudio:
+    "{ready} of {total} sentences in this selection have audio. Prepare the rest before exporting.",
 };

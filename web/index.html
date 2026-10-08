@@ -2,22 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>PageVoice | Read, listen to, and understand your documents</title>
     <meta
       name="description"
       content="PageVoice is an open-source reading and accessibility app for PDFs and EPUBs. Read comfortably, listen with voices that run in your browser, and search your documents. No account needed."
     />
     <link rel="canonical" href="https://pagevoice.tech/" />
-    <meta name="theme-color" content="#eee5d4" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#151f25" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="theme-color"
+      content="#eee5d4"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#151f25"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="PageVoice" />
     <meta property="og:url" content="https://pagevoice.tech/" />
-    <meta property="og:title" content="PageVoice | Read, listen to, and understand your documents" />
+    <meta
+      property="og:title"
+      content="PageVoice | Read, listen to, and understand your documents"
+    />
     <meta
       property="og:description"
       content="An open-source reading and accessibility app for PDFs and EPUBs. Read, listen with in-browser voices, and search your documents."
@@ -30,7 +44,10 @@
       content="The PageVoice reader showing a chapter with the contents list and audio player."
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="PageVoice | Read, listen to, and understand your documents" />
+    <meta
+      name="twitter:title"
+      content="PageVoice | Read, listen to, and understand your documents"
+    />
     <meta
       name="twitter:description"
       content="An open-source reading and accessibility app for PDFs and EPUBs. Read, listen with in-browser voices, and search your documents."
@@ -63,7 +80,11 @@
           <li><a href="#privacy">Privacy</a></li>
           <li><a href="#formats">Formats</a></li>
           <li>
-            <a href="https://github.com/prasidupadhya/pagevoice" rel="noreferrer">GitHub</a>
+            <a
+              href="https://github.com/prasidupadhya/pagevoice"
+              rel="noreferrer"
+              >GitHub</a
+            >
           </li>
         </ul>
       </nav>
@@ -72,121 +93,232 @@
 
     <main id="main">
       <section class="hero" aria-labelledby="hero-title">
-        <h1 id="hero-title">Read, listen to, and understand your documents.</h1>
-        <p class="lede">
-          PageVoice is an open-source reading and accessibility app for PDFs and EPUBs. Import a
-          file, read it comfortably, listen to it with a voice that runs in your browser, and
-          search it&nbsp;— no account needed.
-        </p>
-        <div class="hero-actions">
-          <a class="button primary large" href="/app/" data-open-app>Open PageVoice</a>
-          <a class="button large" href="https://github.com/prasidupadhya/pagevoice" rel="noreferrer"
-            >View the source</a
-          >
+        <div class="hero-text">
+          <p class="annotation hero-kicker">for PDFs and EPUBs</p>
+          <h1 id="hero-title">
+            read, listen to, and understand your documents.
+          </h1>
+          <p class="lede">
+            PageVoice is an open-source reading and accessibility app. Import a
+            file, read it comfortably, and listen with a voice that runs in your
+            browser&nbsp;— on
+            <span class="pen-underline">your&nbsp;device</span>, with no
+            account.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary large" href="/app/" data-open-app
+              >Open PageVoice</a
+            >
+            <a
+              class="button large"
+              href="https://github.com/prasidupadhya/pagevoice"
+              rel="noreferrer"
+              >View the source</a
+            >
+          </div>
+          <p class="fine-print">
+            Tested with the Chrome, Firefox and Safari (WebKit) engines.
+            Narration in English and Spanish.
+          </p>
         </div>
-        <p class="fine-print">
-          Works in current versions of Chrome, Edge, Firefox and Safari. Narration in English and
-          Spanish.
-        </p>
         <figure class="hero-shot">
-          <picture>
-            <source
-              media="(max-width: 600px)"
-              srcset="/screenshots/reader-mobile.jpg"
-              width="780"
-              height="1688"
+          <p class="annotation shot-caption" aria-hidden="true">
+            the sentence being read
+          </p>
+          <svg class="hand-arrow" viewBox="0 0 120 80" aria-hidden="true">
+            <path
+              d="M6 10c30-6 62 2 78 22s16 30 14 38"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
             />
-            <img
-              src="/screenshots/reader-desktop.jpg"
-              width="1600"
-              height="1000"
-              alt="The PageVoice reader with “The Happy Prince” by Oscar Wilde open: a contents list on the left, the chapter text in the middle with the current sentence highlighted, and the audio player on the right."
+            <path
+              d="M88 58l10 14 9-15"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             />
-          </picture>
+          </svg>
+          <div class="shot-frame">
+            <picture>
+              <source
+                media="(max-width: 600px)"
+                srcset="/screenshots/reader-mobile.jpg"
+                width="780"
+                height="1688"
+              />
+              <img
+                src="/screenshots/reader-desktop.jpg"
+                width="1600"
+                height="1000"
+                alt="The PageVoice reader with “The Happy Prince” by Oscar Wilde open: a contents list on the left, the chapter text in the middle with the sentence being read highlighted, and the audio player on the right."
+              />
+            </picture>
+          </div>
+          <div class="name-label" aria-hidden="true">
+            <span><small>title</small>The Happy Prince</span>
+            <span><small>format</small>EPUB</span>
+            <span><small>voice</small>Kokoro, on-device</span>
+          </div>
+          <img
+            class="sticker st-a"
+            src="/stickers/headphones.svg"
+            alt=""
+            width="96"
+            height="96"
+          />
+          <img
+            class="sticker st-b"
+            src="/stickers/sparkle.svg"
+            alt=""
+            width="64"
+            height="64"
+          />
+          <img
+            class="sticker st-c"
+            src="/stickers/bolt.svg"
+            alt=""
+            width="72"
+            height="72"
+          />
         </figure>
       </section>
 
       <section id="features" class="features" aria-labelledby="features-title">
         <h2 id="features-title" class="sr-only">What PageVoice does</h2>
         <article>
-          <h3>Reading</h3>
+          <img
+            class="feature-sticker"
+            src="/stickers/book.svg"
+            alt=""
+            width="64"
+            height="64"
+          />
+          <h3>reading</h3>
           <p>A calm reader built for long sessions.</p>
           <ul>
-            <li>Paper, light and night themes; adjustable text size and line width</li>
+            <li>
+              Paper, light and night themes; adjustable text size and line width
+            </li>
             <li>Contents list, section navigation and bookmarks</li>
-            <li>Find in book, with accents ignored and every match highlighted</li>
+            <li>
+              Find in book, with accents ignored and every match highlighted
+            </li>
             <li>Focus mode that hides everything except the text</li>
             <li>Remembers where you stopped, per document</li>
           </ul>
         </article>
         <article>
-          <h3>Listening</h3>
-          <p>Neural voices that run on your device after a one-time download.</p>
+          <img
+            class="feature-sticker"
+            src="/stickers/headphones.svg"
+            alt=""
+            width="64"
+            height="64"
+          />
+          <h3>listening</h3>
+          <p>
+            Neural voices that run on your device after a one-time download.
+          </p>
           <ul>
             <li>Kokoro for English and Piper for Spain Spanish</li>
             <li>The sentence being spoken is highlighted and kept in view</li>
             <li>Playback speed from 0.5× to 2×, sleep timer and media keys</li>
             <li>Listen from any sentence; audio is prepared ahead as you go</li>
-            <li>Export prepared chapters as MP3 files, or as an M4B audiobook (best effort)</li>
+            <li>
+              Export prepared chapters as MP3 files, or as an M4B audiobook
+              (best effort)
+            </li>
           </ul>
         </article>
         <article>
-          <h3>Understanding</h3>
+          <img
+            class="feature-sticker"
+            src="/stickers/magnifier.svg"
+            alt=""
+            width="64"
+            height="64"
+          />
+          <h3>understanding</h3>
           <p>Tools that point you back to the text rather than replace it.</p>
           <ul>
-            <li>Keyword search across the whole book, with section citations</li>
-            <li>Detected chapters and front matter you can review and correct</li>
-            <li>Optional meaning-based search and character-name detection, run locally</li>
-            <li>No generated summaries or invented answers&nbsp;— every result is a passage</li>
+            <li>
+              Keyword search across the whole book, with section citations
+            </li>
+            <li>
+              Detected chapters and front matter you can review and correct
+            </li>
+            <li>
+              Optional meaning-based search and character-name detection, run
+              locally
+            </li>
+            <li>
+              No generated summaries or invented answers&nbsp;— every result is
+              a passage
+            </li>
           </ul>
         </article>
       </section>
 
       <section class="split" aria-labelledby="a11y-title">
         <div>
-          <h2 id="a11y-title">Accessibility is the point</h2>
+          <h2 id="a11y-title">accessibility is the point</h2>
           <p>
-            PageVoice exists so that documents can be read in whichever way works for you: by eye,
-            by ear, or both at once.
+            PageVoice exists so that documents can be read in whichever way
+            works for you: by eye, by ear, or both at once.
           </p>
           <ul class="checks">
             <li>Every control works from the keyboard, with visible focus</li>
-            <li>Shortcuts for play, find, sentence navigation and focus mode</li>
-            <li>Labelled controls and live status messages for screen readers</li>
-            <li>Text up to 32&nbsp;px, three themes and respect for reduced motion</li>
-            <li>Spoken text is marked by shape and icon, not by colour alone</li>
+            <li>
+              Shortcuts for play, find, sentence navigation and focus mode
+            </li>
+            <li>
+              Labelled controls and live status messages for screen readers
+            </li>
+            <li>
+              Text up to 32&nbsp;px, three themes and respect for reduced motion
+            </li>
+            <li>
+              Spoken text is marked by shape and icon, not by colour alone
+            </li>
           </ul>
         </div>
         <div id="privacy">
-          <h2>Local processing, stated plainly</h2>
+          <h2>local processing, stated plainly</h2>
           <dl class="facts">
             <div>
               <dt>Where documents are processed</dt>
               <dd>
-                Parsing, OCR, speech and search run in Web Workers inside your browser. PageVoice
-                has no accounts and no server that receives your files.
+                Parsing, OCR, speech and search run in Web Workers inside your
+                browser. PageVoice has no accounts and no server that receives
+                your files.
               </dd>
             </div>
             <div>
               <dt>Where they are stored</dt>
               <dd>
-                In this browser’s storage on this device. Clearing site data removes them; library
-                backups are a ZIP file you keep.
+                In this browser’s storage on this device. Clearing site data
+                removes them; library backups are a ZIP file you keep.
               </dd>
             </div>
             <div>
               <dt>What uses the network</dt>
               <dd>
-                Loading the app, and downloading voices or optional models from Hugging Face and
-                jsDelivr when you choose to. Those downloads contain no document text, and the app
-                blocks connections to any other server. No analytics.
+                Loading the app, and downloading voices or optional models from
+                Hugging Face and jsDelivr when you choose to. Those downloads
+                contain no document text, and the app blocks connections to any
+                other server. No analytics.
               </dd>
             </div>
             <div>
               <dt>One exception</dt>
               <dd>
-                If you pick your device’s built-in speech instead of a downloaded voice, your
-                operating system reads the text, and some systems use online services to do it.
+                If you pick your device’s built-in speech instead of a
+                downloaded voice, your operating system reads the text, and some
+                systems use online services to do it.
               </dd>
             </div>
           </dl>
@@ -194,9 +326,11 @@
       </section>
 
       <section id="formats" class="formats" aria-labelledby="formats-title">
-        <h2 id="formats-title">Supported formats</h2>
+        <h2 id="formats-title">supported formats</h2>
         <table>
-          <caption class="sr-only">Formats PageVoice can open</caption>
+          <caption class="sr-only">
+            Formats PageVoice can open
+          </caption>
           <thead>
             <tr>
               <th scope="col">Format</th>
@@ -206,54 +340,82 @@
           <tbody>
             <tr>
               <th scope="row">EPUB 2 and 3</th>
-              <td>Chapters, title, author and cover. DRM-protected books cannot be opened.</td>
+              <td>
+                Chapters, title, author and cover. DRM-protected books cannot be
+                opened.
+              </td>
             </tr>
             <tr>
               <th scope="row">PDF with text</th>
               <td>
-                Sections from bookmarks and headings; repeated headers, footers and page numbers
-                are removed.
+                Sections from bookmarks and headings; repeated headers, footers
+                and page numbers are removed.
               </td>
             </tr>
             <tr>
               <th scope="row">Scanned PDF</th>
-              <td>Readable after an optional 25&nbsp;MB English + Spanish OCR download.</td>
+              <td>
+                Readable after an optional 25&nbsp;MB English + Spanish OCR
+                download.
+              </td>
             </tr>
           </tbody>
         </table>
         <p class="fine-print">
-          Files up to 100&nbsp;MB. The language of each document is detected automatically; narration
-          is available for English and Spanish. A browser with WebAssembly and IndexedDB is
-          required; WebGPU is used when available.
+          Files up to 100&nbsp;MB. The language of each document is detected
+          automatically; narration is available for English and Spanish. A
+          browser with WebAssembly and IndexedDB is required; WebGPU is used
+          when available.
         </p>
       </section>
 
       <section class="start" aria-labelledby="start-title">
-        <h2 id="start-title">Getting started</h2>
+        <h2 id="start-title">getting started</h2>
         <ol>
           <li>
-            <h3>Open PageVoice</h3>
+            <h3>open PageVoice</h3>
             <p>It runs in the browser. You can also install it as an app.</p>
           </li>
           <li>
-            <h3>Add a PDF or EPUB</h3>
-            <p>Choose a file or drop it on the page. Reading can start straight away.</p>
+            <h3>add a PDF or EPUB</h3>
+            <p>
+              Choose a file or drop it on the page. Reading can start straight
+              away.
+            </p>
           </li>
           <li>
-            <h3>Download a voice once</h3>
-            <p>About 100&nbsp;MB from Offline tools, depending on the voice. After that, listening works offline.</p>
+            <h3>download a voice once</h3>
+            <p>
+              About 100&nbsp;MB from Offline tools, depending on the voice.
+              After that, listening works offline.
+            </p>
           </li>
         </ol>
-        <a class="button primary large" href="/app/" data-open-app>Open PageVoice</a>
+        <a class="button primary large" href="/app/" data-open-app
+          >Open PageVoice</a
+        >
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>PageVoice · open source under the MIT license</p>
-      <ul>
-        <li><a href="https://github.com/prasidupadhya/pagevoice" rel="noreferrer">Source on GitHub</a></li>
-        <li><a href="/licenses/credits.html">Credits &amp; licenses</a></li>
-      </ul>
+      <div class="band-inner">
+        <p class="band-title">PageVoice</p>
+        <p>
+          Read, listen to, and understand your documents. Open source under the
+          MIT license.
+        </p>
+        <ul>
+          <li><a href="/app/">Open the app</a></li>
+          <li>
+            <a
+              href="https://github.com/prasidupadhya/pagevoice"
+              rel="noreferrer"
+              >Source on GitHub</a
+            >
+          </li>
+          <li><a href="/licenses/credits.html">Credits &amp; licenses</a></li>
+        </ul>
+      </div>
     </footer>
     <script type="module" src="/src/landing.js"></script>
   </body>

@@ -207,3 +207,31 @@ it("removing a CPU model preserves files needed by an installed GPU model", asyn
     delete MODEL_GROUPS.gpu;
   }
 });
+it("downloads without OPFS when the browser blocks it with a SecurityError", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const body = new TextEncoder().encode("model"),
+    sha256 = Buffer.from(
+      await webcrypto.subtle.digest("SHA-256", body),
+    ).toString("hex");
+  MODEL_GROUPS.blocked = {
+    files: [{ url: "https://static.example/blocked", size: 5, sha256 }],
+  };
+  try {
+    const manager = new AssetManager({
+      fetcher: async () => new Response(body),
+      cacheStorage: memoryCache(),
+      storage: {
+        getDirectory: async () => {
+          throw new DOMException(
+            "Security error when calling GetDirectory",
+            "SecurityError",
+          );
+        },
+      },
+    });
+    await manager.install("blocked");
+    expect((await manager.status("blocked")).ready).toBe(true);
+  } finally {
+    delete MODEL_GROUPS.blocked;
+  }
+});

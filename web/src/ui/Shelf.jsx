@@ -1,28 +1,24 @@
 import { useMemo, useState } from "react";
-import {
-  Plus,
-  Trash2,
-  Search,
-  FileUp,
-  BookOpen,
-  Headphones,
-  X,
-} from "lucide-react";
+import { Plus, Trash2, Search, BookOpen, X } from "lucide-react";
 import { progressOf, relativeTime } from "../offline/format";
 
+// Generated covers: a coloured notebook with a laminated name label.
+const COVER_COLOURS = ["#2f4bd0", "#ff7b5c", "#58c9a0", "#ffcf3f", "#b79cff"];
 function BookCover({ book, store }) {
   const url = store.coverURL(book);
-  const seed = [...book.title].reduce((n, c) => n + c.codePointAt(0), 0) % 55;
+  const seed = [...book.title].reduce((n, c) => n + c.codePointAt(0), 0);
   return url ? (
     <img className="cover-art" src={url} alt="" loading="lazy" />
   ) : (
     <div
       className="type-cover"
-      style={{ "--cover-hue": seed }}
+      style={{ "--cover": COVER_COLOURS[seed % COVER_COLOURS.length] }}
       aria-hidden="true"
     >
-      <span className="cover-title">{book.title}</span>
-      {book.author && <span className="cover-author">{book.author}</span>}
+      <span className="cover-label">
+        <span className="cover-title">{book.title}</span>
+        {book.author && <span className="cover-author">{book.author}</span>}
+      </span>
     </div>
   );
 }
@@ -87,42 +83,50 @@ export default function Shelf({
   if (!books.length)
     return (
       <section className="empty-room" aria-labelledby="empty-title">
-        <h1 id="empty-title">{t("empty")}</h1>
-        <p className="empty-copy">{t("emptyBody")}</p>
-        <button className="primary large" onClick={onAdd} disabled={busy}>
-          <Plus size={18} aria-hidden="true" />
-          {t("add")}
-        </button>
-        <p className="fine-print">{t("dropHint")}</p>
+        <div className="empty-text">
+          <p className="eyebrow">{t("emptyKicker")}</p>
+          <h1 id="empty-title" className="lowercase">
+            {t("empty")}
+          </h1>
+          <p className="empty-copy">{t("emptyBody")}</p>
+          <button className="primary large" onClick={onAdd} disabled={busy}>
+            <Plus size={18} aria-hidden="true" />
+            {t("add")}
+          </button>
+          <p className="fine-print">{t("dropHint")}</p>
+        </div>
+        <div className="sticker-cluster" aria-hidden="true">
+          <img src="/stickers/book.svg" alt="" className="sticker s1" />
+          <img src="/stickers/headphones.svg" alt="" className="sticker s2" />
+          <img src="/stickers/sparkle.svg" alt="" className="sticker s3" />
+          <img src="/stickers/bookmark.svg" alt="" className="sticker s4" />
+        </div>
         <ol className="steps">
-          <li>
-            <FileUp size={20} aria-hidden="true" />
-            <div>
-              <h2>{t("step1")}</h2>
-              <p>{t("step1Body")}</p>
-            </div>
-          </li>
-          <li>
-            <BookOpen size={20} aria-hidden="true" />
-            <div>
-              <h2>{t("step2")}</h2>
-              <p>{t("step2Body")}</p>
-            </div>
-          </li>
-          <li>
-            <Headphones size={20} aria-hidden="true" />
-            <div>
-              <h2>{t("step3")}</h2>
-              <p>{t("step3Body")}</p>
-            </div>
-          </li>
+          {[
+            ["book", "step1"],
+            ["magnifier", "step2"],
+            ["headphones", "step3"],
+          ].map(([sticker, step]) => (
+            <li key={step}>
+              <img
+                src={`/stickers/${sticker}.svg`}
+                alt=""
+                width="56"
+                height="56"
+              />
+              <div>
+                <h2 className="lowercase">{t(step)}</h2>
+                <p>{t(`${step}Body`)}</p>
+              </div>
+            </li>
+          ))}
         </ol>
       </section>
     );
   return (
     <section className="library-shelf" aria-labelledby="library-title">
       <div className="shelf-heading">
-        <h1 id="library-title">
+        <h1 id="library-title" className="lowercase">
           {t("library")}
           <span className="count">
             {t(books.length === 1 ? "shelfOne" : "shelfCount", {

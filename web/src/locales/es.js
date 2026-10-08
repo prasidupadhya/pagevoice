@@ -306,7 +306,7 @@ export default {
   licenses: "Licencias y avisos de código fuente",
   modelLicense: "Licencia de modelo / voz",
   creditsNames:
-    "Kokoro y conversión ONNX: hexgrad / onnx-community, Apache-2.0. Piper: Rhasspy y colaboradores; datos DaveFX CC0, Sharvard CC-BY-3.0. eSpeak NG / fonemizador Piper GPL-3.0. Supertonic 2: Supertone, OpenRAIL-M. MiniLM multilingüe: Sentence Transformers, Apache-2.0. NER Davlan: AFL-3.0. Tesseract / datos eng+spa: Apache-2.0. ONNX Runtime / Transformers.js: MIT / Apache-2.0. MP3: lamejs, LGPL-3.0. FFmpeg: componentes GPL/LGPL. Newsreader / Source Sans 3: SIL OFL-1.1.",
+    "Kokoro y conversión ONNX: hexgrad / onnx-community, Apache-2.0. Piper: Rhasspy y colaboradores; datos DaveFX CC0, Sharvard CC-BY-3.0. eSpeak NG / fonemizador Piper GPL-3.0. Supertonic 2: Supertone, OpenRAIL-M. MiniLM multilingüe: Sentence Transformers, Apache-2.0. NER Davlan: AFL-3.0. Tesseract / datos eng+spa: Apache-2.0. ONNX Runtime / Transformers.js: MIT / Apache-2.0. MP3: lamejs, LGPL-3.0. FFmpeg: componentes GPL/LGPL. Newsreader / Fraunces / Geist: SIL OFL-1.1.",
   limits: "Límites reales",
   limitsBody:
     "La calidad varía por idioma, modelo y dispositivo. OCR y detección de diálogo pueden fallar. La memoria limita las exportaciones. Las pestañas en segundo plano pueden detenerse. El navegador puede borrar datos. Sin clonación, TTS en línea, resúmenes generados ni garantías de calidad.",
@@ -429,4 +429,7 @@ export default {
   savedForSession:
     "Añadido solo para esta sesión: este navegador no pudo guardar el archivo de forma permanente (ocurre en algunos modos de navegación privada). Desaparecerá al cerrar la pestaña.",
   importingQueue: "{index} de {total}",
+  emptyKicker: "hola, lector",
+  exportNeedsAudio:
+    "{ready} de {total} frases de esta selección tienen audio. Prepara el resto antes de exportar.",
 };

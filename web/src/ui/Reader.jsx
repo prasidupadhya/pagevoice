@@ -127,6 +127,20 @@ export default function Reader({
     api.deviceVoices,
   );
   const percent = progressOf({ ...book, position });
+  // Export needs audio for every sentence in the chosen scope.
+  const exportReady = (() => {
+    const scope = exportScope || String(chapter),
+      indexes =
+        scope === "all" ? book.chapters.map((_, i) => i) : [Number(scope)],
+      total = indexes.reduce(
+        (n, i) => n + book.chapters[i].sentences.length,
+        0,
+      ),
+      ready = Object.keys(book.prepared).filter((k) =>
+        indexes.includes(Number(k.split(":")[0])),
+      ).length;
+    return { ready, total, complete: ready >= total, first: indexes[0] };
+  })();
 
   // Find in book
   const foldedBook = useMemo(
@@ -262,7 +276,9 @@ export default function Reader({
   useEffect(() => {
     if (tab !== "read" || chapter !== book.position.chapter) return;
     const timer = setTimeout(() => {
-      virtual.scrollToIndex(book.position.sentence, { align: "start" });
+      // At the start of a section, show its heading rather than sentence one.
+      if (book.position.sentence === 0) scroll.current?.scrollTo(0, 0);
+      else virtual.scrollToIndex(book.position.sentence, { align: "start" });
       setTimeout(() => (restoring.current = false), 300);
     }, 70);
     return () => clearTimeout(timer);
@@ -1352,13 +1368,34 @@ export default function Reader({
                     </button>
                   </p>
                 )}
-                {book.settings.engine === "device" && (
+                {book.settings.engine === "device" ? (
                   <p className="notice">{t("deviceExport")}</p>
+                ) : (
+                  !exportReady.complete && (
+                    <p className="notice">
+                      {t("exportNeedsAudio", exportReady)}{" "}
+                      <button
+                        className="text-button"
+                        disabled={!voiceReady}
+                        onClick={() =>
+                          api.refs.current.queue
+                            .prepare(book.id, exportReady.first, 0)
+                            .catch((e) => api.setError(e.message))
+                        }
+                      >
+                        {t("prepare")}
+                      </button>
+                    </p>
+                  )
                 )}
                 <div className="button-row">
                   <button
                     className="primary"
-                    disabled={busy || book.settings.engine === "device"}
+                    disabled={
+                      busy ||
+                      book.settings.engine === "device" ||
+                      !exportReady.complete
+                    }
                     onClick={() =>
                       run(async () => {
                         setExportProgress({ current: 0, total: 1 });
