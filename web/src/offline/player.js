@@ -153,8 +153,12 @@ export class AudioPlayer {
   }
   sleep(minutes) {
     clearTimeout(this.sleepTimer);
+    this.sleepMinutes = minutes;
     if (minutes)
-      this.sleepTimer = setTimeout(() => this.pause(), minutes * 60000);
+      this.sleepTimer = setTimeout(() => {
+        this.sleepMinutes = 0;
+        this.pause();
+      }, minutes * 60000);
   }
   stop() {
     this.generation++;
@@ -166,6 +170,7 @@ export class AudioPlayer {
     this.row = null;
     this.emit("idle");
     clearTimeout(this.sleepTimer);
+    this.sleepMinutes = 0;
   }
   releaseURL() {
     if (this.url) URL.revokeObjectURL(this.url);

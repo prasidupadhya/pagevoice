@@ -135,6 +135,7 @@ export function useReader() {
   async function upload(files, keep) {
     setError(null);
     let cancelled = false;
+    const added = [];
     refs.current.cancelParse = () => {
       cancelled = true;
       refs.current.parser?.terminate();
@@ -168,7 +169,7 @@ export function useReader() {
               else {
                 if (data.message)
                   console.warn("Book processing failed:", data.message);
-                reject(Error(data.code || data.message || "processingError"));
+                reject(Error(data.code || "processingError"));
               }
             }
           };
@@ -187,7 +188,7 @@ export function useReader() {
           characters: detectCharacters(parsed),
         };
         delete book.cover;
-        await refs.current.store.add(book, keep);
+        added.push(await refs.current.store.add(book, keep));
         sync();
         lastFile.current = null;
       }
@@ -199,6 +200,7 @@ export function useReader() {
       refs.current.parser = null;
       refs.current.cancelParse = null;
     }
+    return added;
   }
   async function update(id, patch) {
     await refs.current.store.update(id, patch);

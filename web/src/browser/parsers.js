@@ -812,6 +812,7 @@ async function parsePdf(
       language,
       languageDetection,
       format: "pdf",
+      pageCount: pdf.numPages,
       chapters,
       warnings: pageData.flatMap((page) =>
         page.warnings.map((text) => ({ page: page.page, text })),
