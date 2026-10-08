@@ -378,6 +378,15 @@
   }
 }
 @media (max-width: 640px) {
+  .hero h1 {
+    font-size: var(--text-3xl);
+  }
+  .lede {
+    font-size: var(--text-base);
+  }
+  .hero-kicker {
+    font-size: var(--text-xl);
+  }
   .site-header nav {
     display: none;
   }
