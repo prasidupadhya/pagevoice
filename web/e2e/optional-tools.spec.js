@@ -9,7 +9,7 @@ test("measures Spanish Piper versus Supertonic, local embeddings/NER, and chapte
       console.log(m.type(), m.text());
   });
   await cachedCDN(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.locator(".empty-room")).toBeVisible();
   await upload(page, fixture("sample-es.epub"));
   await expect(page.locator(".shelf-book")).toHaveCount(1);
@@ -34,7 +34,7 @@ test("measures Spanish Piper versus Supertonic, local embeddings/NER, and chapte
   await prepared();
   const piper = await stats(page);
   await page
-    .getByRole("button", { name: "Voice & cast", exact: true })
+    .getByRole("tab", { name: "Voice & cast", exact: true })
     .first()
     .click();
   await page
@@ -53,7 +53,7 @@ test("measures Spanish Piper versus Supertonic, local embeddings/NER, and chapte
   }
   await install(page, "embeddings");
   await install(page, "ner");
-  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await page.getByRole("tab", { name: "Explore", exact: true }).click();
   await page
     .getByRole("button", { name: "Build meaning index", exact: true })
     .click();
@@ -81,7 +81,7 @@ test("measures Spanish Piper versus Supertonic, local embeddings/NER, and chapte
     timeout: 30000,
   });
   await install(page, "ffmpeg");
-  await page.getByRole("button", { name: "Export audio", exact: true }).click();
+  await page.getByRole("tab", { name: "Export audio", exact: true }).click();
   await page
     .getByRole("combobox")
     .filter({ has: page.locator('option[value="m4b"]') })

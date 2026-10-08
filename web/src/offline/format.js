@@ -4,8 +4,13 @@ export const bytes = (n) => {
   return `${(n / 1024 ** unit).toFixed(unit ? 1 : 0)} ${["B", "KB", "MB", "GB"][unit]}`;
 };
 export const duration = (n) => {
-  const v = Math.max(0, Math.round(n || 0));
-  return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`;
+  const v = Math.max(0, Math.round(n || 0)),
+    pad = (x) => String(x).padStart(2, "0"),
+    hours = Math.floor(v / 3600),
+    minutes = Math.floor((v % 3600) / 60);
+  return hours
+    ? `${hours}:${pad(minutes)}:${pad(v % 60)}`
+    : `${minutes}:${pad(v % 60)}`;
 };
 export function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob),

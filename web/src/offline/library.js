@@ -161,7 +161,17 @@ export class LibraryStore {
       },
     };
     if (this.books.has(value.id)) throw new Error("duplicateBook");
-    if (keep) await this.write("books", value);
+    if (keep)
+      try {
+        await this.write("books", value);
+      } catch (error) {
+        // Some browsers (e.g. WebKit private sessions) refuse to store files in
+        // IndexedDB. Keep the book for this session instead of failing the import;
+        // a full disk is still reported.
+        if (error?.name === "QuotaExceededError") throw error;
+        value.keep = false;
+        value.storageFallback = true;
+      }
     this.books.set(value.id, value);
     this.channel?.postMessage(value.id);
     return value;

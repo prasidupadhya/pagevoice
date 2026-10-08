@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { progressOf, relativeTime } from "./format";
+import { duration, progressOf, relativeTime } from "./format";
 
 const book = (position, startChapter = 0) => ({
   startChapter,
@@ -35,4 +35,10 @@ it("formats relative times", () => {
   expect(relativeTime(now - 2 * 86400000, "en", now)).toBe("2 days ago");
   expect(relativeTime(now - 10000, "en", now)).toBe("this minute");
   expect(relativeTime(now - 3 * 3600000, "es", now)).toBe("hace 3 horas");
+});
+
+it("formats durations, adding hours when needed", () => {
+  expect(duration(0)).toBe("0:00");
+  expect(duration(75.4)).toBe("1:15");
+  expect(duration(16287)).toBe("4:31:27");
 });

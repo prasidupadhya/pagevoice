@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 test("native PDF actually parses in the bundled worker", async ({ page }) => {
   page.on("console", (m) => console.log(m.type(), m.text()));
   page.on("pageerror", (e) => console.log("Page error", e.message));
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.locator(".empty-room")).toBeVisible();
   await page
     .getByLabel("Choose a file", { exact: true })
