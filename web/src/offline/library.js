@@ -49,13 +49,39 @@ const packBlob = async (blob) =>
   blob instanceof Blob
     ? { bytes: await blobBytes(blob), type: blob.type }
     : blob;
+const isArrayBuffer = (value) =>
+  Object.prototype.toString.call(value) === "[object ArrayBuffer]";
+// A Blob already has a bytes() method in newer browsers, so only a stored
+// { bytes: ArrayBuffer } record counts as packed.
 const unpackBlob = (value) =>
-  value?.bytes ? new Blob([value.bytes], { type: value.type }) : value;
+  value instanceof Blob || !isArrayBuffer(value?.bytes)
+    ? value
+    : new Blob([value.bytes], { type: value.type });
+// Only used when the browser cannot store Blobs (see canStoreBlobs).
 const toStored = async (book) => ({
   ...book,
   sourceFile: await packBlob(book.sourceFile),
   coverBlob: await packBlob(book.coverBlob),
 });
+// Probe once: browsers that accept Blobs keep the original record format.
+async function canStoreBlobs(db) {
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("prefs", "readwrite");
+      tx.objectStore("prefs").put(new Blob(["probe"]), "__blob_probe");
+      tx.oncomplete = resolve;
+      tx.onabort = tx.onerror = () => reject(tx.error);
+    });
+    await new Promise((resolve) => {
+      const tx = db.transaction("prefs", "readwrite");
+      tx.objectStore("prefs").delete("__blob_probe");
+      tx.oncomplete = tx.onabort = resolve;
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 const fromStored = (book) =>
   book && {
     ...book,
@@ -120,6 +146,7 @@ export class LibraryStore {
       return this;
     }
     this.db.onversionchange = () => this.db.close();
+    this.packBlobs = !(await canStoreBlobs(this.db));
     if (this.useOPFS && navigator.storage?.getDirectory) {
       try {
         this.root = await navigator.storage.getDirectory();
@@ -217,7 +244,10 @@ export class LibraryStore {
     if (this.books.has(value.id)) throw new Error("duplicateBook");
     if (keep)
       try {
-        await this.write("books", await toStored(value));
+        await this.write(
+          "books",
+          this.packBlobs ? await toStored(value) : value,
+        );
       } catch (error) {
         // Some browsers (e.g. WebKit private sessions) refuse to store files in
         // IndexedDB. Keep the book for this session instead of failing the import;
@@ -316,7 +346,7 @@ export class LibraryStore {
     if (book.keep)
       await this.write("audio", {
         ...record,
-        blob: await packBlob(record.blob),
+        blob: this.packBlobs ? await packBlob(record.blob) : record.blob,
       });
     else this.audio.set(key, record);
     const previous = this.get(bookId).prepared[row];

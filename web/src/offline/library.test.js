@@ -201,6 +201,8 @@ it("still reports a full disk instead of silently keeping the book", async () =>
 
 it("stores book files as bytes so browsers that reject Blobs in IndexedDB keep the book", async () => {
   const a = await store("bytes");
+  // Simulate a browser whose IndexedDB refuses Blobs (probed at startup).
+  a.packBlobs = true;
   const realWrite = a.write.bind(a);
   vi.spyOn(a, "write").mockImplementation((table, value, key) => {
     if (Object.values(value).some((v) => v instanceof Blob))
@@ -249,4 +251,19 @@ it("detects an OPFS directory that opens but refuses writes, so storage can fall
     removeEntry: async () => {},
   };
   expect(await opfsWritable(refusing)).toBe(false);
+});
+
+it("keeps a cover image intact across a reload when browsers expose Blob.bytes()", async () => {
+  const a = await store("cover");
+  const cover = new Blob([new Uint8Array([137, 80, 78, 71])], {
+    type: "image/png",
+  });
+  const added = await a.add({ ...book(), coverBlob: cover });
+  const reopened = await store("cover");
+  const restored = reopened.get(added.id).coverBlob;
+  expect(restored).toBeInstanceOf(Blob);
+  expect(restored.type).toBe("image/png");
+  expect(Array.from(new Uint8Array(await restored.arrayBuffer()))).toEqual([
+    137, 80, 78, 71,
+  ]);
 });

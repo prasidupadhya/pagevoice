@@ -26,9 +26,19 @@
     calc((100% - var(--page)) / 2)
   );
   border-bottom: var(--border);
-  background: color-mix(in srgb, var(--paper) 94%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--paper);
+}
+/* In-page links land below the bar instead of under it. */
+html:has(> body.landing) {
+  scroll-padding-top: 88px;
+}
+.landing [id] {
+  scroll-margin-top: 88px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has(> body.landing) {
+    scroll-behavior: smooth;
+  }
 }
 .site-header .button {
   flex-shrink: 0;
@@ -54,6 +64,9 @@
 }
 .site-header nav {
   margin-left: auto;
+}
+.menu-button {
+  display: none;
 }
 .site-header ul,
 .site-footer ul {
@@ -405,9 +418,10 @@
   .landing .brand {
     font-size: var(--text-lg);
   }
-  .site-header .button {
-    padding: 0 var(--space-3);
-    font-size: var(--text-sm);
+  .site-header .button,
+  .menu-button {
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
   }
 }
 @media (max-width: 640px) {
@@ -419,9 +433,6 @@
   }
   .hero-kicker {
     font-size: var(--text-xl);
-  }
-  .site-header nav {
-    display: none;
   }
   .site-header .button {
     margin-left: auto;
@@ -451,5 +462,40 @@
   .formats h2,
   .start h2 {
     font-size: var(--text-3xl);
+  }
+}
+
+/* Phones: the header keeps the brand and the action; links open from Menu. */
+@media (max-width: 640px) {
+  .site-header nav {
+    position: relative;
+  }
+  .menu-button {
+    display: inline-flex;
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-sm);
+  }
+  .site-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: 40;
+    min-width: 200px;
+    flex-direction: column;
+    gap: 0;
+    padding: var(--space-2);
+    border: var(--ink-border);
+    border-radius: var(--radius);
+    background: var(--raised);
+    box-shadow: var(--shadow);
+  }
+  .site-menu[data-open="true"] {
+    display: flex;
+  }
+  .site-menu a {
+    display: block;
+    padding: var(--space-3);
   }
 }

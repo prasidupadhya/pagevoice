@@ -13,3 +13,23 @@ globalThis.indexedDB
       link.textContent = "Open your library";
   })
   .catch(() => {});
+
+// Small screens: the site links open from a Menu button in the header.
+const menuButton = document.querySelector(".menu-button");
+const menu = document.getElementById("site-menu");
+const setMenu = (open) => {
+  menuButton.setAttribute("aria-expanded", String(open));
+  menu.dataset.open = String(open);
+};
+menuButton?.addEventListener("click", () =>
+  setMenu(menuButton.getAttribute("aria-expanded") !== "true"),
+);
+menu?.addEventListener("click", (event) => {
+  if (event.target.closest("a")) setMenu(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && menu?.dataset.open === "true") {
+    setMenu(false);
+    menuButton.focus();
+  }
+});
