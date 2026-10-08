@@ -170,10 +170,16 @@ export class AssetManager {
     report({ loaded: 0, total: groupBytes(id) });
     let dir;
     try {
-      if (this.storage?.getDirectory)
-        dir = await (
-          await this.storage.getDirectory()
-        ).getDirectoryHandle("pagevoice-downloads", { create: true });
+      // OPFS can be blocked (SecurityError) in some private or embedded contexts.
+      // Downloads then fall back to the in-memory path below.
+      try {
+        if (this.storage?.getDirectory)
+          dir = await (
+            await this.storage.getDirectory()
+          ).getDirectoryHandle("pagevoice-downloads", { create: true });
+      } catch {
+        dir = undefined;
+      }
       const cache = await this.caches.open(ASSET_CACHE);
       let completed = 0;
       const total = groupBytes(id);
