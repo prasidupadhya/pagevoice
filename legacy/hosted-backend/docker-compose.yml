@@ -21,7 +21,9 @@ services:
       retries: 5
 
   pagevoice:
-    build: .
+    build:
+      context: ../..
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       pocketbase:
