@@ -134,7 +134,12 @@ export default function Shelf({
             })}
           </span>
         </h1>
-        <button className="primary" onClick={onAdd} disabled={busy}>
+        {/* One primary action per screen: "Continue" when a book is in progress. */}
+        <button
+          className={recent ? "" : "primary"}
+          onClick={onAdd}
+          disabled={busy}
+        >
           <Plus size={18} aria-hidden="true" />
           {t("add")}
         </button>

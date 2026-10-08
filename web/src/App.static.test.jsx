@@ -136,7 +136,7 @@ it("announces an import, opens it, and finds text inside the reader", async () =
   fireEvent.change(screen.getByLabelText("Choose a file"), {
     target: { files: [new File(["book"], "book.epub")] },
   });
-  await screen.findByText("Added “A quiet book”.");
+  await screen.findByText('Added "A quiet book".');
   expect(screen.getByText("Not started")).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "Open" }));
   await screen.findByRole("tab", { name: "Read", selected: true });

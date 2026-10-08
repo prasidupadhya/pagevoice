@@ -758,7 +758,7 @@ button.large {
   background: var(--raised);
   box-shadow: var(--shadow);
   font-size: var(--text-sm);
-  animation: rise var(--duration) var(--ease);
+  animation: rise var(--duration-panel) var(--ease-glide);
 }
 .toast > svg {
   flex-shrink: 0;
@@ -777,7 +777,7 @@ button.large {
   background: var(--paper);
   color: var(--ink);
   box-shadow: var(--shadow);
-  animation: rise var(--duration) var(--ease);
+  animation: rise var(--duration-panel) var(--ease-glide);
 }
 .modal::backdrop {
   background: #11191880;
@@ -1285,7 +1285,6 @@ kbd {
 }
 .sentence.speaking .sentence-text {
   background: var(--highlight);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 .sentence.find-current .sentence-text {
   outline: 2px solid var(--focus);
@@ -1954,4 +1953,37 @@ kbd {
 .book-open:hover,
 .bookmark-link:hover {
   box-shadow: none;
+}
+
+/* Loading placeholders: the real grid with pulsing blocks, no spinner. */
+.skeleton-line,
+.skeleton-cover {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+.skeleton-title {
+  width: min(320px, 60vw);
+  height: 40px;
+}
+.skeleton-book {
+  display: grid;
+  gap: var(--space-2);
+}
+.skeleton-cover {
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius);
+}
+.skeleton-line {
+  height: 14px;
+  width: 80%;
+}
+.skeleton-line.short {
+  width: 50%;
+}
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
 }

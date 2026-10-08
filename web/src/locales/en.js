@@ -31,7 +31,7 @@ export default {
   update: "Update available",
   reload: "Reload to update",
   privacy:
-    "Documents are kept in this browser’s storage on this device. PageVoice does not upload them.",
+    "Documents are kept in this browser's storage on this device. PageVoice does not upload them.",
   empty: "Add a PDF or EPUB to start reading.",
   emptyBody:
     "PageVoice opens your document in this browser, finds its sections and language, and remembers your place. No account needed.",
@@ -44,7 +44,7 @@ export default {
   recent: "Recently added",
   titleSort: "Title",
   progressSort: "Reading progress",
-  noBooks: "No books match “{query}”.",
+  noBooks: 'No books match "{query}".',
   open: "Open book",
   remove: "Remove book",
   clear: "Clear everything",
@@ -219,8 +219,8 @@ export default {
   previewTextES:
     "Una habitación tranquila, un libro abierto y una voz que te acompaña.",
   deviceNotice:
-    "Device voices are a lower-quality fallback. Some operating systems use online services; offline availability and privacy are outside this app’s control. No downloadable audio is produced.",
-  deviceNoVoices: "No device voice is available for this book’s language.",
+    "Device voices are a lower-quality fallback. Some operating systems use online services; offline availability and privacy are outside this app's control. No downloadable audio is produced.",
+  deviceNoVoices: "No device voice is available for this book's language.",
   voiceLocal:
     "All neural narration runs locally. Voice names belong to these models; these are not Edge voices.",
   cast: "Character casting",
@@ -230,7 +230,7 @@ export default {
   characterName: "Character name",
   addCharacter: "Add character",
   speaker: "Speaker for this sentence",
-  defaultVoice: "Narrator’s voice",
+  defaultVoice: "Narrator's voice",
   heuristicNotice:
     "Names and dialogue assignments are inferred from text. Review them before casting.",
   search: "Search this book",
@@ -291,7 +291,7 @@ export default {
   exportLimit:
     "For memory safety, export one chapter at a time when prepared audio exceeds 256 MB.",
   downloadAudio: "Download audio",
-  removeTitle: "Remove “{title}”?",
+  removeTitle: 'Remove "{title}"?',
   removeBody:
     "This removes the source file, analysis, reading position, cover and {n} prepared audio sentences from this browser, freeing about {size}. Other books and downloaded models stay.",
   typeTitle: "Generated audio exists. Type the book title to confirm.",
@@ -304,9 +304,9 @@ export default {
   close: "Close",
   backupDone: "Library backup downloaded",
   imported: "Backup imported",
-  creditsTitle: "Made to stay here",
+  creditsTitle: "Privacy and credits",
   creditsIntro:
-    "Inference is local and books are private. This app’s code does not send book text over the network. CDN requests download fixed files only. Device speech is an explicitly selected fallback with platform-dependent privacy.",
+    "Inference is local and books are private. This app's code does not send book text over the network. CDN requests download fixed files only. Device speech is an explicitly selected fallback with platform-dependent privacy.",
   licenses: "Open licenses & source notices",
   modelLicense: "Model / voice license",
   creditsNames:
@@ -330,7 +330,7 @@ export default {
   help: "Help",
   skipToContent: "Skip to content",
   appMenu: "PageVoice",
-  added: "Added “{title}”.",
+  added: 'Added "{title}".',
   openNow: "Open",
   addedMany: "Added {n} documents.",
   importing: "Importing {name}",
@@ -346,12 +346,12 @@ export default {
   privacyShort: "Privacy",
   privacyStoredTitle: "Where your documents are",
   privacyStored:
-    "Imported files, reading positions, bookmarks and generated audio are saved in this browser’s storage (IndexedDB and the origin private file system) on this device. PageVoice has no accounts and no server that receives your documents. Removing a book or clearing site data deletes it; export a library backup to keep a copy.",
+    "Imported files, reading positions, bookmarks and generated audio are saved in this browser's storage (IndexedDB and the origin private file system) on this device. PageVoice has no accounts and no server that receives your documents. Removing a book or clearing site data deletes it; export a library backup to keep a copy.",
   privacyNetworkTitle: "What uses the network",
   privacyNetwork:
-    "The app itself is loaded from pagevoice.tech, whose host may keep standard request logs. Voices, OCR and the optional analysis models are downloaded only when you choose them, from Hugging Face and jsDelivr, as fixed files checked against pinned hashes; those requests contain no document text. The app’s content security policy blocks connections to other servers. PageVoice includes no analytics or tracking.",
+    "The app itself is loaded from pagevoice.tech, whose host may keep standard request logs. Voices, OCR and the optional analysis models are downloaded only when you choose them, from Hugging Face and jsDelivr, as fixed files checked against pinned hashes; those requests contain no document text. The app's content security policy blocks connections to other servers. PageVoice includes no analytics or tracking.",
   privacyDevice:
-    "Exception: if you choose device speech, your operating system’s speech engine reads the text, and some systems use online services for that. This is labelled where you choose it.",
+    "Exception: if you choose device speech, your operating system's speech engine reads the text, and some systems use online services for that. This is labelled where you choose it.",
   sourceCode: "Source code on GitHub",
   notStarted: "Not started",
   step1: "Add a document",
@@ -362,7 +362,7 @@ export default {
     "Pick a theme, text size and line width. Find text, move between sections and bookmark passages.",
   step3: "Listen",
   step3Body:
-    "Download a voice once from Offline tools, then listen with the spoken sentence highlighted — offline too.",
+    "Download a voice once from Offline tools, then listen with the spoken sentence highlighted, offline too.",
   continueReading: "Continue reading",
   continue: "Continue",
   recentOpened: "Recently opened",
@@ -427,7 +427,7 @@ export default {
   widthMedium: "Medium",
   widthWide: "Wide",
   offlineDownloads:
-    "You’re offline. Downloads need a connection; tools you already downloaded keep working.",
+    "You're offline. Downloads need a connection; tools you already downloaded keep working.",
   savedForSession:
     "Added for this session only: this browser could not save the file permanently (this happens in some private-browsing modes). It will disappear when you close the tab.",
   importingQueue: "{index} of {total}",

@@ -19,6 +19,7 @@ import es from "./locales/es";
 import { useReader } from "./offline/useReader";
 import { bytes, downloadBlob } from "./offline/format";
 import Shelf from "./ui/Shelf";
+import ShelfSkeleton from "./ui/ShelfSkeleton";
 import Modal from "./ui/Modal";
 import DisplayMenu from "./ui/DisplayMenu";
 import { TEXT_SIZES, THEMES, WIDTHS } from "./ui/prefs";
@@ -363,10 +364,9 @@ export default function App() {
       )}
       <div id="main-content" tabIndex={-1}>
         {api.loading ? (
-          <div className="page-loading" aria-busy="true">
-            <LoaderCircle className="spin" size={22} aria-hidden="true" />
-            <span>{t("loadingLibrary")}</span>
-          </div>
+          <main className="shelf-room">
+            <ShelfSkeleton t={t} />
+          </main>
         ) : book ? (
           <Suspense
             fallback={

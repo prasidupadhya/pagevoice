@@ -300,7 +300,7 @@ export default {
   close: "Cerrar",
   backupDone: "Copia de la biblioteca descargada",
   imported: "Copia importada",
-  creditsTitle: "Hecho para quedarse aquí",
+  creditsTitle: "Privacidad y créditos",
   creditsIntro:
     "Los modelos trabajan localmente. El código no envía texto del libro a la red. Las solicitudes CDN descargan archivos fijos. La voz del dispositivo es una alternativa elegida explícitamente cuya privacidad depende del sistema.",
   licenses: "Licencias y avisos de código fuente",
