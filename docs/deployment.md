@@ -1,3 +1,8 @@
+> **Historical.** This describes an earlier hosted design (PocketBase and a Python
+> server). The current website is static and does not use it. The Docker and Compose
+> files now live in [`legacy/hosted-backend`](../legacy/hosted-backend/README.md).
+> Commands below assume that folder.
+
 # Deploy PageVoice for private guest libraries
 
 See [the verification report](pocketbase-verification.md) for measured checks and
