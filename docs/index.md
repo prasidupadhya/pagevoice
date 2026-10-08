@@ -1,6 +1,7 @@
 # Documentation
 
 - [Static offline reader: usage and privacy](../README.md)
+- [Roadmap: what exists today and what is planned (including Claude)](roadmap.md)
 - [Static Vercel deployment (no environment variables)](static-deployment.md)
 - [Browser implementation audit and plan](static-reader-plan.md)
 - [Browser design notes](static-design.md)

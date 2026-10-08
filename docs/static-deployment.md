@@ -58,7 +58,7 @@ test models, use the test-only override:
 
 ```sh
 node web/scripts/cache-e2e-models.mjs
-PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e
+PAGEVOICE_TEST_BASE_URL=https://www.pagevoice.tech npm --prefix web run test:e2e
 ```
 
 This runs in isolated test browser profiles and does not modify other visitors'

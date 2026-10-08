@@ -1,16 +1,142 @@
 # PageVoice
 
-PageVoice is a reading and accessibility app for PDFs and EPUBs. Import a document,
-read it, listen to it with a neural voice that runs in your browser, and search it.
+PageVoice is an open-source web app for reading and listening to PDFs and EPUBs.
+It runs in the browser, keeps your documents on your device, and keeps working offline
+after you download a voice once.
 
-**Website:** <https://pagevoice.tech> · **App:** <https://pagevoice.tech/app/>
+| | |
+| --- | --- |
+| Website | <https://pagevoice.tech> (app at <https://pagevoice.tech/app/>) |
+| Status | Open beta |
+| Contact | [support@pagevoice.tech](mailto:support@pagevoice.tech) |
+| Source code | This repository, MIT licensed (see [License](#license)) |
 
 ![The PageVoice reader with a chapter open, the contents list on the left and the audio player on the right](web/public/screenshots/reader-desktop.jpg)
 
-PageVoice is a static progressive web app. There is no backend, account, API key or
-database: documents are parsed, narrated, searched and stored inside the browser.
+## What PageVoice is
 
-## Features
+PageVoice turns a PDF or EPUB into something you can read and listen to. You import a
+document, read it with sections, bookmarks and search, and play it with a local voice
+that reads the text aloud, sentence by sentence. The sentence being spoken is
+highlighted. The document, the reading position and the generated audio are stored in
+your browser on your device.
+
+## Who it is for
+
+- People who want to listen to long documents, or to read and listen at the same time.
+- Readers who do not want to upload a book or report to a cloud service to hear it.
+- Students and researchers who need to find a passage again, with its section
+  citation.
+- Developers and reviewers who want to see how a document reader can run entirely in
+  the browser.
+
+## The problem
+
+Long documents are tiring to read in one sitting, and listening is often the only
+option for people who find reading difficult. Many text-to-speech services need the
+whole document uploaded to a remote server. Many reading apps cannot read aloud at all.
+PageVoice tries to do both in one place, without sending the document anywhere.
+
+## What works today
+
+- Import EPUB files and PDFs with a text layer. Scanned PDFs need an optional
+  one-time OCR download.
+- Read with contents, bookmarks, search within the book, themes, text size and line
+  width, and focus mode.
+- Listen with downloaded local voices: Kokoro for English and Piper for Spanish.
+  Playback speed from 0.5× to 2×, a sleep timer, and the sentence being spoken is
+  highlighted.
+- Search the whole book by keyword. Each result shows its section and sentence.
+- Keep a library in the browser, with reading progress, and back it up or restore it
+  as a ZIP file.
+- Export prepared audio as MP3 files, with metadata and citations. Export as an M4B
+  audiobook is available but is best effort.
+- Work offline after the app and voices are downloaded.
+
+## Why local processing matters
+
+PageVoice does the work on your device:
+
+- Reading the file, detecting the language and sections, OCR, speech generation,
+  search and storage all run in your browser.
+- The website has no server that receives your documents, and no accounts.
+- The only network downloads are fixed model and runtime files. Each file is checked
+  against a pinned hash, and the page's content security policy blocks connections to
+  other servers. Requests for these files contain no document text.
+
+What this does not guarantee:
+
+- The website itself is served by a hosting provider, which can log standard request
+  details such as IP address and the pages requested. Document text never appears in
+  those requests.
+- If you choose your device's built-in speech, the operating system's speech service
+  reads the text, and some systems use online services for that. The app labels this
+  option where you choose it.
+- Browser storage can be cleared by the browser or by you. Export a backup to keep a
+  copy.
+
+## How it works
+
+1. **Import.** The browser reads the file in a background worker. It extracts the text,
+   the sections, the language and, for EPUBs, the cover.
+2. **Store.** The book is saved in the browser's IndexedDB. Generated audio is saved in
+   the origin private file system when the browser supports it.
+3. **Read and search.** The reader shows the text in sections. Search runs against an
+   index built on your device.
+4. **Listen.** After you download a voice once, a local speech model generates audio
+   for each sentence. The player plays it in order, and prepares the next sentences
+   ahead of you.
+5. **Keep or export.** Positions and bookmarks are saved as you go. You can export the
+   library or the audio.
+
+## Limitations
+
+- **Open beta.** Automated browser tests pass in Chromium, and most pass in Firefox. Safari (WebKit)
+  support is partial: offline reloads and some large downloads are not verified there.
+  See [static verification](docs/static-verification.md) for the detailed test record.
+- **Speed.** Speech generated on a slow processor can take longer than the audio
+  lasts. The app shows the measured speed while it prepares.
+- **Accuracy.** Language detection, OCR, dialogue attribution and section detection
+  can be wrong. The app shows these results so you can correct them.
+- **Languages.** Narration is available in English and Spanish only.
+- **Storage.** Books live in one browser on one device. There is no sync and no
+  sharing. Export a backup to move your library.
+- **No generated answers.** Search finds passages. PageVoice does not summarize or
+  answer questions yet.
+
+## Roadmap and Claude
+
+PageVoice does not use Claude or any other language model in the current product.
+There is no Claude API integration, no API key, and no model call in the code.
+
+Claude is the intended model for a planned analysis layer: source-grounded questions
+with citations, summaries of chapters and themes, connecting ideas across long books,
+explanations and study help, and better text preparation before narration. That layer
+would be optional and off by default. Any text sent to a model would be shown to you
+first. The local features would keep working without it. The full plan, including the
+privacy rules and the quality bar, is in [docs/roadmap.md](docs/roadmap.md).
+
+---
+
+## Technical documentation
+
+## Repository layout
+
+```
+web/                      The product: static site and reader application (React, Vite)
+  index.html              Public introduction page
+  app/index.html          The reader application
+  src/                    Application code (see Architecture)
+  e2e/                    Browser tests (Playwright)
+pagevoice/, rag/          Optional Python command-line and server tool ("power mode")
+tests/                    Tests for the Python package (run by CI)
+scripts/                  Setup and maintenance scripts for the Python package
+docs/                     Documentation, including the roadmap and verification records
+legacy/hosted-backend/    Archived Docker/PocketBase experiment. Not used by the website.
+vercel.json               Static hosting configuration for the website
+```
+
+## Feature reference
 
 **Reading**
 
@@ -33,7 +159,7 @@ database: documents are parsed, narrated, searched and stored inside the browser
   effort, as an M4B via single-threaded FFmpeg WASM
 - Device speech (`speechSynthesis`) is available as an explicit fallback
 
-**Understanding**
+**Search and structure**
 
 - Keyword search across the book with section citations, "Show in source" and
   "Listen from here"
@@ -66,6 +192,8 @@ Files up to 100 MB. Language (English or Spanish) is detected automatically and 
 corrected in **Voice & cast**. Other languages are not supported for narration.
 
 ## Architecture
+
+The reader is a static web application. There is no server-side processing.
 
 ```
 web/
@@ -133,7 +261,8 @@ is MIT licensed; third-party runtime and model licenses differ.
 
 ## Browser requirements
 
-A current Chrome, Edge, Firefox or Safari with WebAssembly, Web Workers, IndexedDB
+A current Chrome, Edge, Firefox or Safari (Safari support is partial; see
+[Limitations](#limitations)) with WebAssembly, Web Workers, IndexedDB
 and ES modules. OPFS is used when available. WebGPU is optional (Kokoro GPU only).
 Service workers, OPFS and WebGPU need HTTPS or `localhost`. Phones can run the voices,
 but memory and storage quotas vary and preparation can be slower than real time;
@@ -152,7 +281,7 @@ npm --prefix web run dev
 - App: <http://127.0.0.1:5173/app/>
 
 The web app needs **no environment variables**. `.env.example` documents only the
-optional Python power mode.
+optional Python power mode and the archived hosted backend.
 
 ## Production build
 
@@ -172,8 +301,16 @@ security headers (CSP, HSTS, `nosniff`, frame denial, permissions policy), long-
 caching for hashed assets, revalidation for HTML and the service worker, a rewrite
 for `/app/*`, and serves `404.html` for unknown paths. To use the custom domain, add
 `pagevoice.tech` in the Vercel project's domain settings and point DNS at Vercel; the
-canonical URLs, sitemap, robots file and social metadata already use
-`https://pagevoice.tech`. See [static deployment](docs/static-deployment.md).
+canonical URLs, sitemap, robots file and social metadata name `https://pagevoice.tech`.
+
+**Known issue.** At the time of writing, `pagevoice.tech` redirects to
+`https://www.pagevoice.tech`, so the canonical links point to an address that
+redirects. Choose one primary host in the Vercel domain settings, make the other
+redirect to it, and update the canonical links to match. See
+[static deployment](docs/static-deployment.md).
+
+The hosted backend that appears in older notes (Docker, PocketBase, Caddy) is archived
+in [`legacy/hosted-backend`](legacy/hosted-backend/README.md). The website does not use it.
 
 ## Testing
 
@@ -203,9 +340,10 @@ need correction. Highlighting follows sentences, not individual words.
 
 ## Optional Python power mode
 
-The `pagevoice/` and `rag/` packages are a separate, optional local CLI/API with
-FFmpeg, Tesseract and explicit-consent online Edge narration. The website never calls
-them.
+The `pagevoice/` and `rag/` packages are a separate, optional local command-line tool
+and API with FFmpeg, Tesseract and explicit-consent online Edge narration. The website
+never calls them. They have their own tests, which CI runs. They are not the hosted
+service and are not deployed with the website.
 
 ```sh
 bash scripts/setup.sh

@@ -1,9 +1,13 @@
 # Contributing
 
-PageVoice reads English and Spanish PDF/EPUB books. Local parsing, extraction,
-analysis and stored audio stay on this machine. Speech generation contacts
-Microsoft Edge only after a user explicitly enables network narration for that job.
-Do not weaken that consent check or add a cloud model to the default path.
+PageVoice reads English and Spanish PDF/EPUB books. The website (`web/`) runs entirely
+in the browser: parsing, analysis, search, speech and storage stay on the reader's
+device. The optional Python tool (`pagevoice/`, `rag/`) keeps its work local too. Its
+Microsoft Edge narration contacts an online service only after a user explicitly
+enables network narration for that job. Do not weaken that consent check, and do not
+add a cloud model or any external API call to the website's default path.
+Planned, opt-in language-model work is described in [docs/roadmap.md](docs/roadmap.md).
+Hosted-backend files are archived in `legacy/hosted-backend/`.
 
 ## Development
 

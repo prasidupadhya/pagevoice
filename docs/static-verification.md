@@ -22,7 +22,7 @@ npm 10.9.2, Chromium 153. These are desktop measurements, not phone measurements
 | `npm audit --prefix web --audit-level=low` | 0 vulnerabilities |
 | `node web/scripts/cache-e2e-models.mjs` | Downloaded/hash-verified real test model assets; explicit test setup only |
 | `npm --prefix web run test:e2e` | 6 browser tests passed; real inference, no speech mocks |
-| `PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e` | 6 passed on the public Vercel site on October 6; 219.5 seconds |
+| `PAGEVOICE_TEST_BASE_URL=https://pagevoice-sepia.vercel.app npm --prefix web run test:e2e` | 6 passed on the public site on October 6 (then at a Vercel preview address); 219.5 seconds |
 | `.venv/bin/python -m pytest -q` | 157 passed, one existing Starlette/httpx deprecation warning |
 | `npx --yes vercel@60.1.3 build --yes` | Passed; `.vercel/output` contains static files, no functions |
 
@@ -65,7 +65,7 @@ checks returned HTML and Piper WASM with HTTP 200, the intended CSP/content type
 and the WASM's expected SHA-256. The collaborative browser redirected to Vercel's
 preview-protection login, so this is a hosted-file/header check rather than a
 public browser flow. [Preview evidence](verification/static/vercel-preview.json).
-The preview was subsequently promoted to `https://pagevoice-sepia.vercel.app/`.
+The preview was subsequently promoted. That earlier Vercel address is historical; the current site is `https://www.pagevoice.tech/`.
 The full public browser suite above now verifies the production reader, cached
 service worker, OCR, speech, exports and removal, rather than just hosted files.
 
