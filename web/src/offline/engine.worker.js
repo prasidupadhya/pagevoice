@@ -1,6 +1,7 @@
 import { guardInferenceFetch } from "./assets";
 import { speechParts, concatenate, audioStats } from "./audio";
 import { assertEngine, VOICES } from "./engines";
+import { isWasmAbort } from "./wasm";
 guardInferenceFetch();
 let adapter,
   key,
@@ -79,6 +80,15 @@ async function synthesize({ id, options }) {
       [samples.buffer],
     );
   } catch (error) {
+    if (isWasmAbort(error)) {
+      // The WebAssembly instance is dead. Discard it so the next sentence
+      // starts a fresh engine instead of failing with the same abort.
+      await adapter?.dispose?.().catch(() => {});
+      adapter = undefined;
+      key = undefined;
+      self.postMessage({ id, error: "engineFailed" });
+      return;
+    }
     self.postMessage({ id, error: error.message || "engineFailed" });
   }
 }

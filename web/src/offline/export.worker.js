@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { decodeWav } from "./audio";
+import { isWasmAbort } from "./wasm";
 self.onmessage = async ({ data: { book, chapters, format } }) => {
   try {
     const { Mp3Encoder } = await import("@breezystack/lamejs");
@@ -127,6 +128,14 @@ self.onmessage = async ({ data: { book, chapters, format } }) => {
       extension: "zip",
     });
   } catch (error) {
-    self.postMessage({ type: "error", message: error.message });
+    const aborted = isWasmAbort(error);
+    self.postMessage({
+      type: "error",
+      message: aborted
+        ? format === "m4b"
+          ? "m4bFailed"
+          : "engineFailed"
+        : error.message,
+    });
   }
 };
