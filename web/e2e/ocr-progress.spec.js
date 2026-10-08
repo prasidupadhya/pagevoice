@@ -11,7 +11,7 @@ test("scanned PDF OCR runs locally and after language data is cached offline", a
       console.log(m.type(), m.text());
   });
   await cachedCDN(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.locator(".empty-room")).toBeVisible();
   await upload(page, fixture("scanned-reader.pdf"));
   await expect(page.locator(".error-banner")).toContainText("Download");
@@ -46,7 +46,7 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
   page,
 }) => {
   await cachedCDN(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(page.locator(".empty-room")).toBeVisible();
   const z = new JSZip();
   z.file("mimetype", "application/epub+zip");
@@ -82,7 +82,7 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
   await install(page, "piper");
   await page
     .locator(".chapter-drawer")
-    .getByRole("button", { name: /03 Capítulo 3/ })
+    .getByRole("button", { name: /^3 Capítulo 3/ })
     .click();
   await page
     .locator(".sentence")

@@ -66,7 +66,9 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 it("starts without a backend, makes no API probe and never presents a connection banner", async () => {
   render(<App />);
-  await screen.findByRole("heading", { name: "Make room for a good book." });
+  await screen.findByRole("heading", {
+    name: "Add a PDF or EPUB to start reading.",
+  });
   expect(fetch).not.toHaveBeenCalled();
   expect(
     screen.queryByText(/could not reach|PageVoice API|PocketBase/i),
@@ -74,7 +76,9 @@ it("starts without a backend, makes no API probe and never presents a connection
 });
 it("shows explicit local model sizes and privacy notice instead of online voices", async () => {
   render(<App />);
-  await screen.findByRole("heading", { name: "Make room for a good book." });
+  await screen.findByRole("heading", {
+    name: "Add a PDF or EPUB to start reading.",
+  });
   await userEvent.click(
     screen.getByRole("button", { name: "Offline tools", exact: true }),
   );
@@ -85,7 +89,9 @@ it("shows explicit local model sizes and privacy notice instead of online voices
 });
 it("session-only import disappears in a fresh app instance, with keyboard-accessible confirmation", async () => {
   const first = render(<App />);
-  await screen.findByRole("heading", { name: "Make room for a good book." });
+  await screen.findByRole("heading", {
+    name: "Add a PDF or EPUB to start reading.",
+  });
   await userEvent.click(screen.getByRole("button", { name: "Add a book" }));
   const checkbox = screen.getByRole("checkbox");
   await userEvent.click(checkbox);
@@ -103,7 +109,45 @@ it("session-only import disappears in a fresh app instance, with keyboard-access
   render(<App />);
   await waitFor(() =>
     expect(
-      screen.getByRole("heading", { name: "Make room for a good book." }),
+      screen.getByRole("heading", {
+        name: "Add a PDF or EPUB to start reading.",
+      }),
     ).toBeTruthy(),
   );
+});
+it("announces an import, opens it, and finds text inside the reader", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  render(<App />);
+  await screen.findByRole("heading", {
+    name: "Add a PDF or EPUB to start reading.",
+  });
+  fireEvent.change(screen.getByLabelText("Choose a file"), {
+    target: { files: [new File(["book"], "book.epub")] },
+  });
+  await screen.findByText("Added “A quiet book”.");
+  expect(screen.getByText("Not started")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Open" }));
+  await screen.findByRole("tab", { name: "Read", selected: true });
+  await userEvent.click(screen.getByRole("button", { name: "Find in book" }));
+  await userEvent.type(
+    screen.getByPlaceholderText("Find in this book"),
+    "quiet",
+  );
+  await screen.findByText("1 of 1");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Back to library" }),
+  );
+  await screen.findByRole("heading", { name: "Continue reading" });
 });

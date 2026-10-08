@@ -179,3 +179,22 @@ it("purging a book wins over an in-flight render result", async () => {
   await a.purge(b.id);
   expect((await store()).list()).toHaveLength(0);
 });
+
+it("keeps a book for the session when the browser cannot store its files", async () => {
+  const a = await store();
+  vi.spyOn(a, "write").mockRejectedValueOnce(new Error("storageError"));
+  const b = await a.add({ ...book(), sourceFile: new Blob(["x"]) });
+  expect(b.keep).toBe(false);
+  expect(b.storageFallback).toBe(true);
+  expect(a.list()).toHaveLength(1);
+  const fresh = await store();
+  expect(fresh.list()).toEqual([]);
+});
+
+it("still reports a full disk instead of silently keeping the book", async () => {
+  const a = await store();
+  const full = Object.assign(new Error("full"), { name: "QuotaExceededError" });
+  vi.spyOn(a, "write").mockRejectedValueOnce(full);
+  await expect(a.add(book())).rejects.toThrow("full");
+  expect(a.list()).toEqual([]);
+});

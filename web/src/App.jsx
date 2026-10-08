@@ -1,19 +1,18 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
-  Sun,
-  Moon,
-  Languages,
   Download,
   Upload,
   Trash2,
   HardDrive,
-  Wifi,
   WifiOff,
   ShieldCheck,
   Plus,
   X,
   Check,
+  AlertCircle,
+  FileUp,
+  LoaderCircle,
 } from "lucide-react";
 import en from "./locales/en";
 import es from "./locales/es";
@@ -21,13 +20,31 @@ import { useReader } from "./offline/useReader";
 import { bytes, downloadBlob } from "./offline/format";
 import Shelf from "./ui/Shelf";
 import Modal from "./ui/Modal";
+import DisplayMenu from "./ui/DisplayMenu";
+import { TEXT_SIZES, THEMES, WIDTHS } from "./ui/prefs";
 const Reader = lazy(() => import("./ui/Reader"));
 const ModelDialog = lazy(() => import("./ui/ModelDialog"));
+const THEME_COLORS = { dark: "#151f25", light: "#faf8f3", sepia: "#eee5d4" };
+const DEFAULT_PREFS = {
+  theme: null,
+  locale: "en",
+  textSize: 20,
+  width: "medium",
+  rate: 1,
+};
+const validPref = {
+  theme: (v) => THEMES.includes(v),
+  locale: (v) => ["en", "es"].includes(v),
+  textSize: (v) => TEXT_SIZES.includes(v),
+  width: (v) => WIDTHS.includes(v),
+  rate: (v) => typeof v === "number" && v >= 0.5 && v <= 2,
+};
+
 export default function App() {
   const api = useReader();
-  const [locale, setLocale] = useState("en"),
-    [theme, setTheme] = useState("sepia"),
+  const [prefs, setPrefs] = useState(DEFAULT_PREFS),
     [selected, setSelected] = useState(null),
+    [focus, setFocus] = useState(false),
     [tools, setTools] = useState(false),
     [credits, setCredits] = useState(false),
     [deleteBook, setDeleteBook] = useState(null),
@@ -48,44 +65,46 @@ export default function App() {
   const t = (key, params = {}) =>
     Object.entries(params).reduce(
       (s, [k, v]) => s.replaceAll(`{${k}}`, String(v)),
-      (locale === "es" ? es : en)[key] || key,
+      (prefs.locale === "es" ? es : en)[key] || key,
     );
-  const notify = (message) => {
+  const notify = (message, action = null) => {
     clearTimeout(toastTimer.current);
-    setToast(message);
-    toastTimer.current = setTimeout(() => setToast(null), 5000);
+    setToast({ message, action });
+    toastTimer.current = setTimeout(() => setToast(null), action ? 8000 : 5000);
+  };
+  const setPref = (key, value) => {
+    setPrefs((p) => ({ ...p, [key]: value }));
+    if (!api.loading)
+      api.refs.current.store.preference(key, value).catch(() => {});
   };
   const book = api.books.find((b) => b.id === selected);
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.lang = locale;
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute(
-        "content",
-        theme === "dark"
-          ? "#151f25"
-          : theme === "light"
-            ? "#faf8f3"
-            : "#eee5d4",
-      );
-    if (!api.loading) {
-      api.refs.current.store.preference("theme", theme);
-      api.refs.current.store.preference("locale", locale);
-    }
-  }, [theme, locale]);
+    const root = document.documentElement;
+    if (prefs.theme) root.dataset.theme = prefs.theme;
+    root.lang = prefs.locale;
+    // Once a theme is chosen it overrides both system-scheme theme colours.
+    if (prefs.theme)
+      for (const meta of document.querySelectorAll('meta[name="theme-color"]'))
+        meta.setAttribute("content", THEME_COLORS[prefs.theme]);
+  }, [prefs.theme, prefs.locale]);
   useEffect(() => {
     if (api.loading) return;
+    const store = api.refs.current.store;
     Promise.all(
-      ["theme", "locale"].map((k) => api.refs.current.store.preference(k)),
-    ).then(([th, lang]) => {
-      setTheme(
-        th ||
-          (matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "sepia"),
-      );
-      setLocale(lang || (navigator.language.startsWith("es") ? "es" : "en"));
+      Object.keys(DEFAULT_PREFS).map(async (k) => [
+        k,
+        await store.preference(k).catch(() => undefined),
+      ]),
+    ).then((saved) => {
+      const next = { ...DEFAULT_PREFS };
+      for (const [k, v] of saved) if (validPref[k](v)) next[k] = v;
+      next.theme ||= matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "sepia";
+      if (!validPref.locale(saved.find(([k]) => k === "locale")[1]))
+        next.locale = navigator.language.startsWith("es") ? "es" : "en";
+      api.refs.current.player.setRate(next.rate);
+      setPrefs(next);
     });
   }, [api.loading]);
   useEffect(() => {
@@ -124,6 +143,9 @@ export default function App() {
     const timer = setTimeout(() => setUndo(null), 8000);
     return () => clearTimeout(timer);
   }, [undo]);
+  useEffect(() => {
+    if (!book) setFocus(false);
+  }, [book]);
   const perform = async (fn) => {
     try {
       await fn();
@@ -133,9 +155,25 @@ export default function App() {
       );
     }
   };
-  const addFiles = (files) => {
+  const openBook = (id) => {
+    setSelected(id);
+    api.setError(null);
+    api.update(id, { lastOpened: Date.now() }).catch(() => {});
+  };
+  const addFiles = async (files) => {
     setUploadOpen(false);
-    api.upload(Array.from(files), keep);
+    const added = await api.upload(Array.from(files), keep);
+    if (added.some((b) => b.storageFallback))
+      notify(t("savedForSession"), {
+        label: t("openNow"),
+        run: () => openBook(added[0].id),
+      });
+    else if (added.length === 1)
+      notify(t("added", { title: added[0].title }), {
+        label: t("openNow"),
+        run: () => openBook(added[0].id),
+      });
+    else if (added.length > 1) notify(t("addedMany", { n: added.length }));
   };
   const askDelete = (b) => {
     setDeleteBook(b);
@@ -146,9 +184,20 @@ export default function App() {
       (deleteBook.coverBlob?.size || 0) +
       Object.values(deleteBook.prepared).reduce((n, a) => n + a.bytes, 0)
     : 0;
+  const progress = api.progress;
+  const progressText = !progress
+    ? ""
+    : progress.stage === "ocr" && progress.total > 1
+      ? t("ocrPage", progress)
+      : progress.stage === "reading" &&
+          progress.total > 1 &&
+          /\.pdf$/iu.test(progress.name)
+        ? t("readingPage", progress)
+        : t(progress.stage);
+  const knownError = api.error && en[api.error];
   return (
     <div
-      className={`app-shell ${book ? "has-reader" : ""}`}
+      className={`app-shell ${book ? "has-reader" : ""} ${focus ? "is-focus" : ""}`}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {
           e.preventDefault();
@@ -161,70 +210,46 @@ export default function App() {
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        if (!api.progress) addFiles(e.dataTransfer.files);
+        if (!api.progress && e.dataTransfer.files.length)
+          addFiles(e.dataTransfer.files);
       }}
     >
       <a className="skip-link" href="#main-content">
-        {t("read")}
+        {t("skipToContent")}
       </a>
       <header className="masthead">
-        <button className="brand" onClick={() => setSelected(null)}>
-          <span className="brand-symbol">
-            <BookOpen size={24} strokeWidth={1.5} />
-          </span>
-          <span>
-            PageVoice<small>{t("tagline")}</small>
-          </span>
+        <button
+          className="brand"
+          onClick={() => setSelected(null)}
+          aria-label={`PageVoice · ${t("library")}`}
+        >
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span>PageVoice</span>
         </button>
-        <nav aria-label={t("help")}>
-          <span
-            className={`connection ${online ? "" : "is-offline"}`}
-            title={t(online ? "online" : "offline")}
-          >
-            {online ? <Wifi size={14} /> : <WifiOff size={14} />}
-            <span>{t(online ? "online" : "offline")}</span>
-          </span>
+        <nav className="masthead-actions" aria-label={t("appMenu")}>
+          {!online && (
+            <span className="offline-pill" role="status">
+              <WifiOff size={14} aria-hidden="true" />
+              {t("offline")}
+            </span>
+          )}
           <button
-            className="tools-button"
-            aria-label={t("models")}
+            className="ghost header-button"
             onClick={() => setTools(true)}
             disabled={api.loading}
+            aria-label={t("models")}
           >
-            <Download size={17} />
-            <span>{t("models")}</span>
+            <Download size={18} aria-hidden="true" />
+            <span className="header-label">{t("models")}</span>
           </button>
+          <DisplayMenu prefs={prefs} setPref={setPref} t={t} />
           <button
-            className="icon-button"
-            aria-label={`${t("interface")} · ${locale.toUpperCase()}`}
-            title={t("interface")}
-            onClick={() => setLocale(locale === "en" ? "es" : "en")}
-          >
-            <Languages size={18} />
-            <small>{locale.toUpperCase()}</small>
-          </button>
-          <button
-            className="icon-button"
-            aria-label={`${t("theme")} · ${t(theme)}`}
-            title={t("theme")}
-            onClick={() =>
-              setTheme(
-                theme === "light"
-                  ? "sepia"
-                  : theme === "sepia"
-                    ? "dark"
-                    : "light",
-              )
-            }
-          >
-            {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
-          <button
-            className="icon-button credits-button"
+            className="ghost header-button"
             onClick={() => setCredits(true)}
-            aria-label={t("credits")}
-            title={t("credits")}
+            aria-label={t("privacyCredits")}
           >
-            <ShieldCheck size={19} />
+            <ShieldCheck size={18} aria-hidden="true" />
+            <span className="header-label wide-only">{t("privacyShort")}</span>
           </button>
         </nav>
       </header>
@@ -232,8 +257,9 @@ export default function App() {
         className="sr-only"
         ref={picker}
         type="file"
-        accept=".pdf,.epub"
+        accept=".pdf,.epub,application/pdf,application/epub+zip"
         multiple
+        tabIndex={-1}
         onChange={(e) => {
           addFiles(e.target.files);
           e.target.value = "";
@@ -245,22 +271,31 @@ export default function App() {
         ref={backupPicker}
         type="file"
         accept=".zip"
+        tabIndex={-1}
         onChange={(e) =>
           perform(async () => {
-            await api.refs.current.store.importBackup(e.target.files[0]);
+            const file = e.target.files[0];
+            e.target.value = "";
+            if (!file) return;
+            await api.refs.current.store.importBackup(file);
             api.sync();
             notify(t("imported"));
-            e.target.value = "";
           })
         }
         aria-label={t("importBackup")}
       />
       {api.error && (
-        <div className="error-banner" role="alert">
-          <div>
+        <div className="banner error-banner" role="alert">
+          <AlertCircle size={20} aria-hidden="true" />
+          <div className="banner-body">
             <strong>{t("errorTitle")}</strong>
-            <p>{t(api.error)}</p>
-            {!en[api.error] && (
+            <p>
+              {api.errorFile && (
+                <span className="error-file">{api.errorFile}: </span>
+              )}
+              {knownError ? t(api.error) : t("unexpectedError")}
+            </p>
+            {!knownError && (
               <details>
                 <summary>{t("details")}</summary>
                 <code>{api.error}</code>
@@ -270,17 +305,23 @@ export default function App() {
           <div className="button-row">
             {["modelNotCached", "ocrRequired", "scannedPdf"].includes(
               api.error,
-            ) && <button onClick={() => setTools(true)}>{t("models")}</button>}
+            ) && (
+              <button className="small" onClick={() => setTools(true)}>
+                {t("models")}
+              </button>
+            )}
             {[
               "ocrRequired",
               "scannedPdf",
               "processingError",
               "downloadFailed",
             ].includes(api.error) && (
-              <button onClick={api.retryUpload}>{t("retry")}</button>
+              <button className="small" onClick={api.retryUpload}>
+                {t("retry")}
+              </button>
             )}
             <button
-              className="icon-button"
+              className="icon-button small"
               aria-label={t("dismiss")}
               onClick={() => api.setError(null)}
             >
@@ -289,36 +330,49 @@ export default function App() {
           </div>
         </div>
       )}
-      {api.progress && (
-        <section className="import-progress" aria-live="polite">
-          <div>
-            <strong>{api.progress.name}</strong>
-            <p>
-              {t(api.progress.stage)} · {api.progress.current} /{" "}
-              {api.progress.total}
-            </p>
-            {api.progress.large && <small>{t("largeFile")}</small>}
+      {progress && (
+        <section
+          className="banner import-progress"
+          aria-label={t("importing", { name: progress.name })}
+        >
+          <LoaderCircle className="spin" size={20} aria-hidden="true" />
+          <div className="banner-body">
+            <strong>
+              {t("importing", { name: progress.name })}
+              {progress.queue && (
+                <span className="muted">
+                  {" "}
+                  · {t("importingQueue", progress.queue)}
+                </span>
+              )}
+            </strong>
+            <p aria-live="polite">{progressText}</p>
+            <progress
+              value={progress.current + (progress.fraction || 0)}
+              max={progress.total}
+              aria-label={progressText}
+            />
+            <small className="muted">
+              {progress.large ? t("largeFile") : t("importLocal")}
+            </small>
           </div>
-          <progress
-            value={api.progress.current + (api.progress.fraction || 0)}
-            max={api.progress.total}
-            aria-label={t(api.progress.stage)}
-          />
-          <button onClick={api.cancelUpload}>{t("cancel")}</button>
+          <button className="small" onClick={api.cancelUpload}>
+            {t("cancel")}
+          </button>
         </section>
       )}
       <div id="main-content" tabIndex={-1}>
         {api.loading ? (
-          <div className="shelf-skeleton" aria-busy="true">
-            <span />
-            <span />
-            <span />
+          <div className="page-loading" aria-busy="true">
+            <LoaderCircle className="spin" size={22} aria-hidden="true" />
+            <span>{t("loadingLibrary")}</span>
           </div>
         ) : book ? (
           <Suspense
             fallback={
-              <div className="shelf-skeleton" aria-busy="true">
-                <span />
+              <div className="page-loading" aria-busy="true">
+                <LoaderCircle className="spin" size={22} aria-hidden="true" />
+                <span>{t("openingBook")}</span>
               </div>
             }
           >
@@ -327,6 +381,11 @@ export default function App() {
               book={book}
               api={api}
               t={t}
+              prefs={prefs}
+              setPref={setPref}
+              focus={focus}
+              setFocus={setFocus}
+              toolsOpen={tools}
               onBack={() => setSelected(null)}
               onDelete={askDelete}
               onModels={() => setTools(true)}
@@ -339,24 +398,22 @@ export default function App() {
               books={api.books}
               store={api.refs.current.store}
               t={t}
-              onOpen={setSelected}
+              locale={prefs.locale}
+              busy={!!progress}
+              onOpen={openBook}
               onDelete={askDelete}
               onAdd={() => setUploadOpen(true)}
             />
             <footer className="library-footer">
-              <div className="privacy-note">
-                <ShieldCheck size={17} />
-                <span>{t("privacy")}</span>
-              </div>
               <div className="storage-line">
                 <span>
-                  <HardDrive size={15} />
+                  <HardDrive size={16} aria-hidden="true" />
                   {t("storageUsed", {
                     used: bytes(storage.usage),
                     quota: bytes(storage.quota),
                   })}
                 </span>
-                <div className="storage-track">
+                <div className="storage-track" aria-hidden="true">
                   <span
                     style={{
                       width: `${Math.min(100, ((storage.usage || 0) / Math.max(1, storage.quota)) * 100)}%`,
@@ -366,6 +423,7 @@ export default function App() {
               </div>
               <div className="footer-actions">
                 <button
+                  className="ghost small"
                   onClick={() =>
                     perform(async () => {
                       downloadBlob(
@@ -377,64 +435,66 @@ export default function App() {
                   }
                   disabled={!api.books.length}
                 >
-                  <Download size={15} />
+                  <Download size={16} aria-hidden="true" />
                   {t("backup")}
                 </button>
-                <button onClick={() => backupPicker.current.click()}>
-                  <Upload size={15} />
+                <button
+                  className="ghost small"
+                  onClick={() => backupPicker.current.click()}
+                >
+                  <Upload size={16} aria-hidden="true" />
                   {t("importBackup")}
                 </button>
                 <button
+                  className="ghost small"
                   onClick={() => setClear(true)}
                   disabled={!api.books.length}
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={16} aria-hidden="true" />
                   {t("clear")}
                 </button>
                 {installPrompt && (
                   <button
+                    className="ghost small"
                     onClick={async () => {
                       await installPrompt.prompt();
                       setInstallPrompt(null);
                     }}
                   >
-                    <Plus size={15} />
+                    <Plus size={16} aria-hidden="true" />
                     {t("install")}
                   </button>
                 )}
-                <button
-                  className="text-button"
-                  onClick={() => setCredits(true)}
-                >
-                  {t("credits")}
-                </button>
               </div>
-              <small className="muted">
-                {t("storageNote")}{" "}
-                <button
-                  className="text-button"
-                  onClick={() =>
-                    perform(async () =>
-                      notify(
-                        t(
-                          (await navigator.storage?.persist?.())
-                            ? "protected"
-                            : "notProtected",
+              <p className="fine-print">
+                <ShieldCheck size={16} aria-hidden="true" />
+                <span>
+                  {t("privacy")} {t("storageNote")}{" "}
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      perform(async () =>
+                        notify(
+                          t(
+                            (await navigator.storage?.persist?.())
+                              ? "protected"
+                              : "notProtected",
+                          ),
                         ),
-                      ),
-                    )
-                  }
-                >
-                  {t("requestPersistent")}
-                </button>
-              </small>
+                      )
+                    }
+                  >
+                    {t("requestPersistent")}
+                  </button>
+                </span>
+              </p>
             </footer>
           </main>
         )}
       </div>
       {dragging && (
-        <div className="drop-overlay">
-          <BookOpen size={40} />
+        <div className="drop-overlay" aria-hidden="true">
+          <FileUp size={40} />
           <h2>{t("drop")}</h2>
           <p>{t("formats")}</p>
         </div>
@@ -442,9 +502,10 @@ export default function App() {
       {(toast || undo || updateApp) && (
         <div className="toast-stack" aria-live="polite">
           {undo && (
-            <div className="toast undo-toast">
+            <div className="toast">
               <span>{t("removed")}</span>
               <button
+                className="small"
                 onClick={() =>
                   perform(async () => {
                     await api.undo(undo);
@@ -458,21 +519,34 @@ export default function App() {
           )}
           {toast && (
             <div className="toast">
-              <Check size={16} />
-              <span>{toast}</span>
+              <Check size={16} aria-hidden="true" />
+              <span>{toast.message}</span>
+              {toast.action && (
+                <button
+                  className="small primary"
+                  onClick={() => {
+                    toast.action.run();
+                    setToast(null);
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              )}
               <button
-                className="icon-button"
+                className="icon-button small"
                 aria-label={t("dismiss")}
                 onClick={() => setToast(null)}
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
           )}
           {updateApp && (
             <div className="toast">
               <span>{t("update")}</span>
-              <button onClick={updateApp}>{t("reload")}</button>
+              <button className="small primary" onClick={updateApp}>
+                {t("reload")}
+              </button>
             </div>
           )}
         </div>
@@ -487,9 +561,9 @@ export default function App() {
             className="upload-well"
             onClick={() => picker.current.click()}
           >
-            <BookOpen size={32} />
-            <strong>{t("drop")}</strong>
-            <span>{t("choose")}</span>
+            <FileUp size={32} aria-hidden="true" />
+            <strong>{t("choose")}</strong>
+            <span>{t("dropHint")}</span>
             <small>{t("formats")}</small>
           </button>
           <label className="keep-choice">
@@ -514,6 +588,7 @@ export default function App() {
           <ModelDialog
             t={t}
             assets={api.refs.current.assets}
+            online={online}
             onClose={() => setTools(false)}
             onError={api.setError}
           />
@@ -521,12 +596,16 @@ export default function App() {
       )}
       {credits && (
         <Modal
-          title={t("creditsTitle")}
+          title={t("privacyCredits")}
           closeLabel={t("close")}
           onClose={() => setCredits(false)}
           className="credits-modal"
         >
-          <p>{t("creditsIntro")}</p>
+          <h3>{t("privacyStoredTitle")}</h3>
+          <p>{t("privacyStored")}</p>
+          <h3>{t("privacyNetworkTitle")}</h3>
+          <p>{t("privacyNetwork")}</p>
+          <p className="muted">{t("privacyDevice")}</p>
           <h3>{t("modelLicense")}</h3>
           <p className="muted">{t("creditsNames")}</p>
           <a
@@ -535,10 +614,19 @@ export default function App() {
             target="_blank"
             rel="noreferrer"
           >
-            {t("licenses")} <BookOpen size={16} />
+            {t("licenses")}
           </a>
           <h3>{t("limits")}</h3>
           <p>{t("limitsBody")}</p>
+          <p className="muted">
+            <a
+              href="https://github.com/prasidupadhya/pagevoice"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t("sourceCode")}
+            </a>
+          </p>
         </Modal>
       )}
       {deleteBook && (
@@ -564,7 +652,8 @@ export default function App() {
               />
             </label>
           )}
-          <div className="button-row">
+          <div className="button-row modal-actions">
+            <button onClick={() => setDeleteBook(null)}>{t("cancel")}</button>
             <button
               className="danger"
               disabled={
@@ -583,7 +672,6 @@ export default function App() {
             >
               {t("removeConfirm")}
             </button>
-            <button onClick={() => setDeleteBook(null)}>{t("cancel")}</button>
           </div>
         </Modal>
       )}
@@ -594,7 +682,8 @@ export default function App() {
           onClose={() => setClear(false)}
         >
           <p>{t("clearBody")}</p>
-          <div className="button-row">
+          <div className="button-row modal-actions">
+            <button onClick={() => setClear(false)}>{t("cancel")}</button>
             <button
               className="danger"
               onClick={() =>
@@ -611,7 +700,6 @@ export default function App() {
             >
               {t("clear")}
             </button>
-            <button onClick={() => setClear(false)}>{t("cancel")}</button>
           </div>
         </Modal>
       )}

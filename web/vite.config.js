@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
@@ -32,14 +33,17 @@ export default defineConfig(({ command }) => ({
       injectRegister: false,
       includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png"],
       manifest: {
-        name: "PageVoice · A private reading room",
+        id: "/",
+        name: "PageVoice",
         short_name: "PageVoice",
         description:
-          "Read and narrate English and Spanish books on your device.",
+          "Read, listen to and search PDFs and EPUBs in your browser.",
+        lang: "en",
+        categories: ["books", "education", "productivity"],
         theme_color: "#eee5d4",
         background_color: "#eee5d4",
         display: "standalone",
-        start_url: "/",
+        start_url: "/app/",
         scope: "/",
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -52,11 +56,14 @@ export default defineConfig(({ command }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,mjs,css,html,svg,woff2,json,png,webmanifest,txt}"],
+        globPatterns: [
+          "**/*.{js,mjs,css,html,svg,woff2,json,png,jpg,webmanifest,txt,xml}",
+        ],
         globIgnores: ["runtime/**"],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        navigateFallback: "index.html",
-        navigateFallbackDenylist: [/^\/runtime\//, /^\/language-data\//],
+        // The reader is a single page under /app/; "/" is the static introduction.
+        navigateFallback: "/app/index.html",
+        navigateFallbackAllowlist: [/^\/app(?:\/|$)/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
@@ -89,7 +96,16 @@ export default defineConfig(({ command }) => ({
       : []),
   ],
   worker: { format: "es" },
-  build: { chunkSizeWarningLimit: 1500 },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      input: {
+        home: fileURLToPath(new URL("index.html", import.meta.url)),
+        app: fileURLToPath(new URL("app/index.html", import.meta.url)),
+        notFound: fileURLToPath(new URL("404.html", import.meta.url)),
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test-setup.js"],

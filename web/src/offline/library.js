@@ -1,4 +1,5 @@
-import JSZip from "jszip";
+// JSZip is only needed for backups, so it stays out of the startup bundle.
+const loadZip = async () => (await import("jszip")).default;
 
 const request = (value) =>
   new Promise((resolve, reject) => {
@@ -160,7 +161,17 @@ export class LibraryStore {
       },
     };
     if (this.books.has(value.id)) throw new Error("duplicateBook");
-    if (keep) await this.write("books", value);
+    if (keep)
+      try {
+        await this.write("books", value);
+      } catch (error) {
+        // Some browsers (e.g. WebKit private sessions) refuse to store files in
+        // IndexedDB. Keep the book for this session instead of failing the import;
+        // a full disk is still reported.
+        if (error?.name === "QuotaExceededError") throw error;
+        value.keep = false;
+        value.storageFallback = true;
+      }
     this.books.set(value.id, value);
     this.channel?.postMessage(value.id);
     return value;
@@ -409,6 +420,7 @@ export class LibraryStore {
     for (const timer of this.deletions.values()) clearTimeout(timer);
   }
   async backup(onProgress = () => {}) {
+    const JSZip = await loadZip();
     const zip = new JSZip();
     const books = [];
     for (const [index, book] of this.list().entries()) {
@@ -429,6 +441,7 @@ export class LibraryStore {
   }
   async importBackup(file) {
     if (file.size > 512 * 1024 * 1024) throw new Error("backupLimit");
+    const JSZip = await loadZip();
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const entries = Object.values(zip.files);
     if (

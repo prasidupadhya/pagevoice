@@ -15,6 +15,7 @@ export function useReader() {
   const [books, setBooks] = useState([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(null),
+    [errorFile, setErrorFile] = useState(null),
     [progress, setProgress] = useState(null),
     [preparation, setPreparation] = useState({ status: "idle" }),
     [playback, setPlayback] = useState({ status: "idle" }),
@@ -23,6 +24,11 @@ export function useReader() {
     lastFile = useRef(null),
     previewURL = useRef(null);
   const sync = () => setBooks(refs.current.store.list());
+  // Errors not tied to an imported file clear the file name shown with them.
+  const showError = (value) => {
+    setError(value);
+    setErrorFile(null);
+  };
   useEffect(() => {
     const store = new LibraryStore({
         onChange: (id, book) => {
@@ -60,7 +66,7 @@ export function useReader() {
               position: { chapter: state.chapter, sentence: state.sentence },
             })
             .then(sync)
-            .catch((e) => setError(e.message));
+            .catch((e) => showError(e.message));
       },
     });
     const queue = new RenderQueue({
@@ -71,7 +77,7 @@ export function useReader() {
         if (!active) return;
         setPreparation(state);
         sync();
-        player.notifyReady().catch((e) => setError(e.message));
+        player.notifyReady().catch((e) => showError(e.message));
       },
     });
     refs.current = { store, assets, engine, player, speech, queue };
@@ -85,7 +91,7 @@ export function useReader() {
       })
       .catch((e) => {
         if (active) {
-          setError(e.message);
+          showError(e.message);
           setLoading(false);
         }
       });
@@ -133,72 +139,90 @@ export function useReader() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [books]);
   async function upload(files, keep) {
-    setError(null);
+    showError(null);
     let cancelled = false;
+    const added = [],
+      failed = [];
     refs.current.cancelParse = () => {
       cancelled = true;
       refs.current.parser?.terminate();
       refs.current.rejectParse?.(Error("cancelled"));
     };
     try {
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
         if (cancelled) break;
-        lastFile.current = { file, keep };
         setProgress({
           stage: "reading",
           current: 0,
           total: 1,
           name: file.name,
           large: file.size > 50 * 1024 * 1024,
+          queue:
+            files.length > 1 ? { index: index + 1, total: files.length } : null,
         });
-        const ocr = (await refs.current.assets.status("ocr")).ready;
-        const parsed = await new Promise((resolve, reject) => {
-          const worker = new Worker(
-            new URL("../browser/reader.worker.js", import.meta.url),
-            { type: "module" },
-          );
-          refs.current.parser = worker;
-          refs.current.rejectParse = reject;
-          worker.onmessage = ({ data }) => {
-            if (data.type === "progress")
-              setProgress((p) => ({ ...p, ...data.value }));
-            else if (["complete", "error"].includes(data.type)) {
-              worker.terminate();
-              if (data.type === "complete") resolve(data.book);
-              else {
-                if (data.message)
-                  console.warn("Book processing failed:", data.message);
-                reject(Error(data.code || data.message || "processingError"));
+        // One unreadable file must not stop the rest of a multi-file import.
+        try {
+          const ocr = (await refs.current.assets.status("ocr")).ready;
+          const parsed = await new Promise((resolve, reject) => {
+            const worker = new Worker(
+              new URL("../browser/reader.worker.js", import.meta.url),
+              { type: "module" },
+            );
+            refs.current.parser = worker;
+            refs.current.rejectParse = reject;
+            worker.onmessage = ({ data }) => {
+              if (data.type === "progress")
+                setProgress((p) => ({ ...p, ...data.value }));
+              else if (["complete", "error"].includes(data.type)) {
+                worker.terminate();
+                if (data.type === "complete") resolve(data.book);
+                else {
+                  if (data.message)
+                    console.warn("Book processing failed:", data.message);
+                  reject(Error(data.code || "processingError"));
+                }
               }
-            }
+            };
+            worker.onerror = () => {
+              worker.terminate();
+              reject(Error("processingError"));
+            };
+            worker.postMessage({ file, language: "auto", options: { ocr } });
+          });
+          if (cancelled) break;
+          const book = {
+            ...parsed,
+            coverBlob: parsed.cover,
+            sourceFile: file,
+            filename: file.name,
+            characters: detectCharacters(parsed),
           };
-          worker.onerror = () => {
-            worker.terminate();
-            reject(Error("processingError"));
-          };
-          worker.postMessage({ file, language: "auto", options: { ocr } });
-        });
-        if (cancelled) break;
-        const book = {
-          ...parsed,
-          coverBlob: parsed.cover,
-          sourceFile: file,
-          filename: file.name,
-          characters: detectCharacters(parsed),
-        };
-        delete book.cover;
-        await refs.current.store.add(book, keep);
-        sync();
-        lastFile.current = null;
+          delete book.cover;
+          added.push(await refs.current.store.add(book, keep));
+          sync();
+        } catch (e) {
+          if (e.message === "cancelled") break;
+          if (e.name === "QuotaExceededError") {
+            // A full disk affects every remaining file as well.
+            failed.push({ file, code: "quotaExceeded" });
+            break;
+          }
+          failed.push({ file, code: e.message });
+        }
       }
-    } catch (e) {
-      if (e.message !== "cancelled")
-        setError(e.name === "QuotaExceededError" ? "quotaExceeded" : e.message);
     } finally {
       setProgress(null);
       refs.current.parser = null;
       refs.current.cancelParse = null;
     }
+    lastFile.current = failed.length
+      ? { files: failed.map((f) => f.file), keep }
+      : null;
+    if (failed.length) {
+      setError(failed[0].code);
+      setErrorFile(failed.map((f) => f.file.name).join(", "));
+    }
+    return added;
   }
   async function update(id, patch) {
     await refs.current.store.update(id, patch);
@@ -267,7 +291,7 @@ export function useReader() {
     refs.current.speechBook = null;
   }
   async function listen(id, chapter, sentence) {
-    setError(null);
+    showError(null);
     const book = refs.current.store.get(id);
     if (book.settings.engine === "device") {
       refs.current.player.stop();
@@ -276,7 +300,7 @@ export function useReader() {
         deviceVoices.find((v) => v.voiceURI === book.settings.voice) ||
         deviceVoices.find((v) => v.lang.split(/[-_]/u)[0] === book.language);
       if (!voice) {
-        setError(
+        showError(
           globalThis.speechSynthesis ? "deviceNoVoices" : "unsupportedSpeech",
         );
         return;
@@ -302,13 +326,13 @@ export function useReader() {
       )
     ).ready;
     if (!ready) {
-      setError("modelNotCached");
+      showError("modelNotCached");
       return;
     }
     await refs.current.player.start(id, chapter, sentence);
     refs.current.queue
       .prepare(id, chapter, sentence)
-      .catch((e) => setError(e.message));
+      .catch((e) => showError(e.message));
   }
   function togglePlayback(book) {
     if (book.settings.engine === "device") {
@@ -325,7 +349,7 @@ export function useReader() {
     else listen(book.id, book.position.chapter, book.position.sentence);
   }
   async function preview(book) {
-    setError(null);
+    showError(null);
     stopPlayback();
     const text =
       book.language === "es"
@@ -392,7 +416,7 @@ export function useReader() {
         refs.current.store
           .purge(id)
           .then(sync)
-          .catch((e) => setError(e.message)),
+          .catch((e) => showError(e.message)),
       8000,
     );
   }
@@ -637,7 +661,8 @@ export function useReader() {
     books,
     loading,
     error,
-    setError,
+    errorFile,
+    setError: showError,
     progress,
     preparation,
     playback,
@@ -647,8 +672,7 @@ export function useReader() {
     upload,
     cancelUpload: () => refs.current.cancelParse?.(),
     retryUpload: () =>
-      lastFile.current &&
-      upload([lastFile.current.file], lastFile.current.keep),
+      lastFile.current && upload(lastFile.current.files, lastFile.current.keep),
     update,
     settings,
     changeLanguage,

@@ -29,9 +29,9 @@ test("real English and Spanish speech, persistence, ZIP, undo and fully offline 
       console.log("Browser:", m.text());
   });
   await cachedCDN(page);
-  await page.goto("/");
+  await page.goto("/app/");
   await expect(
-    page.getByRole("heading", { name: "Make room for a good book." }),
+    page.getByRole("heading", { name: "Add a PDF or EPUB to start reading." }),
   ).toBeVisible();
   await upload(page, fixture("sample-epub3.epub"));
   await expect(page.locator(".shelf-book")).toHaveCount(1);
@@ -62,12 +62,12 @@ test("real English and Spanish speech, persistence, ZIP, undo and fully offline 
     timeout: 15000,
   });
   await page.getByRole("button", { name: "Pause", exact: true }).click();
-  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await page.getByRole("tab", { name: "Explore", exact: true }).click();
   await page
     .getByPlaceholder("Find a phrase, a place, a character…")
     .fill("lantern");
   await expect(page.locator(".search-hits article").first()).toBeVisible();
-  await page.getByRole("button", { name: "Export audio", exact: true }).click();
+  await page.getByRole("tab", { name: "Export audio", exact: true }).click();
   const download = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "Download audio", exact: true })
@@ -145,7 +145,7 @@ test("real English and Spanish speech, persistence, ZIP, undo and fully offline 
   await expect(page.locator(".sentence.speaking")).toHaveCount(1);
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await page
-    .getByRole("button", { name: "Voice & cast", exact: true })
+    .getByRole("tab", { name: "Voice & cast", exact: true })
     .first()
     .click();
   await page

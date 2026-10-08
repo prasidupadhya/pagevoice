@@ -3,7 +3,13 @@ import { Download, Check, Pause, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import { MODEL_GROUPS, groupBytes } from "../offline/assets";
 import { bytes } from "../offline/format";
-export default function ModelDialog({ t, assets, onClose, onError }) {
+export default function ModelDialog({
+  t,
+  assets,
+  online = true,
+  onClose,
+  onError,
+}) {
   const [status, setStatus] = useState({}),
     [progress, setProgress] = useState(assets.progress || {}),
     [paused, setPaused] = useState({});
@@ -58,6 +64,7 @@ export default function ModelDialog({ t, assets, onClose, onError }) {
       className="tools-modal"
     >
       <p className="muted">{t("downloadIntro")}</p>
+      {!online && <p className="notice">{t("offlineDownloads")}</p>}
       <div className="model-list">
         {Object.entries(MODEL_GROUPS).map(([id, g]) => (
           <section key={id} className="model-row" data-model={id}>
@@ -78,7 +85,7 @@ export default function ModelDialog({ t, assets, onClose, onError }) {
                 <small>
                   {bytes(progress[id].loaded)} / {bytes(progress[id].total)}
                 </small>
-                <button onClick={() => assets.pause(id)}>
+                <button className="small" onClick={() => assets.pause(id)}>
                   <Pause size={16} />
                   {t("pauseDownload")}
                 </button>
@@ -90,7 +97,7 @@ export default function ModelDialog({ t, assets, onClose, onError }) {
                   {t("cached")}
                 </span>
                 <button
-                  className="icon-button"
+                  className="icon-button small"
                   aria-label={`${t("removeModel")} · ${t(labels[id])}`}
                   onClick={async () => {
                     await assets.remove(id);
@@ -101,7 +108,11 @@ export default function ModelDialog({ t, assets, onClose, onError }) {
                 </button>
               </div>
             ) : (
-              <button onClick={() => install(id)} className="compact">
+              <button
+                onClick={() => install(id)}
+                className="small"
+                disabled={!online}
+              >
                 <Download size={16} />
                 {t(paused[id] ? "resumeDownload" : "download")}
               </button>
