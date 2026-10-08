@@ -4,10 +4,17 @@
   "installCommand": "npm ci --prefix web",
   "buildCommand": "npm --prefix web run build",
   "outputDirectory": "web/dist",
+  "redirects": [
+    {
+      "source": "/app",
+      "destination": "/app/",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
-      "source": "/((?!assets/|runtime/|language-data/|licenses/|robots\\.txt|sw\\.js|workbox-|manifest\\.webmanifest|icon-|favicon\\.svg).*)",
-      "destination": "/index.html"
+      "source": "/app/:path*",
+      "destination": "/app/index.html"
     }
   ],
   "headers": [
@@ -33,6 +40,10 @@
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob: https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.hf.co https://cdn-lfs-eu-1.hf.co https://cas-bridge.xethub.hf.co https://us.aws.cdn.hf.co https://eu.aws.cdn.hf.co https://cdn.jsdelivr.net; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000"
         }
       ]
     },
@@ -46,7 +57,25 @@
       ]
     },
     {
-      "source": "/index.html",
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(index|404).html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/app/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
