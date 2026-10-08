@@ -13,6 +13,16 @@ after you download a voice once.
 
 ![The PageVoice reader with a chapter open, the contents list on the left and the audio player on the right](web/public/screenshots/reader-desktop.jpg)
 
+## Where to look
+
+- **The product:** [`web/`](web/), a static site and reader app with its own tests.
+- **Roadmap, including the planned Claude layer:** [`docs/roadmap.md`](docs/roadmap.md).
+- **Optional Python tool** (command line and local API, not used by the website):
+  `pagevoice/`, `rag/`, `tests/`, `pyproject.toml`, `Dockerfile`. Some of these must stay
+  at the root for packaging and CI.
+- **Archived hosted-backend experiment:** [`legacy/hosted-backend/`](legacy/hosted-backend/README.md).
+  Not deployed.
+
 ## What PageVoice is
 
 PageVoice turns a PDF or EPUB into something you can read and listen to. You import a
