@@ -4,21 +4,41 @@
   --page: 1200px;
   overflow-x: clip;
 }
-.landing section,
-.site-header {
+.landing section {
   width: min(
     var(--page),
     100% - 2 * clamp(var(--space-4), 4vw, var(--space-7))
   );
   margin-inline: auto;
 }
+/* The bar stays at the top while scrolling. Its background spans the viewport
+   and its content aligns with the page column. */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  min-height: 72px;
+  gap: var(--space-4);
+  min-height: 64px;
+  padding-inline: max(
+    clamp(var(--space-4), 4vw, var(--space-7)),
+    calc((100% - var(--page)) / 2)
+  );
+  border-bottom: var(--border);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.site-header .button {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  white-space: nowrap;
 }
 .landing .brand {
+  flex-shrink: 0;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -375,6 +395,19 @@
   }
   .features {
     gap: var(--space-7);
+  }
+}
+@media (max-width: 400px) {
+  .site-header {
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+  }
+  .landing .brand {
+    font-size: var(--text-lg);
+  }
+  .site-header .button {
+    padding: 0 var(--space-3);
+    font-size: var(--text-sm);
   }
 }
 @media (max-width: 640px) {
