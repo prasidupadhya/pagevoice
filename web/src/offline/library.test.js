@@ -3,7 +3,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { webcrypto } from "node:crypto";
 import { Blob } from "node:buffer";
 import JSZip from "jszip";
-import { LibraryStore, hashText } from "./library";
+import { LibraryStore, hashText, opfsWritable } from "./library";
 const book = () => ({
   title: "A book",
   author: "Someone",
@@ -197,4 +197,56 @@ it("still reports a full disk instead of silently keeping the book", async () =>
   vi.spyOn(a, "write").mockRejectedValueOnce(full);
   await expect(a.add(book())).rejects.toThrow("full");
   expect(a.list()).toEqual([]);
+});
+
+it("stores book files as bytes so browsers that reject Blobs in IndexedDB keep the book", async () => {
+  const a = await store("bytes");
+  const realWrite = a.write.bind(a);
+  vi.spyOn(a, "write").mockImplementation((table, value, key) => {
+    if (Object.values(value).some((v) => v instanceof Blob))
+      throw new Error("DataCloneError: Blob");
+    return realWrite(table, value, key);
+  });
+  const source = new Blob(["epub bytes"], { type: "application/epub+zip" });
+  const added = await a.add({ ...book(), sourceFile: source });
+  expect(added.keep).toBe(true);
+  expect(added.storageFallback).toBeUndefined();
+  const reopened = await store("bytes");
+  const restored = reopened.get(added.id);
+  expect(restored.sourceFile).toBeInstanceOf(Blob);
+  expect(await restored.sourceFile.text()).toBe("epub bytes");
+  expect(restored.sourceFile.type).toBe("application/epub+zip");
+});
+
+it("treats a file that is already gone as removed instead of failing", async () => {
+  const a = await store("gone");
+  const missing = Object.assign(new Error("missing"), {
+    name: "NotFoundError",
+  });
+  a.audioDir = {
+    removeEntry: vi.fn(async () => {
+      throw missing;
+    }),
+  };
+  await expect(a.removeFile("0123.wav")).resolves.toBeUndefined();
+  a.audioDir = {
+    removeEntry: vi.fn(async () => {
+      throw new Error("denied");
+    }),
+  };
+  await expect(a.removeFile("0123.wav")).rejects.toThrow("denied");
+});
+
+it("detects an OPFS directory that opens but refuses writes, so storage can fall back", async () => {
+  const refusing = {
+    getFileHandle: async () => ({
+      createWritable: async () => {
+        throw Object.assign(new Error("unknown transient reason"), {
+          name: "UnknownError",
+        });
+      },
+    }),
+    removeEntry: async () => {},
+  };
+  expect(await opfsWritable(refusing)).toBe(false);
 });

@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import JSZip from "jszip";
 import {
+  controlledByServiceWorker,
   fixture,
   cachedCDN,
   upload,
@@ -131,6 +132,7 @@ test("real English and Spanish speech, persistence, ZIP, undo and fully offline 
     await navigator.serviceWorker.ready;
   });
   await page.waitForTimeout(1000);
+  await controlledByServiceWorker(page);
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator(".shelf-book")).toHaveCount(3);

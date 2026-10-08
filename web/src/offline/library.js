@@ -13,6 +13,55 @@ const complete = (tx) =>
       reject(tx.error || new Error("storageError"));
   });
 export const rowId = (chapter, sentence) => `${chapter}:${sentence}`;
+// A file that is already gone is the outcome we want, so it is not an error.
+export async function removeIfPresent(dir, name) {
+  if (!dir || !name) return;
+  try {
+    await dir.removeEntry(name);
+  } catch (error) {
+    if (error?.name !== "NotFoundError") throw error;
+  }
+}
+// Some browsers open an OPFS directory but refuse to write into it. Probe one
+// small write so the app can fall back to IndexedDB instead of failing later.
+export async function opfsWritable(dir) {
+  const name = ".pagevoice-probe";
+  try {
+    const handle = await dir.getFileHandle(name, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(new Uint8Array([1, 2, 3]));
+    await writable.close();
+    const size = (await (await dir.getFileHandle(name)).getFile()).size;
+    await removeIfPresent(dir, name);
+    return size === 3;
+  } catch {
+    await removeIfPresent(dir, name).catch(() => {});
+    return false;
+  }
+}
+// Some browsers cannot store Blob objects in IndexedDB. Bytes are stored as
+// ArrayBuffers and rebuilt as Blobs when read, which every browser supports.
+const blobBytes = (blob) =>
+  typeof blob.arrayBuffer === "function"
+    ? blob.arrayBuffer()
+    : new Response(blob).arrayBuffer();
+const packBlob = async (blob) =>
+  blob instanceof Blob
+    ? { bytes: await blobBytes(blob), type: blob.type }
+    : blob;
+const unpackBlob = (value) =>
+  value?.bytes ? new Blob([value.bytes], { type: value.type }) : value;
+const toStored = async (book) => ({
+  ...book,
+  sourceFile: await packBlob(book.sourceFile),
+  coverBlob: await packBlob(book.coverBlob),
+});
+const fromStored = (book) =>
+  book && {
+    ...book,
+    sourceFile: unpackBlob(book.sourceFile),
+    coverBlob: unpackBlob(book.coverBlob),
+  };
 export const rowsOf = (book) =>
   book.chapters.flatMap((c, chapter) =>
     c.sentences.map((text, sentence) => ({
@@ -77,6 +126,7 @@ export class LibraryStore {
         this.audioDir = await this.root.getDirectoryHandle("pagevoice-audio", {
           create: true,
         });
+        if (!(await opfsWritable(this.audioDir))) this.audioDir = undefined;
       } catch {
         /* IDB fallback retains the same behavior. */
       }
@@ -84,7 +134,8 @@ export class LibraryStore {
     const saved = await request(
       this.db.transaction("books").objectStore("books").getAll(),
     );
-    for (const book of saved) {
+    for (const saved1 of saved) {
+      const book = fromStored(saved1);
       this.books.set(book.id, book);
       if (book.deletedAt && Date.now() - book.deletedAt >= 8000)
         await this.purge(book.id);
@@ -99,7 +150,7 @@ export class LibraryStore {
           const current = await request(
             this.db.transaction("books").objectStore("books").get(id),
           );
-          if (current) this.books.set(id, current);
+          if (current) this.books.set(id, fromStored(current));
           else {
             this.books.delete(id);
             this.revokeCover(id);
@@ -120,13 +171,16 @@ export class LibraryStore {
     );
     const retained = new Set(records.map((r) => r.path).filter(Boolean));
     for await (const [name] of this.audioDir.entries())
-      if (!retained.has(name)) await this.audioDir.removeEntry(name);
+      if (!retained.has(name)) await this.removeFile(name);
   }
   list() {
     return [...this.books.values()].filter((b) => !b.deletedAt);
   }
   get(id) {
     return this.books.get(id);
+  }
+  async removeFile(name) {
+    await removeIfPresent(this.audioDir, name);
   }
   lockAudio(task) {
     return navigator.locks?.request
@@ -163,7 +217,7 @@ export class LibraryStore {
     if (this.books.has(value.id)) throw new Error("duplicateBook");
     if (keep)
       try {
-        await this.write("books", value);
+        await this.write("books", await toStored(value));
       } catch (error) {
         // Some browsers (e.g. WebKit private sessions) refuse to store files in
         // IndexedDB. Keep the book for this session instead of failing the import;
@@ -197,12 +251,13 @@ export class LibraryStore {
             const current = get.result;
             value = apply(current);
             if (value) table.put(value);
-            else if (current) this.books.set(id, current);
+            else if (current) this.books.set(id, fromStored(current));
             else this.books.delete(id);
           };
           await done;
         } else value = apply(this.get(id));
         if (value) {
+          value = fromStored(value);
           this.books.set(id, value);
           this.channel?.postMessage(id);
         }
@@ -255,10 +310,14 @@ export class LibraryStore {
     } else record.blob = blob;
     // Deletion wins over an in-flight render; no audio can resurrect a removed book.
     if (!this.get(bookId) || this.get(bookId).deletedAt) {
-      if (record.path) await this.audioDir.removeEntry(record.path);
+      if (record.path) await this.removeFile(record.path);
       return;
     }
-    if (book.keep) await this.write("audio", record);
+    if (book.keep)
+      await this.write("audio", {
+        ...record,
+        blob: await packBlob(record.blob),
+      });
     else this.audio.set(key, record);
     const previous = this.get(bookId).prepared[row];
     await this.update(bookId, (current) => ({
@@ -287,7 +346,7 @@ export class LibraryStore {
           this.db.transaction("audio").objectStore("audio").get(key),
         )));
     if (!record) return null;
-    if (record.blob) return record.blob;
+    if (record.blob) return unpackBlob(record.blob);
     try {
       return await (await this.audioDir.getFileHandle(record.path)).getFile();
     } catch {

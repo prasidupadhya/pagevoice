@@ -70,6 +70,15 @@ async function install(page, id) {
     .getByRole("button", { name: "Close", exact: true })
     .click();
 }
+// A page loaded before its service worker activated is not controlled by it.
+// Reloading once under the worker is what a real user does before going offline.
+async function controlledByServiceWorker(page) {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) {
+    await page.reload();
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+  }
+}
 async function books(page) {
   return page.evaluate(async () => {
     const request = indexedDB.open("pagevoice-offline-v1");
@@ -109,13 +118,18 @@ async function stats(page) {
     const records = await new Promise(
       (r) => (get.onsuccess = () => r(get.result)),
     );
-    const directory = await (
-      await navigator.storage.getDirectory()
-    ).getDirectoryHandle("pagevoice-audio");
     const out = [];
     for (const a of records) {
-      const blob =
-        a.blob || (await (await directory.getFileHandle(a.path)).getFile());
+      // IndexedDB stores audio as bytes; OPFS-backed audio is a file.
+      const blob = a.blob
+        ? new Blob([a.blob.bytes], { type: a.blob.type })
+        : await (
+            await (
+              await (
+                await navigator.storage.getDirectory()
+              ).getDirectoryHandle("pagevoice-audio")
+            ).getFileHandle(a.path)
+          ).getFile();
       const buffer = await blob.arrayBuffer(),
         view = new DataView(buffer),
         rate = view.getUint32(24, true);
@@ -141,4 +155,13 @@ async function stats(page) {
   });
 }
 
-export { fixture, cachedCDN, upload, install, books, stats, waitPrepared };
+export {
+  fixture,
+  cachedCDN,
+  upload,
+  install,
+  books,
+  stats,
+  waitPrepared,
+  controlledByServiceWorker,
+};

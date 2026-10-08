@@ -115,7 +115,7 @@ it("pause retains a partial file and resumes by HTTP Range with hash verificatio
       return {
         name,
         getFile: async () => new Blob([files.get(name)]),
-        createWritable: async ({ keepExistingData }) => {
+        createWritable: async ({ keepExistingData } = {}) => {
           if (!keepExistingData) files.set(name, new Uint8Array());
           let offset = 0;
           return {

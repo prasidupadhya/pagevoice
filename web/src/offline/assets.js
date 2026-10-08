@@ -1,6 +1,6 @@
 import models from "./model-assets.json";
 import runtimes from "./runtime-assets.json";
-import { hashText } from "./library";
+import { hashText, opfsWritable, removeIfPresent } from "./library";
 
 export const ASSET_CACHE = "pagevoice-models-v1";
 export const MODEL_GROUPS = {
@@ -177,6 +177,7 @@ export class AssetManager {
           dir = await (
             await this.storage.getDirectory()
           ).getDirectoryHandle("pagevoice-downloads", { create: true });
+        if (dir && !(await opfsWritable(dir))) dir = undefined;
       } catch {
         dir = undefined;
       }
@@ -272,7 +273,7 @@ export class AssetManager {
           .map((b) => b.toString(16).padStart(2, "0"))
           .join("");
         if (blob.size !== asset.size || hash !== asset.sha256) {
-          if (handle) await dir.removeEntry(handle.name);
+          await removeIfPresent(dir, handle?.name);
           throw Error("assetIntegrity");
         }
         const headers = {
@@ -291,11 +292,17 @@ export class AssetManager {
             absolute(asset.alias),
             new Response(blob, { headers }),
           );
-        if (handle) await dir.removeEntry(handle.name);
+        await removeIfPresent(dir, handle?.name);
         completed += asset.size;
         report({ loaded: completed, total, file: asset.path || asset.url });
       }
       return true;
+    } catch (error) {
+      // WebKit refuses single cache responses above roughly 128 MB. Say so
+      // plainly rather than surfacing the browser's internal message.
+      if (/too much data buffered/iu.test(error?.message || ""))
+        throw Error("cacheTooLarge", { cause: error });
+      throw error;
     } finally {
       this.running.delete(id);
       this.publish(id, null);

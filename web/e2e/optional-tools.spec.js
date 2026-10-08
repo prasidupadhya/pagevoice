@@ -1,6 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { writeFile, mkdir, readFile, readdir } from "node:fs/promises";
 import { fixture, cachedCDN, upload, install, books, stats } from "./helpers";
+// WebKit cannot cache the 132 MB Supertonic file (see cacheTooLarge). Skip there.
+test.skip(
+  ({ browserName }) => browserName === "webkit",
+  "Supertonic exceeds WebKit's single-response cache limit",
+);
 test("measures Spanish Piper versus Supertonic, local embeddings/NER, and chaptered M4B", async ({
   page,
 }) => {

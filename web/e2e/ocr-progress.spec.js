@@ -1,7 +1,14 @@
 import { test, expect } from "@playwright/test";
 import { writeFile, mkdir } from "node:fs/promises";
 import JSZip from "jszip";
-import { fixture, cachedCDN, upload, install, books } from "./helpers";
+import {
+  controlledByServiceWorker,
+  fixture,
+  cachedCDN,
+  upload,
+  install,
+  books,
+} from "./helpers";
 test("scanned PDF OCR runs locally and after language data is cached offline", async ({
   page,
   context,
@@ -32,7 +39,7 @@ test("scanned PDF OCR runs locally and after language data is cached offline", a
   expect(book.chapters.flatMap((c) => c.sentences).join(" ")).toContain(
     "Maria opened a book",
   );
-  await page.evaluate(() => navigator.serviceWorker.ready);
+  await controlledByServiceWorker(page);
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator(".shelf-book")).toHaveCount(1);
