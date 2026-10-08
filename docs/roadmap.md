@@ -36,6 +36,23 @@ implemented, and none will be shown as available until it is tested.
    split text at sensible boundaries, and identify who is speaking. The speech itself
    would still come from the local voice models.
 
+### Why a language model is needed for these features
+
+Keyword search finds the passages that contain a word. It cannot answer a question
+that is spread across several passages, judge whether a passage supports a claim, or
+explain an idea in other words. Those tasks need a model that reads the passages
+themselves. PageVoice's current search deliberately stops at finding passages, so
+that every result can be checked against the book.
+
+Narration has a separate need. The local speech models read whatever text they are
+given. Numbers, abbreviations, footnote markers, and OCR errors are often read wrongly,
+and deciding how to read them depends on context. Rules can handle the common cases.
+A model can handle the rest, but only if its output is checked against the original
+text before it is spoken.
+
+Claude is the planned model for both tasks. Its use is not implemented, and PageVoice
+does not claim it is used.
+
 ### Privacy consequences
 
 PageVoice's current guarantee is that documents stay in the browser. A Claude feature
