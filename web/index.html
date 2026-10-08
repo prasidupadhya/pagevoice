@@ -6,10 +6,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>PageVoice | Read, listen to, and understand your documents</title>
+    <title>PageVoice | Read and listen to your documents</title>
     <meta
       name="description"
-      content="PageVoice is an open-source app for reading and listening to PDFs and EPUBs. Voices run in your browser, and you can search every document. No account is needed."
+      content="PageVoice is an open-source reading app for PDFs and EPUBs. Import a document, read it, and listen with a voice that runs in your browser. No account is needed."
     />
     <link rel="canonical" href="https://pagevoice.tech/" />
     <meta
@@ -30,7 +30,7 @@
     <meta property="og:url" content="https://pagevoice.tech/" />
     <meta
       property="og:title"
-      content="PageVoice | Read, listen to, and understand your documents"
+      content="PageVoice | Read and listen to your documents"
     />
     <meta
       property="og:description"
@@ -46,7 +46,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="PageVoice | Read, listen to, and understand your documents"
+      content="PageVoice | Read and listen to your documents"
     />
     <meta
       name="twitter:description"
@@ -103,15 +103,12 @@
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-text">
           <p class="annotation hero-kicker">for PDFs and EPUBs</p>
-          <h1 id="hero-title">
-            read, listen to, and understand your documents.
-          </h1>
+          <h1 id="hero-title">read and listen to your documents.</h1>
           <p class="lede">
-            PageVoice is an open-source app for reading and listening to PDFs
-            and EPUBs. Import a file, read it, and listen with a voice that runs
-            on
-            <span class="pen-underline">your&nbsp;device</span>. No account is
-            needed.
+            PageVoice is an open-source reading app. Import a PDF or EPUB, read
+            it, and listen with a voice that runs on
+            <span class="pen-underline">your&nbsp;device</span>. Your files are
+            processed in your browser, and no account is needed.
           </p>
           <div class="hero-actions">
             <a class="button primary large" href="/app/" data-open-app
@@ -124,9 +121,12 @@
               >View the source</a
             >
           </div>
-          <p class="fine-print">
-            Tested in Chromium, Firefox and WebKit. Narration is available in
-            English and Spanish.
+          <p class="status-line">
+            <span class="status-pill">Open beta</span>
+            <span
+              >Automated tests pass in Chromium. Firefox passes most of them.
+              Safari support is partial.</span
+            >
           </p>
         </div>
         <figure class="hero-shot">
@@ -244,25 +244,36 @@
             width="64"
             height="64"
           />
-          <h3>understanding</h3>
-          <p>Every result links back to the passage it came from.</p>
+          <h3>search and structure</h3>
+          <p>Find text in a book, and see how it is divided into sections.</p>
           <ul>
             <li>
               Keyword search across the whole book, with section citations
             </li>
             <li>
-              Detected chapters and front matter you can review and correct
+              Detected sections and front matter you can review and correct
             </li>
             <li>
-              Optional meaning search and character-name detection. Both run on
-              your device.
+              Optional meaning search and character-name detection, run on your
+              device
             </li>
             <li>
-              No generated summaries or answers. Every result is a passage from
-              the book.
+              Results are passages from the book. PageVoice does not generate
+              summaries or answers.
             </li>
           </ul>
         </article>
+        <p class="roadmap-note">
+          <strong>Planned, not yet built.</strong> AI-assisted analysis built on
+          Claude: source-grounded questions, explanations, and better text
+          preparation for narration. Search today finds passages. It does not
+          answer questions. See the
+          <a
+            href="https://github.com/prasidupadhya/pagevoice/blob/main/docs/roadmap.md"
+            rel="noreferrer"
+            >roadmap</a
+          >.
+        </p>
       </section>
 
       <section class="split" aria-labelledby="a11y-title">
@@ -400,7 +411,11 @@
     <footer class="site-footer">
       <div class="band-inner">
         <p class="band-title">PageVoice</p>
-        <p>PageVoice is open source under the MIT license.</p>
+        <p>Open beta. PageVoice is open source under the MIT license.</p>
+        <p>
+          Contact
+          <a href="mailto:support@pagevoice.tech">support@pagevoice.tech</a>
+        </p>
         <ul>
           <li><a href="/app/">Open the app</a></li>
           <li>
@@ -408,6 +423,13 @@
               href="https://github.com/prasidupadhya/pagevoice"
               rel="noreferrer"
               >Source on GitHub</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/prasidupadhya/pagevoice/blob/main/docs/roadmap.md"
+              rel="noreferrer"
+              >Roadmap</a
             >
           </li>
           <li><a href="/licenses/credits.html">Credits &amp; licenses</a></li>

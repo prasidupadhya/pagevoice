@@ -434,4 +434,5 @@ export default {
     "{ready} de {total} frases de esta selección tienen audio. Prepara el resto antes de exportar.",
   cacheTooLarge:
     "Este navegador no pudo guardar un archivo tan grande. Prueba Chromium o Firefox, o una voz más pequeña.",
+  contact: "Contacto:",
 };

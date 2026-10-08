@@ -627,6 +627,10 @@ export default function App() {
               {t("sourceCode")}
             </a>
           </p>
+          <p className="muted">
+            {t("contact")}{" "}
+            <a href="mailto:support@pagevoice.tech">support@pagevoice.tech</a>
+          </p>
         </Modal>
       )}
       {deleteBook && (

@@ -499,3 +499,33 @@ html:has(> body.landing) {
     padding: var(--space-3);
   }
 }
+
+/* Product status: small and factual, not a badge of traction. */
+.status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-weight: 650;
+}
+.roadmap-note {
+  max-width: 62ch;
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1.5px dashed var(--control-line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
