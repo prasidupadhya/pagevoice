@@ -406,6 +406,10 @@ export default {
   narrationPrivacy:
     "Narration sends the text of each sentence to ElevenLabs. Books are not uploaded, and nothing else from them is sent.",
   noVoices: "No voices are available right now.",
+  noVoicesForLanguage:
+    "No narration voice is available for this book's language. Change the book language or ask for a voice in that language.",
+  voiceMale: "Male",
+  voiceFemale: "Female",
   ttsOffline: "You're offline. Narration needs a connection.",
   ttsUnavailable:
     "The voice service is unavailable right now. Try again later.",

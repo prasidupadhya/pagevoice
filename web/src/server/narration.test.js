@@ -66,7 +66,7 @@ it("lists voices from the upstream with the key kept on the server", async () =>
   await handleVoices(req, res, { fetch, env });
   expect(res.statusCode).toBe(200);
   expect(JSON.parse(res.body).voices).toEqual([
-    { id: VOICE, name: "Rachel", locale: "american" },
+    { id: VOICE, name: "Rachel", locale: "en-US", gender: "" },
   ]);
   expect(fetch.mock.calls[0][1].headers["xi-api-key"]).toBe("test-key");
 });
@@ -198,7 +198,7 @@ it("uses a configured voice without listing voices", async () => {
     },
   });
   expect(JSON.parse(res.body).voices).toEqual([
-    { id: VOICE, name: "Narrator", locale: "" },
+    { id: VOICE, name: "Narrator", locale: "", gender: "" },
   ]);
   expect(fetch).not.toHaveBeenCalled();
 });
@@ -212,15 +212,36 @@ it("serves several configured voices with their languages", async () => {
     fetch,
     env: {
       ...env,
-      ELEVENLABS_VOICE_IDS: `${VOICE}:Rachel:en, ${SPANISH}:Sofia Mendez:es, not-valid!:Bad:en`,
+      ELEVENLABS_VOICE_IDS: `${VOICE}:Rachel:en-gb:Female, ${SPANISH}:Sofia Mendez:es-es:female, not-valid!:Bad:en:male`,
     },
   });
   expect(res.statusCode).toBe(200);
   expect(JSON.parse(res.body).voices).toEqual([
-    { id: VOICE, name: "Rachel", locale: "en" },
-    { id: SPANISH, name: "Sofia Mendez", locale: "es" },
+    { id: VOICE, name: "Rachel", locale: "en-GB", gender: "female" },
+    { id: SPANISH, name: "Sofia Mendez", locale: "es-ES", gender: "female" },
   ]);
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("maps listed accents to British or American English and keeps gender", async () => {
+  const { handleVoices } = load();
+  const fetch = vi.fn(async () =>
+    new Response(
+      JSON.stringify({
+        voices: [
+          { voice_id: VOICE, name: "Verity", labels: { accent: "British", gender: "female", language: "en" } },
+          { voice_id: "antonio0123456789", name: "Antonio", labels: { language: "es", gender: "male" } },
+        ],
+      }),
+      { status: 200 },
+    ),
+  );
+  const { req, res } = call("GET");
+  await handleVoices(req, res, { fetch, env });
+  expect(JSON.parse(res.body).voices).toEqual([
+    { id: VOICE, name: "Verity", locale: "en-GB", gender: "female" },
+    { id: "antonio0123456789", name: "Antonio", locale: "es", gender: "male" },
+  ]);
 });
 
 it("accepts a bare voice id in the configured list", async () => {
@@ -231,7 +252,7 @@ it("accepts a bare voice id in the configured list", async () => {
     env: { ...env, ELEVENLABS_VOICE_IDS: VOICE },
   });
   expect(JSON.parse(res.body).voices).toEqual([
-    { id: VOICE, name: VOICE, locale: "" },
+    { id: VOICE, name: VOICE, locale: "", gender: "" },
   ]);
 });
 

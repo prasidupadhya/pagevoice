@@ -8,6 +8,7 @@ import { detectCharacters } from "./knowledge";
 import { buildSearchIndex } from "../browser/search";
 import { analyzeSections } from "../browser/analysis";
 import { downloadBlob } from "./format";
+import { voicesFor } from "./voices";
 
 export function useReader() {
   const [books, setBooks] = useState([]),
@@ -241,7 +242,7 @@ export function useReader() {
       prepared: {},
       semantics: null,
       entities: null,
-      settings: { ...book.settings, cast: {} },
+      settings: { ...book.settings, cast: {}, voice: "" },
       languageDetection: {
         ...book.languageDetection,
         source: "manual",
@@ -274,18 +275,28 @@ export function useReader() {
   }
   // The narration voice is the one chosen for the book, or the first voice
   // the service offers.
-  const narrationVoice = (book, list) =>
-    book.settings.voice || list[0]?.id || "";
+  // The saved voice when it speaks the book's language, otherwise the first
+  // voice for that language. Empty when the list has none for the language.
+  const narrationVoice = (book, list) => {
+    const pool = voicesFor(list, book.language);
+    if (!pool.length) return list.length ? "" : book.settings.voice || "";
+    return pool.some((v) => v.id === book.settings.voice)
+      ? book.settings.voice
+      : pool[0].id;
+  };
   async function listen(id, chapter, sentence) {
     showError(null);
     const book = refs.current.store.get(id),
       list = await ensureVoices(),
       voice = narrationVoice(book, list);
     if (!voice) {
-      showError(refs.current.voicesFailure || "ttsUnavailable");
+      showError(
+        refs.current.voicesFailure ||
+          (list.length ? "noVoicesForLanguage" : "ttsUnavailable"),
+      );
       return;
     }
-    if (!book.settings.voice)
+    if (voice !== book.settings.voice)
       await update(id, { settings: { ...book.settings, voice } });
     await refs.current.player.start(id, chapter, sentence);
     refs.current.queue

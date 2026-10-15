@@ -91,23 +91,62 @@ async function upstreamDetail(response) {
   return text.replace(/\s+/gu, " ").slice(0, 300);
 }
 
-// ELEVENLABS_VOICE_IDS is a comma-separated list of "id:Name:locale" entries
-// (name and locale optional), for example "abc...:Rachel:en,def...:Sofia:es".
-// Configured voices need no voice list, so restricted keys still work.
+// Language tag as "en", "en-GB" or "es-ES"; anything else becomes "".
+function normalizeLocale(value) {
+  const match = /^([a-z]{2})(?:[-_]([a-z]{2}))?$/iu.exec(String(value || "").trim());
+  if (!match) return "";
+  return match[2] ? `${match[1].toLowerCase()}-${match[2].toUpperCase()}` : match[1].toLowerCase();
+}
+
+// Accent labels from ElevenLabs mapped to a locale, so a British voice is never
+// offered for an American book or the reverse.
+const ACCENT_LOCALE = {
+  american: "en-US",
+  british: "en-GB",
+  australian: "en-AU",
+  castilian: "es-ES",
+  mexican: "es-MX",
+};
+
+const GENDERS = ["male", "female"];
+const normalizeGender = (value) => (GENDERS.includes(String(value || "").toLowerCase()) ? String(value).toLowerCase() : "");
+
+// ELEVENLABS_VOICE_IDS is a comma-separated list of "id:Name:locale:gender"
+// entries; name, locale and gender are optional. For example
+// "abc...:Brad:en-US:male,def...:Sofia:es-ES:female". Configured voices need no
+// voice list, so restricted keys still work.
 function configuredVoices(env) {
   const list = (env.ELEVENLABS_VOICE_IDS || "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean)
     .map((entry) => {
-      const [id, name, locale] = entry.split(":").map((part) => part.trim());
-      return { id, name: name || id, locale: locale || "" };
+      const [id, name, locale, gender] = entry.split(":").map((part) => part.trim());
+      return {
+        id,
+        name: name || id,
+        locale: normalizeLocale(locale),
+        gender: normalizeGender(gender),
+      };
     })
     .filter((voice) => /^[A-Za-z0-9]{10,40}$/u.test(voice.id));
   if (list.length) return list;
   const fixed = (env.ELEVENLABS_VOICE_ID || "").trim();
-  if (fixed) return [{ id: fixed, name: env.ELEVENLABS_VOICE_NAME || "Narrator", locale: "" }];
+  if (fixed) return [{ id: fixed, name: env.ELEVENLABS_VOICE_NAME || "Narrator", locale: "", gender: "" }];
   return null;
+}
+
+// Converts one voice from the ElevenLabs list into the shape the app uses.
+function listedVoice(voice) {
+  const labels = voice.labels || {};
+  const accent = String(labels.accent || "").toLowerCase();
+  const language = normalizeLocale(labels.language);
+  return {
+    id: voice.voice_id,
+    name: voice.name,
+    locale: ACCENT_LOCALE[accent] || language,
+    gender: normalizeGender(labels.gender),
+  };
 }
 
 async function loadVoices(fetchImpl, env) {
@@ -129,11 +168,7 @@ async function loadVoices(fetchImpl, env) {
     throw upstreamFailure(response.status);
   }
   const data = await response.json();
-  const voices = (data.voices || []).slice(0, 40).map((v) => ({
-    id: v.voice_id,
-    name: v.name,
-    locale: v.labels?.accent || v.labels?.language || "",
-  }));
+  const voices = (data.voices || []).slice(0, 40).map(listedVoice);
   voiceCache = { at: Date.now(), voices };
   return voices;
 }

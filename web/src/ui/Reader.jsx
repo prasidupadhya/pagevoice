@@ -28,6 +28,7 @@ import {
 import Modal from "./Modal";
 import PlayerPanel from "./PlayerPanel";
 import { fold, findMatches, highlightParts, MIN_QUERY } from "./find";
+import { voicesFor, voiceLabel } from "../offline/voices";
 import { progressOf } from "../offline/format";
 import { applySectionReview } from "../browser/analysis";
 
@@ -119,7 +120,9 @@ export default function Reader({
       api.playback.bookId === book.id ? api.playback : { status: "idle" },
     preparation =
       api.preparation.bookId === book.id ? api.preparation : { status: "idle" };
-  const voices = api.voices;
+  // Only voices in the book's language are offered for it.
+  const voices = voicesFor(api.voices, book.language);
+  const genderLabels = { male: t("voiceMale"), female: t("voiceFemale") };
   const percent = progressOf({ ...book, position });
   // Export needs audio for every sentence in the chosen scope.
   const exportReady = (() => {
@@ -1094,8 +1097,7 @@ export default function Reader({
                       )}
                       {voices.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.name}
-                          {v.locale ? ` · ${v.locale}` : ""}
+                          {voiceLabel(v, prefs.locale, genderLabels)}
                         </option>
                       ))}
                     </select>
@@ -1162,7 +1164,7 @@ export default function Reader({
                       <option value="">{t("defaultVoice")}</option>
                       {voices.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.name} · {v.locale}
+                          {voiceLabel(v, prefs.locale, genderLabels)}
                         </option>
                       ))}
                     </select>
