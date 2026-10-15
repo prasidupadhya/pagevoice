@@ -82,10 +82,28 @@ function upstreamFailure(status) {
   return Object.assign(Error("ttsUnavailable"), { status: 502 });
 }
 
-async function loadVoices(fetchImpl, env) {
-  // A configured default voice needs no voice list, so restricted keys work.
+// ELEVENLABS_VOICE_IDS is a comma-separated list of "id:Name:locale" entries
+// (name and locale optional), for example "abc...:Rachel:en,def...:Sofia:es".
+// Configured voices need no voice list, so restricted keys still work.
+function configuredVoices(env) {
+  const list = (env.ELEVENLABS_VOICE_IDS || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [id, name, locale] = entry.split(":").map((part) => part.trim());
+      return { id, name: name || id, locale: locale || "" };
+    })
+    .filter((voice) => /^[A-Za-z0-9]{10,40}$/u.test(voice.id));
+  if (list.length) return list;
   const fixed = (env.ELEVENLABS_VOICE_ID || "").trim();
   if (fixed) return [{ id: fixed, name: env.ELEVENLABS_VOICE_NAME || "Narrator", locale: "" }];
+  return null;
+}
+
+async function loadVoices(fetchImpl, env) {
+  const configured = configuredVoices(env);
+  if (configured) return configured;
   if (Date.now() - voiceCache.at < VOICE_TTL_MS && voiceCache.voices.length)
     return voiceCache.voices;
   const key = apiKey(env);

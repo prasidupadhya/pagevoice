@@ -171,6 +171,51 @@ it("uses a configured voice without listing voices", async () => {
   expect(fetch).not.toHaveBeenCalled();
 });
 
+it("serves several configured voices with their languages", async () => {
+  const { handleVoices } = load();
+  const fetch = upstream();
+  const SPANISH = "zyxwvutsrq0987654321";
+  const { req, res } = call("GET");
+  await handleVoices(req, res, {
+    fetch,
+    env: {
+      ...env,
+      ELEVENLABS_VOICE_IDS: `${VOICE}:Rachel:en, ${SPANISH}:Sofia Mendez:es, not-valid!:Bad:en`,
+    },
+  });
+  expect(res.statusCode).toBe(200);
+  expect(JSON.parse(res.body).voices).toEqual([
+    { id: VOICE, name: "Rachel", locale: "en" },
+    { id: SPANISH, name: "Sofia Mendez", locale: "es" },
+  ]);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("accepts a bare voice id in the configured list", async () => {
+  const { handleVoices } = load();
+  const { req, res } = call("GET");
+  await handleVoices(req, res, {
+    fetch: upstream(),
+    env: { ...env, ELEVENLABS_VOICE_IDS: VOICE },
+  });
+  expect(JSON.parse(res.body).voices).toEqual([
+    { id: VOICE, name: VOICE, locale: "" },
+  ]);
+});
+
+it("synthesizes with a voice from the configured list", async () => {
+  const { handleTts } = load();
+  const fetch = upstream();
+  const { req, res } = call("POST", { text: "Hola.", voice: VOICE });
+  await handleTts(req, res, {
+    fetch,
+    env: { ...env, ELEVENLABS_VOICE_IDS: `${VOICE}:Rachel:en` },
+  });
+  expect(res.statusCode).toBe(200);
+  expect(fetch.mock.calls.at(-1)[0]).toContain(`/v1/text-to-speech/${VOICE}`);
+  expect(fetch.mock.calls.some(([u]) => u.endsWith("/v1/voices"))).toBe(false);
+});
+
 it("reports a network failure on the speech request as unavailable", async () => {
   const { handleTts } = load();
   const fetch = upstream({
