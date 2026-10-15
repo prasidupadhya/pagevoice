@@ -140,3 +140,47 @@ it("rejects non-POST requests on synthesis", async () => {
   await handleTts(req, res, { fetch: upstream(), env });
   expect(res.statusCode).toBe(405);
 });
+
+it("explains a rejected key without exposing the upstream response", async () => {
+  const { handleVoices } = load();
+  const fetch = upstream({
+    "https://api.elevenlabs.io/v1/voices": async () =>
+      new Response("{}", { status: 401 }),
+  });
+  const { req, res } = call("GET");
+  await handleVoices(req, res, { fetch, env });
+  expect(res.statusCode).toBe(503);
+  expect(JSON.parse(res.body).error).toBe("ttsKeyRejected");
+});
+
+it("uses a configured voice without listing voices", async () => {
+  const { handleVoices } = load();
+  const fetch = upstream();
+  const { req, res } = call("GET");
+  await handleVoices(req, res, {
+    fetch,
+    env: {
+      ...env,
+      ELEVENLABS_VOICE_ID: VOICE,
+      ELEVENLABS_VOICE_NAME: "Narrator",
+    },
+  });
+  expect(JSON.parse(res.body).voices).toEqual([
+    { id: VOICE, name: "Narrator", locale: "" },
+  ]);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("reports a network failure on the speech request as unavailable", async () => {
+  const { handleTts } = load();
+  const fetch = upstream({
+    [`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`]:
+      async () => {
+        throw new TypeError("fetch failed");
+      },
+  });
+  const { req, res } = call("POST", { text: "Hi", voice: VOICE });
+  await handleTts(req, res, { fetch, env });
+  expect(res.statusCode).toBe(502);
+  expect(JSON.parse(res.body).error).toBe("ttsUnavailable");
+});

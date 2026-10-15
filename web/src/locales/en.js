@@ -417,4 +417,6 @@ export default {
   textTooLong:
     "This sentence is too long to narrate. Split it in the sentence editor.",
   voiceUnknown: "Choose a narration voice in Voice & cast first.",
+  ttsKeyRejected:
+    "The voice service did not accept the server's key. Check ELEVENLABS_API_KEY and its permissions in Vercel.",
 };

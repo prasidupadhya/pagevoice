@@ -419,4 +419,6 @@ export default {
   textTooLong:
     "Esta frase es demasiado larga para narrarla. Divídela en el editor de frases.",
   voiceUnknown: "Primero elige una voz de narración en Voz y reparto.",
+  ttsKeyRejected:
+    "El servicio de voz no aceptó la clave del servidor. Revisa ELEVENLABS_API_KEY y sus permisos en Vercel.",
 };

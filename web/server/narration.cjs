@@ -73,16 +73,34 @@ function apiKey(env) {
   return key || null;
 }
 
+// Maps a failed upstream response to a plain code. The status is logged on the
+// server so the cause shows in the function logs, never in the browser.
+function upstreamFailure(status) {
+  if (status === 401 || status === 403)
+    return Object.assign(Error("ttsKeyRejected"), { status: 503 });
+  if (status === 429) return Object.assign(Error("ttsRateLimited"), { status: 429 });
+  return Object.assign(Error("ttsUnavailable"), { status: 502 });
+}
+
 async function loadVoices(fetchImpl, env) {
+  // A configured default voice needs no voice list, so restricted keys work.
+  const fixed = (env.ELEVENLABS_VOICE_ID || "").trim();
+  if (fixed) return [{ id: fixed, name: env.ELEVENLABS_VOICE_NAME || "Narrator", locale: "" }];
   if (Date.now() - voiceCache.at < VOICE_TTL_MS && voiceCache.voices.length)
     return voiceCache.voices;
   const key = apiKey(env);
   if (!key) throw Object.assign(Error("ttsNotConfigured"), { status: 503 });
-  const response = await fetchImpl(`${UPSTREAM}/v1/voices`, {
-    headers: { "xi-api-key": key },
-  });
-  if (!response.ok)
+  let response;
+  try {
+    response = await fetchImpl(`${UPSTREAM}/v1/voices`, { headers: { "xi-api-key": key } });
+  } catch (error) {
+    console.error("narration: voice list request failed", error.message);
     throw Object.assign(Error("ttsUnavailable"), { status: 502 });
+  }
+  if (!response.ok) {
+    console.error(`narration: voice list returned HTTP ${response.status}`);
+    throw upstreamFailure(response.status);
+  }
   const data = await response.json();
   const voices = (data.voices || []).slice(0, 40).map((v) => ({
     id: v.voice_id,
@@ -127,17 +145,24 @@ async function handleTts(req, res, { fetch = globalThis.fetch, env = process.env
     return send(res, error.status || 502, { error: error.message });
   }
   if (!voices.some((v) => v.id === voice)) return send(res, 400, { error: "voiceUnknown" });
-  const upstream = await fetch(
-    `${UPSTREAM}/v1/text-to-speech/${voice}?output_format=${FORMAT}`,
-    {
-      method: "POST",
-      headers: { "xi-api-key": apiKey(env), "Content-Type": "application/json", Accept: "audio/mpeg" },
-      body: JSON.stringify({ text, model_id: MODEL }),
-    },
-  );
+  let upstream;
+  try {
+    upstream = await fetch(
+      `${UPSTREAM}/v1/text-to-speech/${voice}?output_format=${FORMAT}`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": apiKey(env), "Content-Type": "application/json", Accept: "audio/mpeg" },
+        body: JSON.stringify({ text, model_id: MODEL }),
+      },
+    );
+  } catch (error) {
+    console.error("narration: speech request failed", error.message);
+    return send(res, 502, { error: "ttsUnavailable" });
+  }
   if (!upstream.ok) {
+    console.error(`narration: speech request returned HTTP ${upstream.status}`);
     if (upstream.status === 429) return send(res, 429, { error: "ttsRateLimited" });
-    if (upstream.status === 401 || upstream.status === 403) return send(res, 503, { error: "ttsNotConfigured" });
+    if (upstream.status === 401 || upstream.status === 403) return send(res, 503, { error: "ttsKeyRejected" });
     if (upstream.status === 422 || upstream.status === 400) return send(res, 400, { error: "ttsRejectedText" });
     return send(res, 502, { error: "ttsFailed" });
   }

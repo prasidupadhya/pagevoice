@@ -320,7 +320,8 @@ for hashed assets, revalidation for HTML and the service worker, and serves
 
 **Narration setup.** In the Vercel project settings, add `ELEVENLABS_API_KEY` as a
 **server-only** variable. Do not use a `VITE_` prefix: those values are copied into the
-public JavaScript. Optional: `ELEVENLABS_MODEL_ID` (default `eleven_multilingual_v2`) and
+public JavaScript. Optional: `ELEVENLABS_VOICE_ID` (a voice from your account; narration then skips the voice list, which
+keys without the voices permission cannot read), `ELEVENLABS_MODEL_ID` (default `eleven_multilingual_v2`) and
 `PAGEVOICE_ALLOWED_ORIGINS` (defaults to `https://pagevoice.tech` and
 `https://www.pagevoice.tech`, plus local development origins). The narration route
 accepts only those origins, caps each request at 1000 characters, and checks the voice
