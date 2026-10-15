@@ -1,29 +1,18 @@
 import JSZip from "jszip";
-import { decodeWav } from "./audio";
 import { isWasmAbort } from "./wasm";
+// Each chapter is the MP3 files of its sentences, joined. MP3 frames can be
+// concatenated, so no re-encoding is needed.
 self.onmessage = async ({ data: { book, chapters, format } }) => {
   try {
-    const { Mp3Encoder } = await import("@breezystack/lamejs");
     const files = [];
     for (const [index, chapter] of chapters.entries()) {
-      const first = await decodeWav(chapter.audio[0]);
-      const encoder = new Mp3Encoder(1, first.rate, 128),
-        parts = [];
-      let duration = 0;
-      for (const blob of chapter.audio) {
-        const { pcm, rate, duration: d } = await decodeWav(blob);
-        if (rate !== first.rate) throw Error("mixedSampleRates");
-        duration += d;
-        for (let p = 0; p < pcm.length; p += 1152) {
-          const output = encoder.encodeBuffer(pcm.subarray(p, p + 1152));
-          if (output.length) parts.push(new Uint8Array(output));
-        }
-      }
-      const tail = encoder.flush();
-      if (tail.length) parts.push(new Uint8Array(tail));
+      const duration = chapter.audio.reduce((n, a) => n + a.duration, 0);
       files.push({
         name: `${String(index + 1).padStart(3, "0")} - ${chapter.title.replace(/[<>:"/\\|?*]/gu, "").slice(0, 100)}.mp3`,
-        blob: new Blob(parts, { type: "audio/mpeg" }),
+        blob: new Blob(
+          chapter.audio.map((a) => a.blob),
+          { type: "audio/mpeg" },
+        ),
         duration,
         title: chapter.title,
         source: chapter.source,
@@ -41,7 +30,6 @@ self.onmessage = async ({ data: { book, chapters, format } }) => {
       generatedSpeech: true,
       engine: book.settings.engine,
       voice: book.settings.voice,
-      pace: book.settings.pace,
       chapters: files.map(({ name, title, source, duration }) => ({
         name,
         title,

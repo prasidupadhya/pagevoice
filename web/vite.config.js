@@ -1,7 +1,15 @@
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+// The narration proxy lives in ../server and is also a Vercel function (../api).
+// The same handlers run here so local development and browser tests hit real code.
+const narration = createRequire(import.meta.url)("../server/elevenlabs.js");
+const narrationRoutes = (server) => {
+  server.middlewares.use("/api/tts", (req, res) => narration.handleTts(req, res));
+  server.middlewares.use("/api/voices", (req, res) => narration.handleVoices(req, res));
+};
 export const browserPolicy = () =>
   [
     "default-src 'self'",
@@ -19,6 +27,11 @@ export const browserPolicy = () =>
 export default defineConfig(({ command }) => ({
   plugins: [
     react(),
+    {
+      name: "narration-api",
+      configureServer: narrationRoutes,
+      configurePreviewServer: narrationRoutes,
+    },
     {
       name: "local-runtime-modules",
       configureServer(server) {

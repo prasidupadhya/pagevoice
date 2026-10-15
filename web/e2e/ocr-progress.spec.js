@@ -8,6 +8,7 @@ import {
   upload,
   install,
   books,
+  mockNarration,
 } from "./helpers";
 test("scanned PDF OCR runs locally and after language data is cached offline", async ({
   page,
@@ -86,7 +87,7 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
   });
   const [book] = await books(page);
   await page.getByRole("button", { name: `Open book · ${book.title}` }).click();
-  await install(page, "piper");
+  await mockNarration(page, { delayMs: 250 });
   await page
     .locator(".chapter-drawer")
     .getByRole("button", { name: /^3 Capítulo 3/ })

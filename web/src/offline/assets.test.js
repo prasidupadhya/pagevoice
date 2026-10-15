@@ -20,15 +20,11 @@ function memoryCache() {
   };
   return { entries, cache, open: async () => cache };
 }
-it("maps mutable Kokoro library requests to pinned static artifacts", () => {
-  const p = models.kokoro;
+it("maps mutable library requests to pinned static artifacts", () => {
+  const p = models.embeddings;
   expect(
-    canonicalAsset(
-      `https://huggingface.co/${p.id}/resolve/main/voices/af_heart.bin`,
-    ),
-  ).toBe(
-    `https://huggingface.co/${p.id}/resolve/${p.revision}/voices/af_heart.bin`,
-  );
+    canonicalAsset(`https://huggingface.co/${p.id}/resolve/main/config.json`),
+  ).toBe(`https://huggingface.co/${p.id}/resolve/${p.revision}/config.json`);
 });
 it("downloads only fixed GET files, validates size/hash, then uses cache without another download", async () => {
   vi.stubGlobal("crypto", webcrypto);
@@ -88,7 +84,7 @@ it("inference never fetches uncached remote data or POSTs book text", async () =
     await expect(
       fetch("https://somewhere.example", { method: "POST", body: "book text" }),
     ).rejects.toThrow("blockedRequest");
-    const r = await fetch(models.kokoro.assets[0].url);
+    const r = await fetch(models.embeddings.assets[0].url);
     expect(r.status).toBe(404);
     expect(fetcher).not.toHaveBeenCalled();
     expect(await cache.open(ASSET_CACHE)).toBeTruthy();

@@ -4,9 +4,9 @@ export default {
   tagline: "Un libro, a tu ritmo.",
   library: "Biblioteca",
   private: "Una sala de lectura privada",
-  intro: "Trae un libro. Dale voz. Guárdalo aquí.",
+  intro: "Trae un libro. Escúchalo. Guárdalo aquí.",
   introBody:
-    "Libros en inglés y español, narrados en tu dispositivo. Sin cuenta. El texto no sale de esta aplicación.",
+    "Lee PDF y EPUB en tu navegador. La narración envía la frase que escuchas a un servicio de voz. No necesitas cuenta.",
   add: "Añadir un libro",
   drop: "Suelta un PDF o EPUB aquí",
   choose: "Elegir archivo",
@@ -14,12 +14,12 @@ export default {
   keep: "Guardar en este navegador",
   session: "Solo esta sesión",
   keepHelp:
-    "Libros, posición y audio preparado se guardan en este dispositivo.",
+    "Los libros, la posición de lectura y el audio preparado se quedan en este navegador.",
   sessionHelp: "Este libro desaparece al cerrar o actualizar la pestaña.",
   temporaryWarning: "Hay un libro de sesión abierto. Al actualizar se perderá.",
   storageUnavailable:
     "No hay almacenamiento persistente. Los libros solo estarán en esta pestaña.",
-  models: "Herramientas sin conexión",
+  models: "Herramientas de documento",
   credits: "Créditos y licencias",
   theme: "Tema",
   light: "Claro",
@@ -33,12 +33,12 @@ export default {
   update: "Hay una actualización",
   reload: "Actualizar la aplicación",
   privacy:
-    "Los documentos se guardan en el almacenamiento de este navegador, en este dispositivo. PageVoice no los sube a ningún servidor.",
+    "Los documentos se quedan en este navegador. Solo se envía al servicio de voz la frase que se narra.",
   empty: "Añade un PDF o EPUB para empezar a leer.",
   emptyBody:
     "PageVoice abre tu documento en este navegador, detecta sus secciones e idioma y recuerda por dónde vas. Sin cuenta.",
   emptyNote:
-    "La primera voz necesita una descarga. Después, lee y escucha sin conexión.",
+    "La narración necesita conexión a internet. La lectura y la búsqueda funcionan sin conexión.",
   shelfCount: "{n} libros",
   shelfOne: "1 libro",
   filterBooks: "Buscar en tu estantería",
@@ -89,15 +89,12 @@ export default {
   downloadFailed: "Falló la descarga. Continúa cuando haya conexión.",
   assetIntegrity: "El archivo no superó la verificación. Descárgalo de nuevo.",
   modelNotCached:
-    "Descarga primero el modelo de voz en Herramientas sin conexión.",
-  engineFailed: "No se pudo ejecutar el motor. Prueba WASM u otro motor.",
-  gpuFailed:
-    "WebGPU no pudo ejecutar el modelo. Elige WASM y descarga el modelo pequeño.",
-  phonemizerFailed: "El fonemizador no pudo leer esta frase.",
-  silentAudio: "El motor devolvió silencio. Prueba otra voz o edita la frase.",
+    "Descarga primero esta herramienta en Herramientas de documento.",
+  engineFailed:
+    "Esta herramienta no pudo ejecutarse. Inténtalo de nuevo o recarga PageVoice.",
+  silentAudio:
+    "El servicio de voz devolvió audio en silencio. Inténtalo de nuevo o elige otra voz.",
   sentenceTooLong: "La frase es demasiado larga. Divídela en el editor.",
-  mixedSampleRates:
-    "El audio usa frecuencias distintas. Regenera el capítulo con un único motor.",
   invalidAudio: "No se pudo reproducir el audio. Regenera esta frase.",
   quotaExceeded:
     "El almacenamiento está lleno. Elimina un libro o modelo, o usa solo la sesión.",
@@ -105,8 +102,6 @@ export default {
   m4bFailed: "No se pudo crear M4B. Exporta el ZIP MP3.",
   analysisLimit:
     "El libro supera el límite de 12000 pasajes del análisis opcional.",
-  unsupportedSpeech:
-    "El navegador no tiene voz de dispositivo. Los modelos locales siguen disponibles.",
   back: "Volver a la biblioteca",
   chapters: "Contenido",
   chapter: "Sección",
@@ -181,18 +176,17 @@ export default {
   prepare: "Preparar audiolibro",
   pausePreparation: "Pausar preparación",
   resumePreparation: "Continuar preparación",
-  preparing: "Preparando en este dispositivo",
+  preparing: "Preparando la narración",
   complete: "Audiolibro preparado",
   ready: "Listo para escuchar",
   tapAudio: "Toca para habilitar audio",
   preparingNote:
-    "La preparación continúa mientras escuchas. Mantén abierta la pestaña; el navegador puede suspenderla en segundo plano.",
+    "La preparación llama al servicio de voz por cada frase. Mantén esta pestaña abierta; los navegadores pueden pausar las pestañas en segundo plano.",
   rtf: "{rtf}× tiempo real",
   rtfHelp:
     "Tiempo de generación dividido por duración. Menos de 1 es más rápido que reproducir.",
-  slow: "Este dispositivo prepara más despacio que la reproducción. Usa un búfer mayor.",
+  slow: "La narración va más lenta que la reproducción. Usa un búfer más grande.",
   eta: "Unos {time} restantes · estimación",
-  generationPace: "Ritmo de narración",
   playbackSpeed: "Velocidad de reproducción",
   sleep: "Temporizador",
   sleepOff: "Desactivado",
@@ -200,25 +194,8 @@ export default {
   shortcuts: "Atajos de teclado",
   shortcutsBody:
     "Espacio: reproducir / pausar · ← / →: avanzar 10 segundos · J / K: frase anterior / siguiente · /: buscar · ?: ayuda. Los atajos no se activan al escribir.",
-  voicePicker: "Voz del narrador",
-  engine: "Motor de voz",
-  kokoro: "Kokoro · Inglés",
-  piper: "Piper · Español de España",
-  supertonic: "Supertonic 2 · experimental",
-  device: "Voz del dispositivo · alternativa",
-  execution: "Ejecución",
-  wasm: "WASM · CPU compatible",
-  webgpu: "WebGPU · modelo mayor",
+  voicePicker: "Voz de narración",
   preview: "Probar esta voz",
-  previewTextEN:
-    "A quiet room, an open book, and a voice that keeps you company.",
-  previewTextES:
-    "Una habitación tranquila, un libro abierto y una voz que te acompaña.",
-  deviceNotice:
-    "La voz del dispositivo es una alternativa de menor calidad. Algunos sistemas usan servicios en línea; disponibilidad sin conexión y privacidad dependen del sistema. No produce audio descargable.",
-  deviceNoVoices: "No hay voces del dispositivo para el idioma del libro.",
-  voiceLocal:
-    "La narración neuronal es local. Estas voces pertenecen a los modelos; no son voces de Edge.",
   cast: "Reparto de personajes",
   narrator: "Narrador",
   noCharacters:
@@ -260,7 +237,7 @@ export default {
   cached: "Guardado",
   notCached: "Sin descargar",
   downloadIntro:
-    "Una sola descarga. El texto del libro queda aquí; solo estos archivos estáticos viajan por la red.",
+    "Las herramientas de documento son descargas únicas. Solo estos archivos estáticos viajan por la red; tus libros se quedan aquí.",
   downloadPaused:
     "Descarga pausada. Se conservan archivos completos. Los parciales continúan si el servidor admite rangos.",
   removeModel: "Eliminar modelo",
@@ -269,11 +246,6 @@ export default {
   embeddingLabel: "Búsqueda semántica multilingüe",
   nerLabel: "Nombres multilingües",
   ffmpegLabel: "Crear M4B · mejor esfuerzo",
-  gpuLabel: "Kokoro inglés · WebGPU",
-  sharvardLabel: "Piper Sharvard · Español de España",
-  supertonicLabel: "Supertonic 2 · motor comparativo",
-  supertonicNotice:
-    "Proyecto archivado. Se aplican restricciones OpenRAIL-M. No afirmamos mayor calidad; consulta mediciones y créditos.",
   chapterZIP: "ZIP MP3 por capítulos",
   wholeBook: "Audiolibro completo",
   currentChapter: "Sección actual",
@@ -302,14 +274,14 @@ export default {
   imported: "Copia importada",
   creditsTitle: "Privacidad y créditos",
   creditsIntro:
-    "Los modelos trabajan localmente. El código no envía texto del libro a la red. Las solicitudes CDN descargan archivos fijos. La voz del dispositivo es una alternativa elegida explícitamente cuya privacidad depende del sistema.",
+    "La lectura, la búsqueda y el procesamiento de documentos se ejecutan en este navegador. La narración envía el texto de cada frase que escuchas, a través del servicio de narración de este sitio, a ElevenLabs. Las herramientas de documento son archivos fijos de CDN públicas.",
   licenses: "Licencias y avisos de código fuente",
   modelLicense: "Licencia de modelo / voz",
   creditsNames:
-    "Kokoro y conversión ONNX: hexgrad / onnx-community, Apache-2.0. Piper: Rhasspy y colaboradores; datos DaveFX CC0, Sharvard CC-BY-3.0. eSpeak NG / fonemizador Piper GPL-3.0. Supertonic 2: Supertone, OpenRAIL-M. MiniLM multilingüe: Sentence Transformers, Apache-2.0. NER Davlan: AFL-3.0. Tesseract / datos eng+spa: Apache-2.0. ONNX Runtime / Transformers.js: MIT / Apache-2.0. MP3: lamejs, LGPL-3.0. FFmpeg: componentes GPL/LGPL. Newsreader / Fraunces / Geist: SIL OFL-1.1.",
+    "Narración: ElevenLabs (texto a voz, sujeto a sus condiciones). OCR: Tesseract, Apache-2.0. Modelos de búsqueda: Multilingual MiniLM, Apache-2.0. Detección de nombres: Davlan multilingual NER, AFL-3.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Herramientas MP3 y M4B: FFmpeg, componentes GPL/LGPL. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
   limits: "Límites reales",
   limitsBody:
-    "La calidad varía por idioma, modelo y dispositivo. OCR y detección de diálogo pueden fallar. La memoria limita las exportaciones. Las pestañas en segundo plano pueden detenerse. El navegador puede borrar datos. Sin clonación, TTS en línea, resúmenes generados ni garantías de calidad.",
+    "La narración necesita conexión y depende del servicio de voz. El OCR y la detección de diálogos pueden equivocarse. La memoria del navegador limita las exportaciones largas. Las pestañas en segundo plano pueden dejar de preparar. El almacenamiento del navegador puede borrarse.",
   dismiss: "Descartar",
   progressLabel: "Progreso de preparación",
   bookProgress: "{percent}% leído",
@@ -346,9 +318,7 @@ export default {
     "Los archivos importados, las posiciones de lectura, los marcadores y el audio generado se guardan en el almacenamiento de este navegador (IndexedDB y el sistema de archivos privado del origen), en este dispositivo. PageVoice no tiene cuentas ni un servidor que reciba tus documentos. Eliminar un libro o borrar los datos del sitio lo borra; exporta una copia de la biblioteca para conservarla.",
   privacyNetworkTitle: "Qué usa la red",
   privacyNetwork:
-    "La aplicación se carga desde pagevoice.tech, cuyo proveedor puede guardar registros de acceso estándar. Las voces, el OCR y los modelos de análisis opcionales solo se descargan cuando los eliges, desde Hugging Face y jsDelivr, como archivos fijos verificados con hashes; esas solicitudes no contienen texto de tus documentos. La política de seguridad de contenido bloquea conexiones con otros servidores. PageVoice no incluye analítica ni seguimiento.",
-  privacyDevice:
-    "Excepción: si eliges la voz del dispositivo, el motor de voz del sistema operativo lee el texto y algunos sistemas usan servicios en línea para ello. Se indica donde lo eliges.",
+    "La narración envía el texto de cada frase que escuchas, a través del servicio de narración de este sitio, a ElevenLabs. Las herramientas de documento (OCR, modelos de búsqueda) solo se descargan cuando las eliges, desde Hugging Face y jsDelivr, como archivos fijos verificados con hashes; esas solicitudes no contienen texto de tus documentos. La política de seguridad de contenido bloquea conexiones con otros servidores. PageVoice no incluye analítica ni seguimiento.",
   sourceCode: "Código fuente en GitHub",
   notStarted: "Sin empezar",
   step1: "Añade un documento",
@@ -359,7 +329,7 @@ export default {
     "Elige tema, tamaño de texto y ancho de línea. Busca texto, muévete entre secciones y marca pasajes.",
   step3: "Escucha",
   step3Body:
-    "Descarga una voz una vez desde Herramientas sin conexión y escucha con la frase resaltada, también sin conexión.",
+    "Elige una voz y escucha. La narración necesita conexión a internet.",
   continueReading: "Seguir leyendo",
   continue: "Continuar",
   recentOpened: "Abiertos recientemente",
@@ -393,11 +363,8 @@ export default {
   editSection: "Editar sección",
   preparedCount: "{n} de {total} frases tienen audio",
   exportFormat: "Formato",
-  deviceExport:
-    "La voz del dispositivo no se puede exportar. Elige una voz descargada en Voz y reparto para crear archivos de audio.",
   clipboardFailed:
     "No se pudo copiar la cita porque el navegador bloqueó el portapapeles.",
-  webgpuUnavailable: "WebGPU · no disponible en este navegador",
   shortcutsNote: "Los atajos no funcionan mientras escribes en un campo.",
   shortcutPlay: "Reproducir o pausar",
   shortcutFind: "Buscar en el libro",
@@ -413,10 +380,9 @@ export default {
   hideAudioOptions: "Ocultar opciones de audio",
   sentenceOf: "Frase {current} de {total}",
   sentencePosition: "Posición en la frase actual",
-  voiceMissing: "Descarga una voz para escuchar.",
+  voiceMissing: "La narración no está disponible.",
   voiceMissingBody:
-    "Las voces funcionan en este dispositivo tras una única descarga.",
-  downloadVoice: "Descargar voz",
+    "Revisa tu conexión y abre Voz y reparto para intentarlo de nuevo.",
   display: "Pantalla",
   smallerText: "Texto más pequeño",
   largerText: "Texto más grande",
@@ -435,4 +401,22 @@ export default {
   cacheTooLarge:
     "Este navegador no pudo guardar un archivo tan grande. Prueba Chromium o Firefox, o una voz más pequeña.",
   contact: "Contacto:",
+  voiceHelp:
+    "La narración usa voces de ElevenLabs. Cada frase que escuchas se envía al servicio para leerla en voz alta.",
+  narrationPrivacy:
+    "La narración envía el texto de cada frase a ElevenLabs. Los libros no se suben, y no se envía nada más de ellos.",
+  noVoices: "No hay voces disponibles en este momento.",
+  ttsOffline: "Estás sin conexión. La narración necesita conexión.",
+  ttsUnavailable:
+    "El servicio de voz no está disponible ahora. Inténtalo más tarde.",
+  ttsNotConfigured:
+    "La narración todavía no está configurada en este servidor.",
+  ttsRateLimited:
+    "Demasiadas solicitudes de narración. Espera un minuto e inténtalo de nuevo.",
+  ttsFailed: "El servicio de voz no pudo crear esta frase. Inténtalo de nuevo.",
+  ttsRejectedText:
+    "El servicio de voz no puede leer esta frase. Edítala e inténtalo de nuevo.",
+  textTooLong:
+    "Esta frase es demasiado larga para narrarla. Divídela en el editor de frases.",
+  voiceUnknown: "Primero elige una voz de narración en Voz y reparto.",
 };

@@ -385,7 +385,6 @@ export default function App() {
               setPref={setPref}
               focus={focus}
               setFocus={setFocus}
-              toolsOpen={tools}
               onBack={() => setSelected(null)}
               onDelete={askDelete}
               onModels={() => setTools(true)}
@@ -605,7 +604,6 @@ export default function App() {
           <p>{t("privacyStored")}</p>
           <h3>{t("privacyNetworkTitle")}</h3>
           <p>{t("privacyNetwork")}</p>
-          <p className="muted">{t("privacyDevice")}</p>
           <h3>{t("modelLicense")}</h3>
           <p className="muted">{t("creditsNames")}</p>
           <a

@@ -4,40 +4,6 @@ import { hashText, opfsWritable, removeIfPresent } from "./library";
 
 export const ASSET_CACHE = "pagevoice-models-v1";
 export const MODEL_GROUPS = {
-  kokoro: {
-    language: "en",
-    license: "Apache-2.0",
-    files: [
-      ...models.kokoro.assets,
-      ...runtimes.transformers.filter((a) => a.url.includes(".jsep.")),
-    ],
-  },
-  "kokoro-gpu": {
-    language: "en",
-    license: "Apache-2.0",
-    files: [
-      ...models.kokoro.assets.filter(
-        (a) => !a.path?.includes("model_quantized"),
-      ),
-      ...models["kokoro-gpu"].assets,
-      ...runtimes.transformers,
-    ],
-  },
-  piper: {
-    language: "es",
-    license: "CC0 dataset / MIT weights; GPL phonemizer",
-    files: [...models.piper.assets, ...runtimes.piper, ...runtimes.ort],
-  },
-  sharvard: {
-    language: "es",
-    license: "CC-BY-3.0 dataset / MIT weights; GPL phonemizer",
-    files: [...models.sharvard.assets, ...runtimes.piper, ...runtimes.ort],
-  },
-  supertonic: {
-    language: "en/es",
-    license: "OpenRAIL-M",
-    files: [...models.supertonic.assets, ...runtimes.ort],
-  },
   embeddings: {
     license: "Apache-2.0",
     files: [
@@ -70,7 +36,7 @@ export function canonicalAsset(value) {
     (a) => absolute(a.url) === url || (a.alias && absolute(a.alias) === url),
   );
   if (direct) return absolute(direct.url);
-  // kokoro-js hardcodes main for voice files. Redirect to the same pinned snapshot
+  // Some libraries request a moving "main" revision. Redirect to the pinned snapshot
   // locally, before fetching. No mutable model revision is used for inference.
   for (const m of Object.values(models)) {
     if (!m.id) continue;

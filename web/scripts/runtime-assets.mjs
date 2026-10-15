@@ -19,10 +19,6 @@ const groups = {
     "node_modules/@huggingface/transformers/node_modules/onnxruntime-web/dist",
     /^ort-wasm-simd-threaded(?:\.jsep)?\.(?:wasm|mjs)$/,
   ],
-  piper: [
-    "node_modules/@diffusionstudio/piper-wasm/build",
-    /^piper_phonemize\.(?:wasm|data|js)$/,
-  ],
   ocr: [
     "node_modules/tesseract.js-core",
     /^tesseract-core-(?:(?:relaxed)?simd-)?lstm\.wasm(?:\.js)?$/,
@@ -38,11 +34,6 @@ for (const [name, [path, pattern]] of Object.entries(groups)) {
     if (!pattern.test(file)) continue;
     const source = resolve(root, path, file);
     let buffer = await readFile(source);
-    if (name === "piper" && file.endsWith(".js"))
-      buffer = Buffer.concat([
-        buffer,
-        Buffer.from("\nexport default createPiperPhonemize;\n"),
-      ]);
     await writeFile(resolve(destination, file), buffer);
     manifest[name].push({
       url: `/runtime/${name}/${file}`,
@@ -71,4 +62,6 @@ await writeFile(
 console.log(
   "Prepared self-hosted, version-pinned inference/OCR/export runtimes.",
 );
-await cp(resolve(root,'LICENSES'),resolve(root,'public/licenses/notices'),{recursive:true});
+await cp(resolve(root, "LICENSES"), resolve(root, "public/licenses/notices"), {
+  recursive: true,
+});

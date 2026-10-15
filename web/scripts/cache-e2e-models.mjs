@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 await mkdir("/tmp/pagevoice-model-files", { recursive: true });
 for (const name of process.argv.slice(2).length
   ? process.argv.slice(2)
-  : ["kokoro", "piper", "supertonic", "embeddings", "ner", "ocr"])
+  : ["embeddings", "ner", "ocr"])
   for (const a of manifest[name].assets) {
     const path = `/tmp/pagevoice-model-files/${a.sha256}`;
     let data;

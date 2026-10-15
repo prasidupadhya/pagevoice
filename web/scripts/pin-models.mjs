@@ -1,50 +1,21 @@
 // Maintenance only. The deployed app only GETs the fixed files in the output.
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-const previous = JSON.parse(await readFile(new URL('../src/offline/model-assets.json',import.meta.url)));
+const previous = JSON.parse(
+  await readFile(new URL("../src/offline/model-assets.json", import.meta.url)),
+);
 const metadata = {};
-for(const m of Object.values(previous)) {
-  if(!m.id || metadata[m.id]) continue;
-  const response=await fetch(`https://huggingface.co/api/models/${m.id}/revision/${m.revision}?blobs=true`);
-  if(!response.ok) throw Error(`Cannot read pinned metadata: ${m.id} (${response.status})`);
-  metadata[m.id]=await response.json();
+for (const m of Object.values(previous)) {
+  if (!m.id || metadata[m.id]) continue;
+  const response = await fetch(
+    `https://huggingface.co/api/models/${m.id}/revision/${m.revision}?blobs=true`,
+  );
+  if (!response.ok)
+    throw Error(`Cannot read pinned metadata: ${m.id} (${response.status})`);
+  metadata[m.id] = await response.json();
 }
 const manifest = {};
 const definitions = {
-  kokoro: [
-    "onnx-community/Kokoro-82M-v1.0-ONNX",
-    [
-      "config.json",
-      "tokenizer.json",
-      "tokenizer_config.json",
-      "onnx/model_quantized.onnx",
-      ...[
-        "af_heart",
-        "af_bella",
-        "am_michael",
-        "am_adam",
-        "bf_emma",
-        "bf_isabella",
-        "bm_george",
-        "bm_daniel",
-      ].map((v) => `voices/${v}.bin`),
-    ],
-  ],
-  "kokoro-gpu": ["onnx-community/Kokoro-82M-v1.0-ONNX", ["onnx/model.onnx"]],
-  piper: [
-    "rhasspy/piper-voices",
-    [
-      "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx",
-      "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json",
-    ],
-  ],
-  sharvard: [
-    "rhasspy/piper-voices",
-    [
-      "es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx",
-      "es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx.json",
-    ],
-  ],
   embeddings: [
     "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     [
@@ -63,19 +34,6 @@ const definitions = {
       "tokenizer_config.json",
       "special_tokens_map.json",
       "onnx/model_quantized.onnx",
-    ],
-  ],
-  supertonic: [
-    "supertone-oss-archive/supertonic-2",
-    [
-      "onnx/tts.json",
-      "onnx/unicode_indexer.json",
-      "onnx/duration_predictor.onnx",
-      "onnx/text_encoder.onnx",
-      "onnx/vector_estimator.onnx",
-      "onnx/vocoder.onnx",
-      "voice_styles/F1.json",
-      "voice_styles/M1.json",
     ],
   ],
 };

@@ -55,7 +55,7 @@ async function upload(page, path) {
 }
 async function install(page, id) {
   await page
-    .getByRole("button", { name: "Offline tools", exact: true })
+    .getByRole("button", { name: "Document tools", exact: true })
     .first()
     .click();
   const row = page.locator(`[data-model="${id}"]`);
@@ -108,6 +108,52 @@ async function waitPrepared(page, count, id) {
     )
     .toBeGreaterThanOrEqual(count);
 }
+// Narration tests use a fixed voice from a mocked service (see mockNarration).
+const VOICE = { id: "voice123456", name: "Test voice", locale: "en" };
+// Silent PCM WAV bytes. The mocked service returns them as audio/mpeg; browsers
+// sniff the container, so this exercises the same playback and storage paths.
+function silentWav(seconds = 1.2, rate = 8000) {
+  const samples = Math.floor(rate * seconds),
+    buffer = Buffer.alloc(44 + samples * 2);
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + samples * 2, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(rate, 24);
+  buffer.writeUInt32LE(rate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(samples * 2, 40);
+  return buffer;
+}
+/** Mocks the site's narration routes. Returns the bodies sent to /api/tts. */
+async function mockNarration(page, { voicesStatus = 200, delayMs = 0 } = {}) {
+  const sent = [];
+  await page.route("**/api/voices", (route) =>
+    voicesStatus === 200
+      ? route.fulfill({ json: { voices: [VOICE] } })
+      : route.fulfill({
+          status: voicesStatus,
+          json: { error: "ttsNotConfigured" },
+        }),
+  );
+  await page.route("**/api/tts", async (route) => {
+    sent.push(route.request().postDataJSON());
+    // Real services take time per sentence; instant replies would hide buffering.
+    if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await route.fulfill({
+      status: 200,
+      contentType: "audio/mpeg",
+      body: silentWav(),
+    });
+  });
+  return sent;
+}
+// Stored narration records: which sentences have audio, and how long each lasts.
 async function stats(page) {
   return page.evaluate(async () => {
     const open = indexedDB.open("pagevoice-offline-v1");
@@ -118,43 +164,14 @@ async function stats(page) {
     const records = await new Promise(
       (r) => (get.onsuccess = () => r(get.result)),
     );
-    const out = [];
-    for (const a of records) {
-      // IndexedDB stores audio as bytes; OPFS-backed audio is a file.
-      const blob = a.blob
-        ? new Blob([a.blob.bytes], { type: a.blob.type })
-        : await (
-            await (
-              await (
-                await navigator.storage.getDirectory()
-              ).getDirectoryHandle("pagevoice-audio")
-            ).getFileHandle(a.path)
-          ).getFile();
-      const buffer = await blob.arrayBuffer(),
-        view = new DataView(buffer),
-        rate = view.getUint32(24, true);
-      let sum = 0,
-        peak = 0;
-      for (let p = 44; p < buffer.byteLength; p += 2) {
-        const x = view.getInt16(p, true) / 32768;
-        sum += x * x;
-        peak = Math.max(peak, Math.abs(x));
-      }
-      out.push({
-        bookId: a.bookId,
-        row: a.row,
-        duration: (buffer.byteLength - 44) / 2 / rate,
-        rms: Math.sqrt(sum / ((buffer.byteLength - 44) / 2)),
-        peak,
-        rtf: a.rtf,
-        bytes: blob.size,
-      });
-    }
     db.close();
-    return out;
+    return records.map((a) => ({
+      bookId: a.bookId,
+      row: a.row,
+      duration: a.duration,
+    }));
   });
 }
-
 export {
   fixture,
   cachedCDN,
@@ -164,4 +181,6 @@ export {
   stats,
   waitPrepared,
   controlledByServiceWorker,
+  mockNarration,
+  VOICE,
 };

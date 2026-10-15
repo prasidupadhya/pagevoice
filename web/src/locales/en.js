@@ -3,21 +3,21 @@ export default {
   tagline: "A book, at your pace.",
   library: "Library",
   private: "A private reading room",
-  intro: "Bring a book. Give it a voice. Keep it here.",
+  intro: "Bring a book. Listen to it. Keep it here.",
   introBody:
-    "English and Spanish books, narrated on your device. No account. No book text leaves this app.",
+    "Read PDFs and EPUBs in your browser. Narration sends the sentence you listen to a voice service. No account is needed.",
   add: "Add a book",
   drop: "Drop a PDF or EPUB here",
   choose: "Choose a file",
   formats: "PDF or EPUB, up to 100 MB",
   keep: "Keep in this browser",
   session: "Session only",
-  keepHelp: "Books, reading position and prepared audio stay on this device.",
+  keepHelp: "Books, reading position and prepared audio stay in this browser.",
   sessionHelp: "This book disappears when you close or refresh this tab.",
   temporaryWarning: "A session-only book is open. Refreshing will remove it.",
   storageUnavailable:
     "Persistent storage is unavailable. Books will remain in this tab only.",
-  models: "Offline tools",
+  models: "Document tools",
   credits: "Credits & licenses",
   theme: "Theme",
   light: "Light",
@@ -31,12 +31,12 @@ export default {
   update: "Update available",
   reload: "Reload to update",
   privacy:
-    "Documents are kept in this browser's storage on this device. PageVoice does not upload them.",
+    "Documents stay in this browser. Only the sentence being narrated is sent to the voice service.",
   empty: "Add a PDF or EPUB to start reading.",
   emptyBody:
     "PageVoice opens your document in this browser, finds its sections and language, and remembers your place. No account needed.",
   emptyNote:
-    "Your first voice needs a one-time download. After that, read and listen offline.",
+    "Narration needs an internet connection. Reading and search work offline.",
   shelfCount: "{n} books",
   shelfOne: "1 book",
   filterBooks: "Find a book on your shelf",
@@ -88,18 +88,12 @@ export default {
     "The download failed. Resume when your connection is available.",
   assetIntegrity:
     "The downloaded file failed its integrity check. Try downloading it again.",
-  modelNotCached: "Download the selected voice model in Offline tools first.",
-  engineFailed:
-    "The local speech engine could not run. Try the WASM setting or a different engine.",
-  gpuFailed:
-    "WebGPU could not run this model. Choose WASM and download its smaller model.",
-  phonemizerFailed: "The Spanish phonemizer could not read this sentence.",
+  modelNotCached: "Download this document tool in Document tools first.",
+  engineFailed: "This tool could not run. Try again, or reload PageVoice.",
   silentAudio:
-    "The engine returned silent audio. Try a different voice or edit the sentence.",
+    "The voice service returned silent audio. Try again or choose another voice.",
   sentenceTooLong:
     "This sentence is too long for the selected model. Split it in the sentence editor.",
-  mixedSampleRates:
-    "These sentences use incompatible audio rates. Regenerate the chapter with one engine.",
   invalidAudio:
     "This audio file could not be played. Regenerate this sentence.",
   quotaExceeded:
@@ -109,8 +103,6 @@ export default {
     "M4B could not be assembled on this device. Export the MP3 ZIP instead.",
   analysisLimit:
     "This book exceeds the optional analysis limit of 12,000 passage windows.",
-  unsupportedSpeech:
-    "This browser has no device speech. Local downloaded models remain available.",
   back: "Back to library",
   chapters: "Contents",
   chapter: "Section",
@@ -185,18 +177,17 @@ export default {
   prepare: "Prepare audiobook",
   pausePreparation: "Pause preparation",
   resumePreparation: "Continue preparing",
-  preparing: "Preparing on this device",
+  preparing: "Preparing narration",
   complete: "Audiobook prepared",
   ready: "Ready to listen",
   tapAudio: "Tap to enable audio",
   preparingNote:
-    "Preparation continues while you listen. Keep this tab open; browsers can suspend background tabs.",
+    "Preparing calls the voice service for each sentence. Keep this tab open; browsers can suspend background tabs.",
   rtf: "{rtf}× real time",
   rtfHelp:
     "Measured generation time ÷ audio duration. Below 1 means faster than playback.",
-  slow: "This device prepares speech more slowly than playback. Allow a larger buffer.",
+  slow: "Narration is slower than playback. Allow a larger buffer.",
   eta: "About {time} remaining · estimate",
-  generationPace: "Narration pace",
   playbackSpeed: "Playback speed",
   sleep: "Sleep timer",
   sleepOff: "Off",
@@ -205,24 +196,7 @@ export default {
   shortcutsBody:
     "Space: play / pause · ← / →: seek 10 seconds · J / K: previous / next sentence · /: search · ?: help. Shortcuts are inactive while you type.",
   voicePicker: "Narration voice",
-  engine: "Speech engine",
-  kokoro: "Kokoro · English",
-  piper: "Piper · Spain Spanish",
-  supertonic: "Supertonic 2 · experimental",
-  device: "Device speech · fallback",
-  execution: "Execution",
-  wasm: "WASM · compatible CPU",
-  webgpu: "WebGPU · larger model",
   preview: "Preview this voice",
-  previewTextEN:
-    "A quiet room, an open book, and a voice that keeps you company.",
-  previewTextES:
-    "Una habitación tranquila, un libro abierto y una voz que te acompaña.",
-  deviceNotice:
-    "Device voices are a lower-quality fallback. Some operating systems use online services; offline availability and privacy are outside this app's control. No downloadable audio is produced.",
-  deviceNoVoices: "No device voice is available for this book's language.",
-  voiceLocal:
-    "All neural narration runs locally. Voice names belong to these models; these are not Edge voices.",
   cast: "Character casting",
   narrator: "Narrator",
   noCharacters:
@@ -264,7 +238,7 @@ export default {
   cached: "Cached",
   notCached: "Not downloaded",
   downloadIntro:
-    "One-time downloads. Your book text stays here; only these static files travel over the network.",
+    "Document tools are one-time downloads. Only these static files travel over the network; your books stay here.",
   downloadPaused:
     "Download paused. Completed files are kept. Partial files resume when the host supports ranges.",
   removeModel: "Remove model",
@@ -273,11 +247,6 @@ export default {
   embeddingLabel: "Multilingual meaning search",
   nerLabel: "Multilingual character names",
   ffmpegLabel: "M4B assembly · best effort",
-  gpuLabel: "Kokoro English · WebGPU",
-  sharvardLabel: "Piper Sharvard · Spain Spanish",
-  supertonicLabel: "Supertonic 2 · comparison engine",
-  supertonicNotice:
-    "Archived upstream. OpenRAIL-M use restrictions apply. No claim of better speech quality; see the measured benchmark and credits.",
   chapterZIP: "Chapter MP3 ZIP",
   wholeBook: "Whole audiobook",
   currentChapter: "Current section",
@@ -306,14 +275,14 @@ export default {
   imported: "Backup imported",
   creditsTitle: "Privacy and credits",
   creditsIntro:
-    "Inference is local and books are private. This app's code does not send book text over the network. CDN requests download fixed files only. Device speech is an explicitly selected fallback with platform-dependent privacy.",
+    "Reading, search and document processing run in this browser. Narration sends the text of each sentence you listen to through this site's narration service to ElevenLabs. Document tools are fixed files from public CDNs.",
   licenses: "Open licenses & source notices",
   modelLicense: "Model / voice license",
   creditsNames:
-    "Kokoro and ONNX conversion: hexgrad / onnx-community. Piper voices: Rhasspy and contributors; DaveFX dataset CC0, Sharvard corpus CC-BY-3.0. eSpeak NG / Piper phonemizer GPL-3.0. Supertonic 2: Supertone, OpenRAIL-M. Multilingual MiniLM: Sentence Transformers, Apache-2.0. Davlan multilingual NER: AFL-3.0. Tesseract / eng+spa data: Apache-2.0. ONNX Runtime / Transformers.js: MIT / Apache-2.0. MP3: lamejs, LGPL-3.0. FFmpeg core: GPL/LGPL components. Newsreader / Fraunces / Geist: SIL OFL-1.1.",
+    "Narration: ElevenLabs (text to speech, subject to its terms). OCR: Tesseract, Apache-2.0. Search models: Multilingual MiniLM, Apache-2.0. Name detection: Davlan multilingual NER, AFL-3.0. ONNX Runtime and Transformers.js: MIT / Apache-2.0. MP3 and M4B tools: FFmpeg, GPL/LGPL components. Newsreader, Fraunces and Geist: SIL OFL-1.1.",
   limits: "Real limits",
   limitsBody:
-    "Voice quality varies by language, model and device. OCR and dialogue detection can be wrong. Browser memory limits long exports. Background tabs may stop preparing. Browser storage can be evicted. No cloned voices, online TTS, generated summaries or quality guarantees.",
+    "Narration needs a connection and depends on the voice service. OCR and dialogue detection can be wrong. Browser memory limits long exports. Background tabs may stop preparing. Browser storage can be evicted.",
   dismiss: "Dismiss",
   progressLabel: "Preparation progress",
   bookProgress: "{percent}% read",
@@ -349,9 +318,7 @@ export default {
     "Imported files, reading positions, bookmarks and generated audio are saved in this browser's storage (IndexedDB and the origin private file system) on this device. PageVoice has no accounts and no server that receives your documents. Removing a book or clearing site data deletes it; export a library backup to keep a copy.",
   privacyNetworkTitle: "What uses the network",
   privacyNetwork:
-    "The app itself is loaded from pagevoice.tech, whose host may keep standard request logs. Voices, OCR and the optional analysis models are downloaded only when you choose them, from Hugging Face and jsDelivr, as fixed files checked against pinned hashes; those requests contain no document text. The app's content security policy blocks connections to other servers. PageVoice includes no analytics or tracking.",
-  privacyDevice:
-    "Exception: if you choose device speech, your operating system's speech engine reads the text, and some systems use online services for that. This is labelled where you choose it.",
+    "Narration sends the text of each sentence you listen to through this site's narration service to ElevenLabs. Document tools (OCR, search models) are downloaded only when you choose them, from Hugging Face and jsDelivr, as fixed files checked against pinned hashes; those requests contain no document text. The app's content security policy blocks connections to other servers. PageVoice includes no analytics or tracking.",
   sourceCode: "Source code on GitHub",
   notStarted: "Not started",
   step1: "Add a document",
@@ -362,7 +329,7 @@ export default {
     "Pick a theme, text size and line width. Find text, move between sections and bookmark passages.",
   step3: "Listen",
   step3Body:
-    "Download a voice once from Offline tools, then listen with the spoken sentence highlighted, offline too.",
+    "Choose a voice, then listen. Narration needs an internet connection.",
   continueReading: "Continue reading",
   continue: "Continue",
   recentOpened: "Recently opened",
@@ -396,11 +363,8 @@ export default {
   editSection: "Edit section",
   preparedCount: "{n} of {total} sentences have audio",
   exportFormat: "Format",
-  deviceExport:
-    "Device speech cannot be exported. Choose a downloaded voice in Voice & cast to create audio files.",
   clipboardFailed:
     "The citation could not be copied because the browser blocked clipboard access.",
-  webgpuUnavailable: "WebGPU · not available in this browser",
   shortcutsNote: "Shortcuts are inactive while you type in a field.",
   shortcutPlay: "Play or pause",
   shortcutFind: "Find in book",
@@ -416,9 +380,9 @@ export default {
   hideAudioOptions: "Hide audio options",
   sentenceOf: "Sentence {current} of {total}",
   sentencePosition: "Position in current sentence",
-  voiceMissing: "Download a voice to listen.",
-  voiceMissingBody: "Voices run on this device after a one-time download.",
-  downloadVoice: "Download voice",
+  voiceMissing: "Narration is unavailable.",
+  voiceMissingBody:
+    "Check your connection, then open Voice & cast to try again.",
   display: "Display",
   smallerText: "Smaller text",
   largerText: "Larger text",
@@ -437,4 +401,20 @@ export default {
   cacheTooLarge:
     "This browser could not store a file this large. Try Chromium or Firefox, or a smaller voice.",
   contact: "Contact:",
+  voiceHelp:
+    "Narration uses voices from ElevenLabs. Each sentence you listen to is sent to the service to be read aloud.",
+  narrationPrivacy:
+    "Narration sends the text of each sentence to ElevenLabs. Books are not uploaded, and nothing else from them is sent.",
+  noVoices: "No voices are available right now.",
+  ttsOffline: "You're offline. Narration needs a connection.",
+  ttsUnavailable:
+    "The voice service is unavailable right now. Try again later.",
+  ttsNotConfigured: "Narration is not set up on this server yet.",
+  ttsRateLimited: "Too many narration requests. Wait a minute and try again.",
+  ttsFailed: "The voice service could not create this sentence. Try again.",
+  ttsRejectedText:
+    "The voice service would not read this sentence. Edit it and try again.",
+  textTooLong:
+    "This sentence is too long to narrate. Split it in the sentence editor.",
+  voiceUnknown: "Choose a narration voice in Voice & cast first.",
 };

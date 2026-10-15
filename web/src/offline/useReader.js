@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { LibraryStore, rowsOf } from "./library";
 import { AssetManager } from "./assets";
-import { LocalEngine, modelFor } from "./engines";
-import { RenderQueue, signatureFor } from "./render";
+import { listVoices, synthesize, durationOf } from "./engines";
+import { RenderQueue, signatureFor, effectiveVoice } from "./render";
 import { AudioPlayer } from "./player";
-import { SpeechController } from "../browser/SpeechController";
 import { detectCharacters } from "./knowledge";
 import { buildSearchIndex } from "../browser/search";
 import { analyzeSections } from "../browser/analysis";
-import { encodeWav } from "./audio";
 import { downloadBlob } from "./format";
 
 export function useReader() {
@@ -19,7 +17,8 @@ export function useReader() {
     [progress, setProgress] = useState(null),
     [preparation, setPreparation] = useState({ status: "idle" }),
     [playback, setPlayback] = useState({ status: "idle" }),
-    [deviceVoices, setDeviceVoices] = useState([]);
+    [voices, setVoices] = useState([]),
+    [voicesError, setVoicesError] = useState(null);
   const refs = useRef({}),
     lastFile = useRef(null),
     previewURL = useRef(null);
@@ -35,17 +34,12 @@ export function useReader() {
           if (!active) return;
           if (!book || book.deletedAt) {
             refs.current.queue?.stop(id);
-            if (
-              refs.current.player?.bookId === id ||
-              refs.current.speechBook === id
-            )
-              stopPlayback();
+            if (refs.current.player?.bookId === id) stopPlayback();
           }
           sync();
         },
       }),
-      assets = new AssetManager(),
-      engine = new LocalEngine();
+      assets = new AssetManager();
     let active = true;
     const player = new AudioPlayer({
       store,
@@ -56,23 +50,8 @@ export function useReader() {
         }
       },
     });
-    const speech = new SpeechController({
-      onState: (state) => {
-        if (!active) return;
-        setPlayback({ ...state, bookId: refs.current.speechBook });
-        if (state.row && refs.current.speechBook)
-          store
-            .update(refs.current.speechBook, {
-              position: { chapter: state.chapter, sentence: state.sentence },
-            })
-            .then(sync)
-            .catch((e) => showError(e.message));
-      },
-    });
     const queue = new RenderQueue({
       store,
-      assets,
-      engine,
       onChange: (state) => {
         if (!active) return;
         setPreparation(state);
@@ -80,7 +59,7 @@ export function useReader() {
         player.notifyReady().catch((e) => showError(e.message));
       },
     });
-    refs.current = { store, assets, engine, player, speech, queue };
+    refs.current = { store, assets, player, queue };
     store
       .init()
       .then(() => {
@@ -95,13 +74,8 @@ export function useReader() {
           setLoading(false);
         }
       });
-    const voices = () =>
-      setDeviceVoices(globalThis.speechSynthesis?.getVoices() || []);
-    voices();
-    globalThis.speechSynthesis?.addEventListener("voiceschanged", voices);
     const unload = ({ persisted }) => {
       player.pause();
-      speech.stop();
       refs.current.previewAudio?.pause();
       if (!persisted) {
         store.dispose();
@@ -117,7 +91,6 @@ export function useReader() {
       refs.current.parser?.terminate();
       queue.dispose();
       player.dispose();
-      speech.stop();
       refs.current.analysisWorker?.terminate();
       refs.current.queryWorker?.terminate();
       refs.current.exportWorker?.terminate();
@@ -125,7 +98,6 @@ export function useReader() {
       store.dispose();
       URL.revokeObjectURL(previewURL.current);
       window.removeEventListener("pagehide", unload);
-      globalThis.speechSynthesis?.removeEventListener("voiceschanged", voices);
     };
   }, []);
   useEffect(() => {
@@ -232,9 +204,10 @@ export function useReader() {
     const book = refs.current.store.get(id);
     refs.current.queue.pause();
     const next = { ...book.settings, ...patch };
-    if (["engine", "voice", "pace", "cast", "device"].some((k) => k in patch)) {
+    if (["voice", "cast"].some((k) => k in patch)) {
       stopPlayback();
       await update(id, { settings: next });
+      // Only the sentences whose voice changed lose their audio.
       for (const [row, a] of Object.entries(book.prepared)) {
         const current = rowsOf(refs.current.store.get(id)).find(
           (r) => r.id === row,
@@ -268,13 +241,7 @@ export function useReader() {
       prepared: {},
       semantics: null,
       entities: null,
-      settings: {
-        ...book.settings,
-        engine: language === "es" ? "piper" : "kokoro",
-        voice: language === "es" ? "davefx" : "af_heart",
-        cast: {},
-        device: "wasm",
-      },
+      settings: { ...book.settings, cast: {} },
       languageDetection: {
         ...book.languageDetection,
         source: "manual",
@@ -287,59 +254,46 @@ export function useReader() {
   }
   function stopPlayback() {
     refs.current.player.stop();
-    refs.current.speech.stop();
-    refs.current.speechBook = null;
   }
+  // Voices are requested when a book is opened or narration starts, not at
+  // startup. Every caller shares one request.
+  function ensureVoices() {
+    refs.current.voicesRequest ||= listVoices()
+      .then((list) => {
+        setVoices(list);
+        setVoicesError(null);
+        return list;
+      })
+      .catch((e) => {
+        refs.current.voicesRequest = null;
+        refs.current.voicesFailure = e.message;
+        setVoicesError(e.message);
+        return [];
+      });
+    return refs.current.voicesRequest;
+  }
+  // The narration voice is the one chosen for the book, or the first voice
+  // the service offers.
+  const narrationVoice = (book, list) =>
+    book.settings.voice || list[0]?.id || "";
   async function listen(id, chapter, sentence) {
     showError(null);
-    const book = refs.current.store.get(id);
-    if (book.settings.engine === "device") {
-      refs.current.player.stop();
-      refs.current.speechBook = id;
-      const voice =
-        deviceVoices.find((v) => v.voiceURI === book.settings.voice) ||
-        deviceVoices.find((v) => v.lang.split(/[-_]/u)[0] === book.language);
-      if (!voice) {
-        showError(
-          globalThis.speechSynthesis ? "deviceNoVoices" : "unsupportedSpeech",
-        );
-        return;
-      }
-      refs.current.speech.play(
-        book,
-        chapter,
-        sentence,
-        voice,
-        book.settings.pace,
-      );
+    const book = refs.current.store.get(id),
+      list = await ensureVoices(),
+      voice = narrationVoice(book, list);
+    if (!voice) {
+      showError(refs.current.voicesFailure || "ttsUnavailable");
       return;
     }
-    refs.current.speech.stop();
-    refs.current.speechBook = null;
-    const ready = (
-      await refs.current.assets.status(
-        modelFor(
-          book.settings.engine,
-          book.settings.voice,
-          book.settings.device,
-        ),
-      )
-    ).ready;
-    if (!ready) {
-      showError("modelNotCached");
-      return;
-    }
+    if (!book.settings.voice)
+      await update(id, { settings: { ...book.settings, voice } });
     await refs.current.player.start(id, chapter, sentence);
     refs.current.queue
       .prepare(id, chapter, sentence)
       .catch((e) => showError(e.message));
   }
   function togglePlayback(book) {
-    if (book.settings.engine === "device") {
-      if (playback.status === "playing") refs.current.speech.pause();
-      else if (playback.status === "paused") refs.current.speech.resume();
-      else listen(book.id, book.position.chapter, book.position.sentence);
-    } else if (playback.bookId === book.id && playback.status === "playing")
+    if (playback.bookId === book.id && playback.status === "playing")
       refs.current.player.pause();
     else if (
       playback.bookId === book.id &&
@@ -355,40 +309,12 @@ export function useReader() {
       book.language === "es"
         ? "Una habitación tranquila, un libro abierto y una voz que te acompaña."
         : "A quiet room, an open book, and a voice that keeps you company.";
-    if (book.settings.engine === "device") {
-      refs.current.speech.preview(
-        text,
-        deviceVoices.find((v) => v.voiceURI === book.settings.voice),
-        book.language,
-        book.settings.pace,
-      );
-      return;
-    }
-    if (
-      !(
-        await refs.current.assets.status(
-          modelFor(
-            book.settings.engine,
-            book.settings.voice,
-            book.settings.device,
-          ),
-        )
-      ).ready
-    )
-      throw Error("modelNotCached");
-    const output = await refs.current.engine.synthesize({
-      engine: book.settings.engine,
-      language: book.language,
-      voice: book.settings.voice,
-      text,
-      pace: book.settings.pace,
-      device: book.settings.device || "wasm",
-    });
+    const voice = narrationVoice(book, await ensureVoices());
+    if (!voice) throw Error("voiceUnknown");
+    const blob = await synthesize(text, voice);
     refs.current.previewAudio?.pause();
     URL.revokeObjectURL(previewURL.current);
-    previewURL.current = URL.createObjectURL(
-      encodeWav(output.samples, output.sampleRate),
-    );
+    previewURL.current = URL.createObjectURL(blob);
     const audio = new Audio(previewURL.current);
     refs.current.previewAudio = audio;
     audio.onended = () => {
@@ -396,12 +322,10 @@ export function useReader() {
       previewURL.current = null;
     };
     await audio.play();
-    return output;
   }
   async function remove(id) {
     refs.current.queue.stop(id);
-    if (playback.bookId === id || refs.current.speechBook === id)
-      stopPlayback();
+    if (playback.bookId === id) stopPlayback();
     refs.current.previewAudio?.pause();
     if (refs.current.analysisBook === id) {
       refs.current.analysisWorker?.terminate();
@@ -499,17 +423,8 @@ export function useReader() {
         (r) => r.chapter === chapter && r.sentence === sentence,
       );
     const signature = await signatureFor(book, row);
-    const result = await refs.current.engine.synthesize({
-      engine: book.settings.engine,
-      language: book.language,
-      voice:
-        book.settings.cast?.[book.characters?.speakers[row.id]] ||
-        book.settings.voice,
-      cast: book.settings.cast,
-      pace: book.settings.pace,
-      device: book.settings.device || "wasm",
-      text: row.text,
-    });
+    const blob = await synthesize(row.text, effectiveVoice(book, row));
+    const duration = await durationOf(blob);
     const latest = refs.current.store.get(id),
       latestRow = latest && rowsOf(latest).find((r) => r.id === row.id);
     if (
@@ -519,13 +434,10 @@ export function useReader() {
       (await signatureFor(latest, latestRow)) !== signature
     )
       throw Error("sentenceChanged");
-    await refs.current.store.putAudio(
-      id,
-      row.id,
-      signature,
-      encodeWav(result.samples, result.sampleRate),
-      { duration: result.duration, rtf: result.rtf },
-    );
+    await refs.current.store.putAudio(id, row.id, signature, blob, {
+      duration,
+      rtf: 0,
+    });
     sync();
   }
   async function analyze(id, kind, onProgress = () => {}) {
@@ -619,7 +531,7 @@ export function useReader() {
           blob = a && (await refs.current.store.getAudio(a.key));
         if (!blob) throw Error("exportIncomplete");
         size += blob.size;
-        audio.push(blob);
+        audio.push({ blob, duration: a.duration || 0 });
       }
       chapters.push({ ...c, audio });
     }
@@ -666,8 +578,10 @@ export function useReader() {
     progress,
     preparation,
     playback,
-    deviceVoices,
+    voices,
+    voicesError,
     refs,
+    ensureVoices,
     sync,
     upload,
     cancelUpload: () => refs.current.cancelParse?.(),

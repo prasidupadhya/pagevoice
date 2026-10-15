@@ -74,18 +74,17 @@ it("starts without a backend, makes no API probe and never presents a connection
     screen.queryByText(/could not reach|PageVoice API|PocketBase/i),
   ).toBeNull();
 });
-it("shows explicit local model sizes and privacy notice instead of online voices", async () => {
+it("lists only document tools in Document tools, with no voice downloads", async () => {
   render(<App />);
   await screen.findByRole("heading", {
     name: "Add a PDF or EPUB to start reading.",
   });
   await userEvent.click(
-    screen.getByRole("button", { name: "Offline tools", exact: true }),
+    screen.getByRole("button", { name: "Document tools", exact: true }),
   );
-  await screen.findByRole("heading", { name: "Offline tools" });
-  expect(screen.getByText("Kokoro · English")).toBeTruthy();
-  expect(screen.getByText("Piper · Spain Spanish")).toBeTruthy();
-  expect(screen.queryByText(/Aria|Edge Online|Microsoft/)).toBeNull();
+  await screen.findByRole("heading", { name: "Document tools" });
+  expect(screen.getByText(/Multilingual meaning search/)).toBeTruthy();
+  expect(screen.queryByText(/Kokoro|Piper|Supertonic/)).toBeNull();
 });
 it("session-only import disappears in a fresh app instance, with keyboard-accessible confirmation", async () => {
   const first = render(<App />);

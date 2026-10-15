@@ -1,7 +1,5 @@
 import { rowsOf, hashText } from "./library";
-import { encodeWav } from "./audio";
-import { modelFor } from "./engines";
-import { speechParts } from "./audio";
+import { NARRATION, synthesize, durationOf } from "./engines";
 export function preparationOrder(book, chapter = 0, sentence = 0) {
   const all = rowsOf(book),
     position = all.findIndex(
@@ -21,16 +19,9 @@ export function signatureFor(book, row) {
     JSON.stringify({
       text: row.text,
       language: book.language,
-      engine: book.settings.engine,
+      engine: NARRATION,
       voice: effectiveVoice(book, row),
-      parts: speechParts(
-        row.text,
-        effectiveVoice(book, row),
-        book.settings.cast,
-      ),
-      pace: book.settings.pace,
-      device: book.settings.device || "wasm",
-      version: 1,
+      version: 2,
     }),
   );
 }
@@ -51,10 +42,8 @@ export function readyRun(book, chapter, sentence) {
   };
 }
 export class RenderQueue {
-  constructor({ store, engine, assets, onChange = () => {} }) {
+  constructor({ store, onChange = () => {} }) {
     this.store = store;
-    this.engine = engine;
-    this.assets = assets;
     this.onChange = onChange;
     this.state = { status: "idle" };
   }
@@ -65,29 +54,7 @@ export class RenderQueue {
   async prepare(bookId, chapter = 0, sentence = 0) {
     const book = this.store.get(bookId);
     if (!book || book.deletedAt) throw Error("bookRemoved");
-    if (book.settings.engine === "device")
-      throw Error("deviceHasNoPreparation");
-    const voices = new Set([
-      book.settings.voice,
-      ...Object.values(book.settings.cast || {}),
-    ]);
-    for (const row of rowsOf(book))
-      if (row.text.includes("[voice:"))
-        for (const part of speechParts(
-          row.text,
-          effectiveVoice(book, row),
-          book.settings.cast,
-        ))
-          if (part.voice) voices.add(part.voice);
-    for (const voice of voices)
-      if (
-        !(
-          await this.assets.status(
-            modelFor(book.settings.engine, voice, book.settings.device),
-          )
-        ).ready
-      )
-        throw Error("modelNotCached");
+    if (!book.settings.voice) throw Error("voiceUnknown");
     if (this.running && this.bookId === bookId) {
       this.order = preparationOrder(book, chapter, sentence);
       this.paused = false;
@@ -124,15 +91,11 @@ export class RenderQueue {
           prepared: Object.keys(book.prepared).length,
           total: rowsOf(book).length,
         });
-        const result = await this.engine.synthesize({
-          engine: book.settings.engine,
-          language: book.language,
-          voice: effectiveVoice(book, row),
-          cast: book.settings.cast,
-          pace: book.settings.pace,
-          device: book.settings.device || "wasm",
-          text: row.text,
-        });
+        const started = performance.now();
+        const blob = await synthesize(row.text, effectiveVoice(book, row));
+        const duration = await durationOf(blob);
+        const seconds = (performance.now() - started) / 1000;
+        const speed = duration ? seconds / duration : 0;
         const latest = this.store.get(id);
         if (!latest || latest.deletedAt) break;
         // Edits/casting/speed changes invalidate just their affected signature.
@@ -144,10 +107,9 @@ export class RenderQueue {
           if (latestRow) this.order.unshift(latestRow);
           continue;
         }
-        const blob = encodeWav(result.samples, result.sampleRate);
         await this.store.putAudio(id, row.id, signature, blob, {
-          duration: result.duration,
-          rtf: result.rtf,
+          duration,
+          rtf: speed,
         });
         const updated = this.store.get(id);
         if (!updated || updated.deletedAt) break;
@@ -189,11 +151,9 @@ export class RenderQueue {
     if (this.bookId !== id) return;
     this.paused = true;
     this.order = [];
-    this.engine.dispose();
   }
   dispose() {
     this.paused = true;
     this.order = [];
-    this.engine.dispose();
   }
 }

@@ -27,11 +27,6 @@ export default function ModelDialog({
     return assets.subscribe?.(setProgress);
   }, []);
   const labels = {
-    kokoro: "kokoro",
-    "kokoro-gpu": "gpuLabel",
-    piper: "piper",
-    sharvard: "sharvardLabel",
-    supertonic: "supertonicLabel",
     ocr: "ocrLabel",
     embeddings: "embeddingLabel",
     ner: "nerLabel",
@@ -73,7 +68,6 @@ export default function ModelDialog({
               <p>
                 {bytes(groupBytes(id))} <span>· {g.license}</span>
               </p>
-              {id === "supertonic" && <small>{t("supertonicNotice")}</small>}
             </div>
             {progress[id] ? (
               <div className="download-progress">

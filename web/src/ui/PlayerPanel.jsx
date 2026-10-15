@@ -37,14 +37,12 @@ export default function PlayerPanel({
   voiceReady,
   rate,
   onRate,
-  onModels,
   onVoice,
   listen,
 }) {
   const [expanded, setExpanded] = useState(false),
     [sleep, setSleep] = useState(api.refs.current.player.sleepMinutes || 0);
-  const device = book.settings.engine === "device",
-    row = playback.row || position,
+  const row = playback.row || position,
     rowChapter = book.chapters[row.chapter] || book.chapters[0],
     buffer = readyRun(
       book,
@@ -56,10 +54,7 @@ export default function PlayerPanel({
     status = playback.status || "idle",
     playing = status === "playing",
     waiting = status === "buffering" || status === "starting";
-  const step = (delta) =>
-    device
-      ? api.refs.current.speech[delta < 0 ? "previous" : "next"]()
-      : api.refs.current.player.next(delta);
+  const step = (delta) => api.refs.current.player.next(delta);
   const details = (
     <>
       <div className="player-timing">
@@ -74,7 +69,7 @@ export default function PlayerPanel({
           onChange={(e) => {
             api.refs.current.player.audio.currentTime = Number(e.target.value);
           }}
-          disabled={device || !playback.duration}
+          disabled={!playback.duration}
         />
         <span>{duration(playback.duration)}</span>
       </div>
@@ -98,7 +93,6 @@ export default function PlayerPanel({
             aria-label={t("playbackSpeed")}
             value={rate}
             onChange={(e) => onRate(Number(e.target.value))}
-            disabled={device}
           >
             {RATES.map((n) => (
               <option value={n} key={n}>
@@ -117,7 +111,6 @@ export default function PlayerPanel({
               api.refs.current.player.sleep(minutes);
               setSleep(minutes);
             }}
-            disabled={device}
           >
             <option value="0">{t("sleepOff")}</option>
             {[15, 30, 60].map((n) => (
@@ -128,7 +121,7 @@ export default function PlayerPanel({
           </select>
         </label>
       </div>
-      {!device && (
+      {
         <section
           className="preparation-panel"
           aria-label={t("audioPreparation")}
@@ -138,7 +131,7 @@ export default function PlayerPanel({
             className="ink-buffer"
             role="img"
             aria-label={t("readyBuffer", {
-              ready: buffer.count,
+              ready: Math.min(buffer.count, buffer.required),
               required: buffer.required,
             })}
           >
@@ -148,7 +141,7 @@ export default function PlayerPanel({
           </div>
           <small className="muted">
             {t("readyBuffer", {
-              ready: buffer.count,
+              ready: Math.min(buffer.count, buffer.required),
               required: buffer.required,
             })}
           </small>
@@ -211,7 +204,7 @@ export default function PlayerPanel({
           )}
           <p className="fine-print">{t("preparingNote")}</p>
         </section>
-      )}
+      }
       <button className="text-button player-voice-link" onClick={onVoice}>
         <SlidersHorizontal size={16} aria-hidden="true" />
         {t("voice")}
@@ -284,9 +277,8 @@ export default function PlayerPanel({
             <strong>{t("voiceMissing")}</strong>{" "}
             <span className="muted">{t("voiceMissingBody")}</span>
           </p>
-          <button className="small" onClick={device ? onVoice : onModels}>
-            <Download size={16} aria-hidden="true" />
-            {t(device ? "voice" : "downloadVoice")}
+          <button className="small" onClick={onVoice}>
+            {t("voice")}
           </button>
         </div>
       )}

@@ -28,7 +28,6 @@ import {
 import Modal from "./Modal";
 import PlayerPanel from "./PlayerPanel";
 import { fold, findMatches, highlightParts, MIN_QUERY } from "./find";
-import { voicesFor, modelFor } from "../offline/engines";
 import { progressOf } from "../offline/format";
 import { applySectionReview } from "../browser/analysis";
 
@@ -59,7 +58,6 @@ export default function Reader({
   setPref,
   focus,
   setFocus,
-  toolsOpen,
   onBack,
   onDelete,
   onModels,
@@ -121,11 +119,7 @@ export default function Reader({
       api.playback.bookId === book.id ? api.playback : { status: "idle" },
     preparation =
       api.preparation.bookId === book.id ? api.preparation : { status: "idle" };
-  const voices = voicesFor(
-    book.settings.engine,
-    book.language,
-    api.deviceVoices,
-  );
+  const voices = api.voices;
   const percent = progressOf({ ...book, position });
   // Export needs audio for every sentence in the chosen scope.
   const exportReady = (() => {
@@ -213,30 +207,14 @@ export default function Reader({
     observer.observe(heading.current);
     return () => observer.disconnect();
   }, [tab]);
+  // Ask for the voice list when a book is opened, so the Voice tab is ready.
   useEffect(() => {
-    let live = true;
-    if (book.settings.engine === "device") setVoiceReady(voices.length > 0);
-    else
-      api.refs.current.assets
-        .status(
-          modelFor(
-            book.settings.engine,
-            book.settings.voice,
-            book.settings.device,
-          ),
-        )
-        .then((s) => live && setVoiceReady(s.ready))
-        .catch(() => live && setVoiceReady(null));
-    return () => {
-      live = false;
-    };
-  }, [
-    book.settings.engine,
-    book.settings.voice,
-    book.settings.device,
-    toolsOpen,
-    voices.length,
-  ]);
+    api.ensureVoices();
+  }, [book.id]);
+  // Narration is ready once the service has listed its voices.
+  useEffect(() => {
+    setVoiceReady(api.voicesError ? false : voices.length > 0 ? true : null);
+  }, [api.voicesError, voices.length]);
   useEffect(() => {
     const worker = new Worker(
       new URL("../offline/search.worker.js", import.meta.url),
@@ -277,7 +255,8 @@ export default function Reader({
     if (tab !== "read" || chapter !== book.position.chapter) return;
     const timer = setTimeout(() => {
       // At the start of a section, show its heading rather than sentence one.
-      if (book.position.sentence === 0) scroll.current?.scrollTo(0, 0);
+      if (book.position.sentence === 0 && scroll.current)
+        scroll.current.scrollTop = 0;
       else virtual.scrollToIndex(book.position.sentence, { align: "start" });
       setTimeout(() => (restoring.current = false), 300);
     }, 70);
@@ -401,11 +380,7 @@ export default function Reader({
       }
       if (e.key.toLowerCase() === "j" || e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (book.settings.engine === "device")
-          api.refs.current.speech[
-            e.key.toLowerCase() === "j" ? "previous" : "next"
-          ]();
-        else api.refs.current.player.next(e.key.toLowerCase() === "j" ? -1 : 1);
+        api.refs.current.player.next(e.key.toLowerCase() === "j" ? -1 : 1);
       }
     };
     window.addEventListener("keydown", key);
@@ -1082,7 +1057,12 @@ export default function Reader({
             >
               <section className="panel-section">
                 <h2>{t("voice")}</h2>
-                <p className="muted">{t("voiceLocal")}</p>
+                <p className="muted">{t("voiceHelp")}</p>
+                {api.voicesError && (
+                  <p className="notice" role="alert">
+                    {t(api.voicesError)}
+                  </p>
+                )}
                 <div className="form-grid">
                   <label>
                     {t("bookLanguage")}
@@ -1098,97 +1078,35 @@ export default function Reader({
                     </select>
                   </label>
                   <label>
-                    {t("engine")}
-                    <select
-                      aria-label={t("engine")}
-                      value={book.settings.engine}
-                      onChange={(e) =>
-                        run(() =>
-                          api.settings(book.id, {
-                            engine: e.target.value,
-                            voice:
-                              voicesFor(
-                                e.target.value,
-                                book.language,
-                                api.deviceVoices,
-                              )[0]?.id || "",
-                            cast: {},
-                            device: "wasm",
-                          }),
-                        )
-                      }
-                    >
-                      <option
-                        value={book.language === "es" ? "piper" : "kokoro"}
-                      >
-                        {t(book.language === "es" ? "piper" : "kokoro")}
-                      </option>
-                      <option value="supertonic">{t("supertonic")}</option>
-                      <option value="device">{t("device")}</option>
-                    </select>
-                  </label>
-                  <label>
                     {t("voicePicker")}
                     <select
                       aria-label={t("voicePicker")}
                       value={book.settings.voice}
+                      disabled={!voices.length}
                       onChange={(e) =>
                         run(() =>
                           api.settings(book.id, { voice: e.target.value }),
                         )
                       }
                     >
+                      {!voices.length && (
+                        <option value="">{t("noVoices")}</option>
+                      )}
                       {voices.map((v) => (
                         <option key={v.id} value={v.id}>
-                          {v.name} · {v.locale}
+                          {v.name}
+                          {v.locale ? ` · ${v.locale}` : ""}
                         </option>
                       ))}
                     </select>
                   </label>
-                  {book.settings.engine === "kokoro" && (
-                    <label>
-                      {t("execution")}
-                      <select
-                        aria-label={t("execution")}
-                        value={book.settings.device || "wasm"}
-                        onChange={(e) =>
-                          run(() =>
-                            api.settings(book.id, { device: e.target.value }),
-                          )
-                        }
-                      >
-                        <option value="wasm">{t("wasm")}</option>
-                        <option value="webgpu" disabled={!navigator.gpu}>
-                          {t(navigator.gpu ? "webgpu" : "webgpuUnavailable")}
-                        </option>
-                      </select>
-                    </label>
-                  )}
-                  <label>
-                    {t("generationPace")} · {book.settings.pace.toFixed(1)}×
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="2"
-                      step="0.1"
-                      value={book.settings.pace}
-                      onChange={(e) =>
-                        api
-                          .settings(book.id, { pace: Number(e.target.value) })
-                          .catch((e) => api.setError(e.message))
-                      }
-                    />
-                  </label>
                   <label>
                     {t("buffer")}
                     <select
-                      aria-label={t("buffer")}
                       value={book.settings.buffer}
                       onChange={(e) =>
                         api
-                          .settings(book.id, {
-                            buffer: Number(e.target.value),
-                          })
+                          .settings(book.id, { buffer: Number(e.target.value) })
                           .catch((e) => api.setError(e.message))
                       }
                     >
@@ -1200,117 +1118,96 @@ export default function Reader({
                     </select>
                   </label>
                 </div>
-                {book.settings.engine === "device" ? (
-                  <p className="notice">
-                    {t("deviceNotice")}
-                    {!voices.length && <strong>{t("deviceNoVoices")}</strong>}
-                  </p>
-                ) : (
-                  <p className="fine-print">{t("bufferHelp")}</p>
-                )}
-                {book.settings.engine === "supertonic" && (
-                  <p className="notice">{t("supertonicNotice")}</p>
-                )}
+                <p className="fine-print">{t("bufferHelp")}</p>
+                <p className="notice">{t("narrationPrivacy")}</p>
                 <div className="button-row">
                   <button
                     onClick={() => run(() => api.preview(book))}
-                    disabled={
-                      busy ||
-                      preparation.status === "preparing" ||
-                      !voices.length
-                    }
+                    disabled={busy || !voices.length}
                   >
                     <Volume2 size={16} aria-hidden="true" />
                     {t("preview")}
                   </button>
-                  {book.settings.engine !== "device" && (
-                    <button onClick={onModels}>
-                      <Download size={16} aria-hidden="true" />
-                      {t("models")}
-                    </button>
-                  )}
                 </div>
               </section>
-              {book.settings.engine !== "device" && (
-                <section className="panel-section casting-panel">
-                  <h2>{t("cast")}</h2>
-                  <p className="muted">{t("heuristicNotice")}</p>
-                  {!book.characters?.characters.length && (
-                    <p className="fine-print">{t("noCharacters")}</p>
-                  )}
-                  {book.characters?.characters.map((character) => (
-                    <label className="casting-row" key={character.name}>
-                      <span>
-                        <strong>{character.name}</strong>
-                        <small>
-                          {character.count} · {t("inferred")}
-                        </small>
-                      </span>
-                      <select
-                        aria-label={`${t("voicePicker")} · ${character.name}`}
-                        value={book.settings.cast[character.name] || ""}
-                        onChange={(e) =>
-                          run(() =>
-                            api.settings(book.id, {
-                              cast: {
-                                ...book.settings.cast,
-                                [character.name]:
-                                  e.target.value || book.settings.voice,
-                              },
-                            }),
-                          )
-                        }
-                      >
-                        <option value="">{t("defaultVoice")}</option>
-                        {voices.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.name} · {v.locale}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                  <form
-                    className="add-character"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!charName.trim()) return;
-                      run(async () => {
-                        await api.update(book.id, {
-                          characters: {
-                            ...book.characters,
-                            characters: [
-                              ...book.characters.characters.filter(
-                                (c) => c.name !== charName.trim(),
-                              ),
-                              {
-                                name: charName.trim(),
-                                count: 0,
-                                source: "manual review",
-                              },
-                            ],
-                          },
-                        });
-                        setCharName("");
+              <section className="panel-section casting-panel">
+                <h2>{t("cast")}</h2>
+                <p className="muted">{t("heuristicNotice")}</p>
+                {!book.characters?.characters.length && (
+                  <p className="fine-print">{t("noCharacters")}</p>
+                )}
+                {book.characters?.characters.map((character) => (
+                  <label className="casting-row" key={character.name}>
+                    <span>
+                      <strong>{character.name}</strong>
+                      <small>
+                        {character.count} · {t("inferred")}
+                      </small>
+                    </span>
+                    <select
+                      aria-label={`${t("voicePicker")} · ${character.name}`}
+                      value={book.settings.cast[character.name] || ""}
+                      onChange={(e) =>
+                        run(() =>
+                          api.settings(book.id, {
+                            cast: {
+                              ...book.settings.cast,
+                              [character.name]:
+                                e.target.value || book.settings.voice,
+                            },
+                          }),
+                        )
+                      }
+                    >
+                      <option value="">{t("defaultVoice")}</option>
+                      {voices.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} · {v.locale}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+                <form
+                  className="add-character"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!charName.trim()) return;
+                    run(async () => {
+                      await api.update(book.id, {
+                        characters: {
+                          ...book.characters,
+                          characters: [
+                            ...book.characters.characters.filter(
+                              (c) => c.name !== charName.trim(),
+                            ),
+                            {
+                              name: charName.trim(),
+                              count: 0,
+                              source: "manual review",
+                            },
+                          ],
+                        },
                       });
-                    }}
-                  >
-                    <label>
-                      <span className="sr-only">{t("characterName")}</span>
-                      <input
-                        value={charName}
-                        onChange={(e) => setCharName(e.target.value)}
-                        placeholder={t("characterName")}
-                        maxLength={50}
-                      />
-                    </label>
-                    <button type="submit" disabled={!charName.trim()}>
-                      <Plus size={16} aria-hidden="true" />
-                      {t("addCharacter")}
-                    </button>
-                  </form>
-                </section>
-              )}
+                      setCharName("");
+                    });
+                  }}
+                >
+                  <label>
+                    <span className="sr-only">{t("characterName")}</span>
+                    <input
+                      value={charName}
+                      onChange={(e) => setCharName(e.target.value)}
+                      placeholder={t("characterName")}
+                      maxLength={50}
+                    />
+                  </label>
+                  <button type="submit" disabled={!charName.trim()}>
+                    <Plus size={16} aria-hidden="true" />
+                    {t("addCharacter")}
+                  </button>
+                </form>
+              </section>
             </div>
           )}
           {tab === "export" && (
@@ -1368,34 +1265,26 @@ export default function Reader({
                     </button>
                   </p>
                 )}
-                {book.settings.engine === "device" ? (
-                  <p className="notice">{t("deviceExport")}</p>
-                ) : (
-                  !exportReady.complete && (
-                    <p className="notice">
-                      {t("exportNeedsAudio", exportReady)}{" "}
-                      <button
-                        className="text-button"
-                        disabled={!voiceReady}
-                        onClick={() =>
-                          api.refs.current.queue
-                            .prepare(book.id, exportReady.first, 0)
-                            .catch((e) => api.setError(e.message))
-                        }
-                      >
-                        {t("prepare")}
-                      </button>
-                    </p>
-                  )
+                {!exportReady.complete && (
+                  <p className="notice">
+                    {t("exportNeedsAudio", exportReady)}{" "}
+                    <button
+                      className="text-button"
+                      disabled={!voiceReady}
+                      onClick={() =>
+                        api.refs.current.queue
+                          .prepare(book.id, exportReady.first, 0)
+                          .catch((e) => api.setError(e.message))
+                      }
+                    >
+                      {t("prepare")}
+                    </button>
+                  </p>
                 )}
                 <div className="button-row">
                   <button
                     className="primary"
-                    disabled={
-                      busy ||
-                      book.settings.engine === "device" ||
-                      !exportReady.complete
-                    }
+                    disabled={busy || !exportReady.complete}
                     onClick={() =>
                       run(async () => {
                         setExportProgress({ current: 0, total: 1 });
@@ -1454,7 +1343,7 @@ export default function Reader({
             api.refs.current.player.setRate(rate);
             setPref("rate", rate);
           }}
-          onModels={onModels}
+
           onVoice={() => setTab("voice")}
           listen={listen}
         />
@@ -1503,7 +1392,7 @@ export default function Reader({
           </label>
           <div className="button-row modal-actions">
             <button
-              disabled={busy || book.settings.engine === "device"}
+              disabled={busy}
               onClick={() =>
                 run(async () => {
                   await api.edit(

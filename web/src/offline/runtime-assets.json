@@ -33,23 +33,6 @@
       "sha256": "f061472c6e77d6d50d079aacdc0ff9b63fee287ddd2cbf46cf62438d3891de2b"
     }
   ],
-  "piper": [
-    {
-      "url": "/runtime/piper/piper_phonemize.data",
-      "size": 18077249,
-      "sha256": "29f1025eb23a5b5c192cd14a6efbce4509402ff265405072ee6f7d1a09b78f8c"
-    },
-    {
-      "url": "/runtime/piper/piper_phonemize.js",
-      "size": 120752,
-      "sha256": "e7a60b1651333fe4fe3d2a9738cd0ab11d6c963f3029744b9a106d0cde5c8b88"
-    },
-    {
-      "url": "/runtime/piper/piper_phonemize.wasm",
-      "size": 635212,
-      "sha256": "b777cd107a91d2bcc6a1ea46f2c26a662a7407394fe84589198aeaa83dd7a9d6"
-    }
-  ],
   "ocr": [
     {
       "url": "/runtime/ocr/tesseract-core-lstm.wasm",

@@ -13,6 +13,15 @@ const complete = (tx) =>
       reject(tx.error || new Error("storageError"));
   });
 export const rowId = (chapter, sentence) => `${chapter}:${sentence}`;
+// Narration settings. The voice id is chosen from the ElevenLabs list.
+export const defaultSettings = (voice = "") => ({
+  engine: "elevenlabs",
+  voice,
+  cast: {},
+  buffer: 20,
+});
+// Audio made by the earlier local voices is not compatible with ElevenLabs.
+const needsNarrationReset = (book) => book.settings?.engine !== "elevenlabs";
 // A file that is already gone is the outcome we want, so it is not an error.
 export async function removeIfPresent(dir, name) {
   if (!dir || !name) return;
@@ -169,6 +178,15 @@ export class LibraryStore {
       else if (book.deletedAt) this.schedulePurge(book);
     }
     await this.lockAudio(() => this.recoverAudioFiles());
+    for (const book of this.books.values())
+      if (!book.deletedAt && needsNarrationReset(book)) {
+        for (const a of Object.values(book.prepared || {}))
+          await this.deleteAudio(a.key);
+        await this.update(book.id, {
+          settings: defaultSettings(),
+          prepared: {},
+        });
+      }
     if (globalThis.BroadcastChannel) {
       this.channel = new BroadcastChannel(this.name);
       this.channel.onmessage = async ({ data: id }) => {
@@ -233,13 +251,7 @@ export class LibraryStore {
         chapter: book.startChapter || 0,
         sentence: 0,
       },
-      settings: book.settings || {
-        engine: book.language === "es" ? "piper" : "kokoro",
-        voice: book.language === "es" ? "davefx" : "af_heart",
-        pace: 1,
-        cast: {},
-        buffer: 20,
-      },
+      settings: book.settings || defaultSettings(),
     };
     if (this.books.has(value.id)) throw new Error("duplicateBook");
     if (keep)
