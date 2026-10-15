@@ -49,39 +49,39 @@ PageVoice tries to do both in one place, without sending the document anywhere.
 
 ## What works today
 
-- Import EPUB files and PDFs with a text layer. Scanned PDFs need an optional
-  one-time OCR download.
+- Import EPUB files and PDFs with a text layer. Scanned PDFs need an optional one-time
+  OCR download.
 - Read with contents, bookmarks, search within the book, themes, text size and line
   width, and focus mode.
-- Listen with downloaded local voices: Kokoro for English and Piper for Spanish.
-  Playback speed from 0.5× to 2×, a sleep timer, and the sentence being spoken is
-  highlighted.
+- Listen with narration voices from ElevenLabs, served through this site. Playback speed
+  from 0.5× to 2×, a sleep timer, and the sentence being spoken is highlighted.
 - Search the whole book by keyword. Each result shows its section and sentence.
 - Keep a library in the browser, with reading progress, and back it up or restore it
   as a ZIP file.
 - Export prepared audio as MP3 files, with metadata and citations. Export as an M4B
   audiobook is available but is best effort.
-- Work offline after the app and voices are downloaded.
+- Read, search and open saved books offline. Narration needs an internet connection.
 
 ## Why local processing matters
 
-PageVoice does the work on your device:
+PageVoice does most of the work on your device:
 
-- Reading the file, detecting the language and sections, OCR, speech generation,
-  search and storage all run in your browser.
+- Reading the file, detecting the language and sections, OCR, search and storage all run
+  in your browser.
 - The website has no server that receives your documents, and no accounts.
-- The only network downloads are fixed model and runtime files. Each file is checked
-  against a pinned hash, and the page's content security policy blocks connections to
-  other servers. Requests for these files contain no document text.
+- Narration is the one exception. The text of each sentence you listen to is sent to
+  ElevenLabs, which generates the speech. Nothing else from the book is sent, and the
+  generated audio is kept in your browser, not on a server.
+- The other network requests are fixed document-tool files (OCR and search models).
+  Each file is checked against a pinned hash, and the page's content security policy
+  blocks connections to other servers.
 
 What this does not guarantee:
 
-- The website itself is served by a hosting provider, which can log standard request
-  details such as IP address and the pages requested. Document text never appears in
-  those requests.
-- If you choose your device's built-in speech, the operating system's speech service
-  reads the text, and some systems use online services for that. The app labels this
-  option where you choose it.
+- The website is served by a hosting provider, which can log standard request details
+  such as IP address and the pages requested.
+- ElevenLabs processes the sentence text under its own terms and data policy. Check
+  those terms before you use narration with sensitive material.
 - Browser storage can be cleared by the browser or by you. Export a backup to keep a
   copy.
 
@@ -93,22 +93,24 @@ What this does not guarantee:
    the origin private file system when the browser supports it.
 3. **Read and search.** The reader shows the text in sections. Search runs against an
    index built on your device.
-4. **Listen.** After you download a voice once, a local speech model generates audio
-   for each sentence. The player plays it in order, and prepares the next sentences
-   ahead of you.
+4. **Listen.** When you press play, each sentence is sent to this site's narration
+   route, which forwards it to ElevenLabs. The returned MP3 is stored in your browser.
+   The player plays the sentences in order and prepares the next ones ahead of you.
 5. **Keep or export.** Positions and bookmarks are saved as you go. You can export the
    library or the audio.
 
 ## Limitations
 
-- **Open beta.** Automated browser tests pass in Chromium, and most pass in Firefox. Safari (WebKit)
-  support is partial: offline reloads and some large downloads are not verified there.
-  See [static verification](docs/static-verification.md) for the detailed test record.
-- **Speed.** Speech generated on a slow processor can take longer than the audio
-  lasts. The app shows the measured speed while it prepares.
+- **Open beta.** Automated browser tests pass in Chromium, and most pass in Firefox.
+  Safari (WebKit) support is partial: offline reloads and some large downloads are not
+  verified there. See [static verification](docs/static-verification.md) for the
+  detailed test record.
+- **Narration needs a connection** and a configured ElevenLabs key. The service's terms,
+  limits and charges apply. Voice choice and pronunciation depend on the service.
+- **Speed.** Generating a book's audio takes time, one request per sentence.
 - **Accuracy.** Language detection, OCR, dialogue attribution and section detection
   can be wrong. The app shows these results so you can correct them.
-- **Languages.** Narration is available in English and Spanish only.
+- **Languages.** Narration is set up for English and Spanish text.
 - **Storage.** Books live in one browser on one device. There is no sync and no
   sharing. Export a backup to move your library.
 - **No generated answers.** Search finds passages. PageVoice does not summarize or
@@ -160,14 +162,13 @@ vercel.json               Static hosting configuration for the website
 
 **Listening**
 
-- Kokoro (English) and Piper DaveFX/Sharvard (Spain Spanish) run locally in a Web
-  Worker after a one-time download; Supertonic 2 is an experimental comparison engine
+- Narration voices come from ElevenLabs through this site's narration route. The voice
+  list is loaded when you open a book. Each book keeps its own voice choice.
 - The sentence being spoken is highlighted and scrolled into view
 - Play/pause, previous/next sentence, playback speed 0.5–2×, sleep timer, media keys
 - Audio is prepared ahead of the listening position; the buffer size is adjustable
 - Export prepared chapters as an MP3 ZIP (with metadata and citations) or, best
   effort, as an M4B via single-threaded FFmpeg WASM
-- Device speech (`speechSynthesis`) is available as an explicit fallback
 
 **Search and structure**
 
@@ -203,7 +204,8 @@ corrected in **Voice & cast**. Other languages are not supported for narration.
 
 ## Architecture
 
-The reader is a static web application. There is no server-side processing.
+The reader is a static web application. Its one server-side part is a narration route
+that forwards requests to ElevenLabs, keeping the API key on the server.
 
 ```
 web/
@@ -212,24 +214,27 @@ web/
   404.html            Not-found page
   src/App.jsx         App shell, library, import feedback, dialogs
   src/ui/             Reader, player, library, display menu, find-in-book
-  src/browser/        Parsing (pdf.js, JSZip, xmldom), sentences, language
-                      detection, section analysis, keyword search
-  src/offline/        Storage, model assets, speech engines, playback, workers
+  src/browser/        Parsing (pdf.js, xmldom), sentences, language detection,
+                      section analysis, keyword search
+  src/offline/        Storage, document-tool assets, narration client, playback, workers
   src/styles/         Design tokens shared by the app and the introduction page
+api/                  Vercel functions: /api/tts (narration) and /api/voices
+server/elevenlabs.js  The narration proxy, shared by the functions and the Vite dev server
 ```
 
-- **React 19 + Vite 8.** The reader route is code-split; the startup bundle holds
-  the library and shell only.
-- **Web Workers** do all heavy work: `reader.worker` (parsing, OCR, analysis, search
-  index), `engine.worker` (Kokoro via kokoro-js, Piper via piper-wasm, Supertonic via
-  ONNX Runtime Web; WASM by default, WebGPU optional for Kokoro), `knowledge.worker`
-  (Transformers.js embeddings and NER), `search.worker` and `export.worker` (lamejs,
-  FFmpeg WASM).
-- **Storage.** IndexedDB holds documents, analysis and preferences; generated
-  sentence audio is stored in the origin private file system (OPFS) with an IndexedDB
-  fallback. Model files are cached by the service worker after hash verification.
-- **PWA.** `vite-plugin-pwa` precaches the app shell, fonts and runtimes, prompts
-  before updating, and serves `/app/` offline.
+- **React 19 + Vite 8.** The reader route is code-split; the startup bundle holds the
+  library and shell only.
+- **Narration.** The browser requests one sentence at a time from `/api/tts` and stores
+  the MP3 that comes back. The API key is read from the server environment and is never
+  part of the JavaScript.
+- **Web Workers** do the heavy local work: `reader.worker` (parsing, OCR, analysis,
+  search index), `knowledge.worker` (Transformers.js embeddings and NER), `search.worker`
+  and `export.worker` (joins MP3 files, FFmpeg WASM for M4B).
+- **Storage.** IndexedDB holds documents, analysis, preferences and audio bytes or
+  references; audio is stored in the origin private file system (OPFS) when available.
+  Document-tool model files are cached by the service worker after hash verification.
+- **PWA.** `vite-plugin-pwa` precaches the app shell, fonts and runtimes, prompts before
+  updating, and serves `/app/` offline.
 
 ## Privacy and network use
 
@@ -237,30 +242,28 @@ What the implementation does:
 
 - Documents, reading positions, bookmarks and generated audio are stored in this
   browser's storage on this device. Session-only imports are kept in memory.
-- The app has no server component, accounts or analytics. Its code makes no request
-  containing document text; the browser test suite asserts there are no non-GET or
-  `/api` requests.
-- Network requests are: loading the static site, and fixed, SHA-256-verified model
-  and language-data downloads from Hugging Face and jsDelivr when the user chooses to
-  download them. The Content Security Policy restricts `connect-src` to those hosts.
-- **Exception:** device speech uses the operating system's voices, and some platforms
-  process that speech with online services outside PageVoice's control. It is labelled
-  where it is chosen and is never selected automatically.
-- Browser storage can be evicted. **Protect local storage** requests persistence, and
-  the library can be exported as a ZIP backup.
+- The app has no account system and no analytics.
+- Narration sends the text of each sentence you listen to through `/api/tts` to
+  ElevenLabs. The request body contains only the sentence text and the voice id. Nothing
+  else from the book is sent.
+- Voice lists come from `/api/voices`. The browser never receives the API key.
+- Document-tool downloads are fixed, SHA-256-verified files from Hugging Face and
+  jsDelivr. Those requests contain no document text.
+- The content security policy restricts connections to this site and those download
+  hosts.
+
+Browser tests assert that the only non-document requests the app makes are the two
+narration routes.
 
 ## Offline engines and download sizes
 
-Sizes are decimal MB for a cold cache, including that engine's runtime.
+Narration uses ElevenLabs and is not downloaded. The optional document tools are
+one-time downloads, shown in **Document tools** in the app. Sizes are decimal MB for a
+cold cache.
 
 | Tool | First download | License / limitation |
 | --- | ---: | --- |
-| Kokoro English, WASM q8 | 118.2 MB | Apache-2.0 model; English phonemizer only |
-| Kokoro English, WebGPU fp32 | 362.5 MB | Optional GPU path; browser/adapter support varies |
-| Piper DaveFX, Spain Spanish | 96.3 MB | MIT repository, CC0 dataset; GPL phonemizer |
-| Piper Sharvard, Spain Spanish, 2 speakers | 109.8 MB | MIT repository, CC-BY-3.0 corpus; GPL phonemizer |
-| Supertonic 2, experimental EN/ES | 278.2 MB | OpenRAIL-M restrictions; archived upstream |
-| English + Spanish OCR | 25.4 MB | Apache-2.0 |
+| English + Spanish OCR | 25.4 MB | Apache-2.0. Needed only for scanned PDFs |
 | Multilingual meaning search | 157.0 MB | Apache-2.0; inferred similarity, not evidence of an answer |
 | Multilingual NER | 203.1 MB | AFL-3.0; news-domain model, fiction accuracy unmeasured |
 | FFmpeg M4B | 32.3 MB | GPL/LGPL components; memory-limited browser export |
@@ -271,12 +274,9 @@ is MIT licensed; third-party runtime and model licenses differ.
 
 ## Browser requirements
 
-A current Chrome, Edge, Firefox or Safari (Safari support is partial; see
-[Limitations](#limitations)) with WebAssembly, Web Workers, IndexedDB
-and ES modules. OPFS is used when available. WebGPU is optional (Kokoro GPU only).
-Service workers, OPFS and WebGPU need HTTPS or `localhost`. Phones can run the voices,
-but memory and storage quotas vary and preparation can be slower than real time;
-the measured real-time factor is shown while preparing.
+A current Chrome, Edge, Firefox or Safari with WebAssembly, Web Workers, IndexedDB and
+ES modules. OPFS is used when available. Service workers and OPFS need HTTPS or
+`localhost`. Narration needs an internet connection.
 
 ## Local development
 
@@ -290,8 +290,15 @@ npm --prefix web run dev
 - Introduction page: <http://127.0.0.1:5173/>
 - App: <http://127.0.0.1:5173/app/>
 
-The web app needs **no environment variables**. `.env.example` documents only the
-optional Python power mode and the archived hosted backend.
+Reading works without configuration. To test narration locally, set the key in your
+shell only, never in a file that is committed:
+
+```sh
+ELEVENLABS_API_KEY=... npm --prefix web run dev
+```
+
+Narration calls go through the same routes the production site uses. `.env.example`
+lists the variable names, without values.
 
 ## Production build
 
@@ -300,18 +307,25 @@ npm --prefix web run build     # outputs web/dist
 npm --prefix web run preview   # serves it on http://127.0.0.1:4173
 ```
 
-The build copies pinned npm runtimes into static files. It does not download model
-weights.
+The build copies pinned runtimes into static files and does not download model weights.
 
 ## Deployment
 
-`vercel.json` deploys the static build from the repository root (Node 22, install
-`npm ci --prefix web`, build `npm --prefix web run build`, output `web/dist`). It sets
-security headers (CSP, HSTS, `nosniff`, frame denial, permissions policy), long-term
-caching for hashed assets, revalidation for HTML and the service worker, a rewrite
-for `/app/*`, and serves `404.html` for unknown paths. To use the custom domain, add
-`pagevoice.tech` in the Vercel project's domain settings and point DNS at Vercel; the
-canonical URLs, sitemap, robots file and social metadata name `https://pagevoice.tech`.
+`vercel.json` deploys the build from the repository root (Node 22, install
+`npm ci --prefix web`, build `npm --prefix web run build`, output `web/dist`) and the
+`api/` functions. `.vercelignore` must keep `api/` and `server/`. It sets security
+headers (CSP, HSTS, `nosniff`, frame denial, permissions policy), long-term caching
+for hashed assets, revalidation for HTML and the service worker, and serves
+`404.html` for unknown paths.
+
+**Narration setup.** In the Vercel project settings, add `ELEVENLABS_API_KEY` as a
+**server-only** variable. Do not use a `VITE_` prefix: those values are copied into the
+public JavaScript. Optional: `ELEVENLABS_MODEL_ID` (default `eleven_multilingual_v2`) and
+`PAGEVOICE_ALLOWED_ORIGINS` (defaults to `https://pagevoice.tech` and
+`https://www.pagevoice.tech`, plus local development origins). The narration route
+accepts only those origins, caps each request at 1000 characters, and checks the voice
+against the service's list. Its rate limit is per server instance; set a Vercel
+Firewall rate limit for the real protection.
 
 **Known issue.** At the time of writing, `pagevoice.tech` redirects to
 `https://www.pagevoice.tech`, so the canonical links point to an address that
@@ -329,16 +343,16 @@ npm --prefix web test            # unit and component tests (Vitest)
 npm --prefix web run lint
 npm --prefix web run format:check
 npm --prefix web run build
-# Browser tests. The first command downloads pinned model files for the
-# speech tests; it is opt-in and not part of normal setup.
+# Browser tests. Narration tests mock the /api routes, so they need no key.
+# The first command caches pinned document-tool files for the OCR tests.
 node web/scripts/cache-e2e-models.mjs
 npm --prefix web run test:e2e
 ```
 
-`web/scripts/capture-screenshots.mjs` regenerates the introduction-page screenshots
-and social image from the real app (it downloads the Kokoro voice and plays real
-narration). Earlier verification reports are in [docs](docs/static-verification.md).
-No word-accuracy or subjective speech-quality benchmark has been performed.
+`web/scripts/capture-screenshots.mjs` regenerates the introduction-page screenshots and
+social image from the real app. Earlier verification reports are in
+[docs](docs/static-verification.md). No word-accuracy or subjective speech-quality
+benchmark has been performed.
 
 ## Limits
 

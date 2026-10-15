@@ -9,7 +9,8 @@ integration, no API key handling, and no model calls.
 - Import PDF (text layer) and EPUB files in the browser. Scanned PDFs need the
   optional OCR download.
 - Read with sections, bookmarks, themes, text size and line width, and focus mode.
-- Listen with downloaded local voices: Kokoro for English, Piper for Spanish.
+- Listen with narration voices from ElevenLabs, through the site's narration route. The
+  text of each sentence you listen to is sent to the service.
   Speed, sleep timer, and sentence-level control.
 - Keyword search across the book, with citations to sections and sentences.
 - Optional local meaning search and character-name detection, each a separate
@@ -31,10 +32,10 @@ implemented, and none will be shown as available until it is tested.
    the whole book before a model reads them, so that long documents are covered.
 4. **Explanations and study help.** Clarifying a passage, defining terms the book
    uses, and preparing questions for review, always tied to the source text.
-5. **Better narration preparation.** Narration quality depends on the text the speech
-   engine receives. A language model could help normalize numbers and abbreviations,
+5. **Better narration preparation.** Narration quality depends on the text the voice
+   service receives. A language model could help normalize numbers and abbreviations,
    split text at sensible boundaries, and identify who is speaking. The speech itself
-   would still come from the local voice models.
+   would still come from the voice service.
 
 ### Why a language model is needed for these features
 
@@ -44,8 +45,7 @@ explain an idea in other words. Those tasks need a model that reads the passages
 themselves. PageVoice's current search deliberately stops at finding passages, so
 that every result can be checked against the book.
 
-Narration has a separate need. The local speech models read whatever text they are
-given. Numbers, abbreviations, footnote markers, and OCR errors are often read wrongly,
+Narration has a separate need. The voice service reads whatever text it is given. Numbers, abbreviations, footnote markers, and OCR errors are often read wrongly,
 and deciding how to read them depends on context. Rules can handle the common cases.
 A model can handle the rest, but only if its output is checked against the original
 text before it is spoken.
