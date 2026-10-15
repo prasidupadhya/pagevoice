@@ -5,7 +5,7 @@
 !package.json
 !vercel.json
 !api/
-!server/
+!api/**
 !.nvmrc
 web/node_modules/
 web/dist/
