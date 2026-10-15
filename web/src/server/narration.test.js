@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { Readable } from "node:stream";
 
 const require = createRequire(import.meta.url);
-const path = require.resolve("../../../server/elevenlabs.js");
+const path = require.resolve("../../server/narration.cjs");
 const load = () => {
   delete require.cache[path];
   return require(path);
