@@ -39,7 +39,7 @@ function call(method, body, headers = {}) {
 function upstream(overrides = {}) {
   return vi.fn(async (url, init) => {
     if (overrides[url]) return overrides[url](init);
-    if (url.endsWith("/v1/voices"))
+    if (url.endsWith("/v2/voices"))
       return new Response(
         JSON.stringify({
           voices: [
@@ -144,13 +144,45 @@ it("rejects non-POST requests on synthesis", async () => {
 it("explains a rejected key without exposing the upstream response", async () => {
   const { handleVoices } = load();
   const fetch = upstream({
-    "https://api.elevenlabs.io/v1/voices": async () =>
+    "https://api.elevenlabs.io/v2/voices": async () =>
       new Response("{}", { status: 401 }),
   });
   const { req, res } = call("GET");
   await handleVoices(req, res, { fetch, env });
   expect(res.statusCode).toBe(503);
   expect(JSON.parse(res.body).error).toBe("ttsKeyRejected");
+});
+
+it("reports a restricted key (403) differently from a rejected key (401)", async () => {
+  const { handleVoices, handleTts } = load();
+  const restricted = upstream({
+    "https://api.elevenlabs.io/v2/voices": async () =>
+      new Response('{"detail":{"status":"forbidden"}}', { status: 403 }),
+  });
+  let r = call("GET");
+  await handleVoices(r.req, r.res, { fetch: restricted, env });
+  expect(r.res.statusCode).toBe(503);
+  expect(JSON.parse(r.res.body).error).toBe("ttsKeyRestricted");
+
+  const speech = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_128`;
+  const denied = upstream({ [speech]: async () => new Response("{}", { status: 403 }) });
+  r = call("POST", { text: "Hi", voice: VOICE });
+  await handleTts(r.req, r.res, { fetch: denied, env });
+  expect(JSON.parse(r.res.body).error).toBe("ttsKeyRestricted");
+});
+
+it("logs the upstream reason on the server without sending it to the browser", async () => {
+  const { handleVoices } = load();
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  const fetch = upstream({
+    "https://api.elevenlabs.io/v2/voices": async () =>
+      new Response('{"detail":{"status":"missing_permissions"}}', { status: 401 }),
+  });
+  const { req, res } = call("GET");
+  await handleVoices(req, res, { fetch, env });
+  expect(errors.mock.calls.flat().join(" ")).toContain("missing_permissions");
+  expect(res.body).not.toContain("missing_permissions");
+  errors.mockRestore();
 });
 
 it("uses a configured voice without listing voices", async () => {
@@ -213,7 +245,7 @@ it("synthesizes with a voice from the configured list", async () => {
   });
   expect(res.statusCode).toBe(200);
   expect(fetch.mock.calls.at(-1)[0]).toContain(`/v1/text-to-speech/${VOICE}`);
-  expect(fetch.mock.calls.some(([u]) => u.endsWith("/v1/voices"))).toBe(false);
+  expect(fetch.mock.calls.some(([u]) => u.endsWith("/v2/voices"))).toBe(false);
 });
 
 it("reports a network failure on the speech request as unavailable", async () => {

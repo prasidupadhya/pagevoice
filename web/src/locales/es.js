@@ -420,5 +420,7 @@ export default {
     "Esta frase es demasiado larga para narrarla. Divídela en el editor de frases.",
   voiceUnknown: "Primero elige una voz de narración en Voz y reparto.",
   ttsKeyRejected:
-    "El servicio de voz no aceptó la clave del servidor. Revisa ELEVENLABS_API_KEY y sus permisos en Vercel.",
+    "El servicio de voz no aceptó la clave del servidor. Revisa ELEVENLABS_API_KEY en Vercel.",
+  ttsKeyRestricted:
+    "El servicio de voz rechazó esta solicitud. La clave es válida pero tiene restricciones: revisa sus permisos, la lista de IP permitidas y la cuota de créditos en ElevenLabs.",
 };

@@ -73,13 +73,22 @@ function apiKey(env) {
   return key || null;
 }
 
-// Maps a failed upstream response to a plain code. The status is logged on the
-// server so the cause shows in the function logs, never in the browser.
+// ElevenLabs answers 401 for a key it does not recognise, and 403 for a key it
+// recognises but that may not use the endpoint (scope or IP allowlist).
+// The two need different fixes, so they get different codes.
 function upstreamFailure(status) {
-  if (status === 401 || status === 403)
-    return Object.assign(Error("ttsKeyRejected"), { status: 503 });
+  if (status === 401) return Object.assign(Error("ttsKeyRejected"), { status: 503 });
+  if (status === 403) return Object.assign(Error("ttsKeyRestricted"), { status: 503 });
   if (status === 429) return Object.assign(Error("ttsRateLimited"), { status: 429 });
   return Object.assign(Error("ttsUnavailable"), { status: 502 });
+}
+
+// ElevenLabs puts the reason in the body (for example a status like
+// "missing_permissions"). It is logged on the server only, trimmed, and never
+// echoed to the browser.
+async function upstreamDetail(response) {
+  const text = await response.text().catch(() => "");
+  return text.replace(/\s+/gu, " ").slice(0, 300);
 }
 
 // ELEVENLABS_VOICE_IDS is a comma-separated list of "id:Name:locale" entries
@@ -110,13 +119,13 @@ async function loadVoices(fetchImpl, env) {
   if (!key) throw Object.assign(Error("ttsNotConfigured"), { status: 503 });
   let response;
   try {
-    response = await fetchImpl(`${UPSTREAM}/v1/voices`, { headers: { "xi-api-key": key } });
+    response = await fetchImpl(`${UPSTREAM}/v2/voices`, { headers: { "xi-api-key": key } });
   } catch (error) {
     console.error("narration: voice list request failed", error.message);
     throw Object.assign(Error("ttsUnavailable"), { status: 502 });
   }
   if (!response.ok) {
-    console.error(`narration: voice list returned HTTP ${response.status}`);
+    console.error(`narration: voice list returned HTTP ${response.status}: ${await upstreamDetail(response)}`);
     throw upstreamFailure(response.status);
   }
   const data = await response.json();
@@ -178,9 +187,10 @@ async function handleTts(req, res, { fetch = globalThis.fetch, env = process.env
     return send(res, 502, { error: "ttsUnavailable" });
   }
   if (!upstream.ok) {
-    console.error(`narration: speech request returned HTTP ${upstream.status}`);
+    console.error(`narration: speech request returned HTTP ${upstream.status}: ${await upstreamDetail(upstream)}`);
     if (upstream.status === 429) return send(res, 429, { error: "ttsRateLimited" });
-    if (upstream.status === 401 || upstream.status === 403) return send(res, 503, { error: "ttsKeyRejected" });
+    if (upstream.status === 401) return send(res, 503, { error: "ttsKeyRejected" });
+    if (upstream.status === 403) return send(res, 503, { error: "ttsKeyRestricted" });
     if (upstream.status === 422 || upstream.status === 400) return send(res, 400, { error: "ttsRejectedText" });
     return send(res, 502, { error: "ttsFailed" });
   }
