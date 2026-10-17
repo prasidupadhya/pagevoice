@@ -7,7 +7,7 @@ name = "pagevoice"
 version = "0.1.0"
 description = "Local-first book narration pipeline"
 requires-python = ">=3.10,<3.14"
-dependencies = ["snowballstemmer==3.1.1", "beautifulsoup4==4.13.3", "defusedxml==0.7.1", "pypdf==6.19.0", "pypdfium2==5.13.0", "pillow==12.3.0", "filelock==4.0.1", "edge-tts==7.2.3"]
+dependencies = ["snowballstemmer==3.1.1", "beautifulsoup4==4.15.0", "defusedxml==0.7.1", "pypdf==6.19.0", "pypdfium2==5.13.0", "pillow==12.3.0", "filelock==4.0.1", "edge-tts==7.2.3"]
 
 [project.optional-dependencies]
 semantic = ["onnxruntime==1.23.2", "tokenizers==0.23.2", "numpy==2.2.6"]
