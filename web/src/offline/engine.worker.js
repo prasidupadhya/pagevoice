@@ -4,24 +4,25 @@ import { voiceById } from "./engines";
 import { isWasmAbort } from "./wasm";
 // Only cached, hash-checked voice files can be read here; nothing is uploaded.
 guardInferenceFetch();
-let adapter,
-  engine,
-  pending = Promise.resolve();
+// One adapter per engine, kept loaded: a book can cast a Kokoro voice next to
+// a Piper voice, and reloading a model for each sentence would take seconds.
+const adapters = new Map();
+let pending = Promise.resolve();
 self.onmessage = (event) => {
   pending = pending.then(() => synthesize(event.data));
 };
-async function adapterFor(name) {
-  if (engine === name) return adapter;
-  await adapter?.dispose?.().catch(() => {});
-  adapter = undefined;
-  engine = undefined;
-  const module =
-    name === "kokoro"
-      ? await import("./tts/kokoro")
-      : await import("./tts/piper");
-  adapter = await module.createAdapter();
-  engine = name;
-  return adapter;
+function adapterFor(name) {
+  if (!adapters.has(name))
+    adapters.set(
+      name,
+      (name === "kokoro" ? import("./tts/kokoro") : import("./tts/piper"))
+        .then((module) => module.createAdapter())
+        .catch((error) => {
+          adapters.delete(name);
+          throw error;
+        }),
+    );
+  return adapters.get(name);
 }
 async function synthesize({ id, options }) {
   try {
@@ -79,9 +80,10 @@ async function synthesize({ id, options }) {
     if (isWasmAbort(error)) {
       // The WebAssembly instance is dead. Discard it so the next sentence
       // starts a fresh engine instead of failing with the same abort.
-      await adapter?.dispose?.().catch(() => {});
-      adapter = undefined;
-      engine = undefined;
+      const name = voiceById(options.voice)?.engine,
+        failed = adapters.get(name);
+      adapters.delete(name);
+      await failed?.then((adapter) => adapter.dispose?.()).catch(() => {});
       self.postMessage({ id, error: "engineFailed" });
       return;
     }

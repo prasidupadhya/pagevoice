@@ -9,7 +9,15 @@ import {
 import { createHash } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { VOICES } from "../src/offline/engines.js";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Kokoro voice styles come from the pinned kokoro-js package (its English
+// voices are byte-identical to the onnx-community files) and are served by
+// this site. kokoro-js asks Hugging Face for them; the alias maps that request
+// to the copy here.
+const kokoroVoices = new Set(
+  VOICES.filter((v) => v.engine === "kokoro").map((v) => `${v.id}.bin`),
+);
 const groups = {
   ort: [
     "node_modules/onnxruntime-web/dist",
@@ -26,6 +34,10 @@ const groups = {
   piper: [
     "node_modules/@diffusionstudio/piper-wasm/build",
     /^piper_phonemize\.(?:wasm|data|js)$/,
+  ],
+  kokoro: [
+    "node_modules/kokoro-js/voices",
+    { test: (f) => kokoroVoices.has(f) },
   ],
 };
 const manifest = {};
@@ -47,6 +59,9 @@ for (const [name, [path, pattern]] of Object.entries(groups)) {
     await writeFile(resolve(destination, file), buffer);
     manifest[name].push({
       url: `/runtime/${name}/${file}`,
+      ...(name === "kokoro" && {
+        alias: `https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/${file}`,
+      }),
       size: buffer.length,
       sha256: createHash("sha256").update(buffer).digest("hex"),
     });

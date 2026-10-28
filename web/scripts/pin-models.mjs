@@ -23,17 +23,8 @@ const definitions = {
       "config.json",
       "tokenizer.json",
       "tokenizer_config.json",
+      // Voice styles are served by this site (see runtime-assets.mjs).
       "onnx/model_quantized.onnx",
-      ...[
-        "af_heart",
-        "af_bella",
-        "am_michael",
-        "am_adam",
-        "bf_emma",
-        "bf_isabella",
-        "bm_george",
-        "bm_daniel",
-      ].map((v) => `voices/${v}.bin`),
     ],
   ],
   piper: [

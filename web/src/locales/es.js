@@ -235,10 +235,10 @@ export default {
   licenses: "Licencias y avisos de código fuente",
   modelLicense: "Licencia de modelo / voz",
   creditsNames:
-    "Voces: Kokoro-82M, Apache-2.0 (inglés); Piper con las voces davefx y sharvard, MIT, y el fonemizador eSpeak NG, GPL-3.0 (español). OCR: Tesseract, Apache-2.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
+    "Voces: Kokoro-82M, Apache-2.0 (inglés y español); Piper con las voces davefx y sharvard, MIT (español); fonemizador eSpeak NG, GPL-3.0. OCR: Tesseract, Apache-2.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
   limits: "Límites reales",
   limitsBody:
-    "La velocidad de la narración depende de tu dispositivo; los dispositivos lentos necesitan un búfer mayor. La primera escucha obtiene la voz (unos 120 MB en inglés y 100 MB en español). El OCR y la detección de diálogos pueden equivocarse. Las pestañas en segundo plano pueden dejar de preparar. El almacenamiento del navegador puede borrarse.",
+    "La velocidad de la narración depende de tu dispositivo; los dispositivos lentos necesitan un búfer mayor. La primera escucha obtiene la voz (unos 120 MB en inglés y entre 100 y 140 MB en español). El OCR y la detección de diálogos pueden equivocarse. Las pestañas en segundo plano pueden dejar de preparar. El almacenamiento del navegador puede borrarse.",
   dismiss: "Descartar",
   progressLabel: "Progreso de preparación",
   bookProgress: "{percent}% leído",
@@ -350,7 +350,7 @@ export default {
     "Este navegador no pudo guardar un archivo tan grande. Prueba Chromium o Firefox.",
   contact: "Contacto:",
   voiceHelp:
-    "Las voces funcionan en este dispositivo: Kokoro lee inglés y Piper lee español. La voz se obtiene una vez, la primera vez que escuchas, y después funciona sin conexión.",
+    "Las voces funcionan en este dispositivo: Kokoro lee inglés y español, y Piper lee español. Cada voz se obtiene una vez, la primera vez que escuchas, y después funciona sin conexión.",
   narrationPrivacy:
     "La narración se genera en este navegador. Ningún texto de este libro sale de tu dispositivo.",
   noVoicesForLanguage:

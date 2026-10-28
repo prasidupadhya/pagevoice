@@ -84,3 +84,34 @@ it("stop revokes the current object URL and clears media state", async () => {
   expect(player.bookId).toBeNull();
   expect(player.state.status).toBe("idle");
 });
+it("the sleep timer survives starting another sentence and pauses when it ends", async () => {
+  vi.useFakeTimers();
+  try {
+    const { book, player } = setup();
+    book.prepared["0:29"] = { key: "audio" };
+    player.sleep(15);
+    expect(player.state.sleepMinutes).toBe(15);
+    await player.start("b", 0, 29);
+    expect(player.state.sleepMinutes).toBe(15);
+    vi.advanceTimersByTime(15 * 60000);
+    expect(player.state.status).toBe("paused");
+    expect(player.state.sleepMinutes).toBe(0);
+    player.dispose();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it("time updates are reported apart from state changes", async () => {
+  const states = [];
+  const { audio, store } = setup();
+  const player = new AudioPlayer({
+    store,
+    audioFactory: () => audio,
+    onState: (state, timeOnly) => states.push(!!timeOnly),
+  });
+  audio.currentTime = 1;
+  audio.ontimeupdate();
+  expect(states.at(-1)).toBe(true);
+  player.pause();
+  expect(states.at(-1)).toBe(false);
+});

@@ -270,17 +270,26 @@ export class LibraryStore {
       }
     if (globalThis.BroadcastChannel) {
       this.channel = new BroadcastChannel(this.name);
-      this.channel.onmessage = async ({ data: id }) => {
+      this.channel.onmessage = async ({ data }) => {
+        // Messages name the book and whether its text changed. Older tabs
+        // send only the id.
+        const { id, content: textChanged = true } =
+          typeof data === "string" ? { id: data } : data || {};
         if (!this.db || typeof id !== "string") return;
         try {
-          const loaded = !!this.get(id)?.chapters,
+          const memory = this.get(id),
+            reread = textChanged && memory?.chapters,
             tx = this.db.transaction(["books", "content"]);
           const [current, content] = await Promise.all([
             request(tx.objectStore("books").get(id)),
-            loaded ? request(tx.objectStore("content").get(id)) : null,
+            reread ? request(tx.objectStore("content").get(id)) : null,
           ]);
-          if (current)
-            this.books.set(id, fromStored({ ...current, ...content }));
+          const text = reread
+            ? pick(content || {}, CONTENT)
+            : memory?.chapters
+              ? pick(memory, CONTENT)
+              : {};
+          if (current) this.books.set(id, fromStored({ ...current, ...text }));
           else {
             this.books.delete(id);
             this.revokeCover(id);
@@ -405,7 +414,8 @@ export class LibraryStore {
           if (changes.chapters) value.outline = outlineOf(changes.chapters);
           return value;
         };
-        let value;
+        let value,
+          textChanged = true;
         if (this.get(id)?.keep && this.db) {
           // Read/modify/write in ONE IDB transaction. A stale tab cannot overwrite
           // a deletion or lose another tab's position/audio changes. Content is
@@ -436,6 +446,7 @@ export class LibraryStore {
               metaChanges.outline = outlineOf(changes.chapters);
             table.put({ ...stored, ...metaChanges });
             const contentChanges = pick(changes, CONTENT);
+            textChanged = Object.keys(contentChanges).length > 0;
             if (Object.keys(contentChanges).length) {
               const store = tx.objectStore("content"),
                 read = store.get(id);
@@ -447,9 +458,18 @@ export class LibraryStore {
           await done;
         } else value = apply(this.get(id));
         if (value) {
-          value = fromStored(value);
+          // The text may have been loaded while this update was running.
+          const latest = this.get(id);
+          value = fromStored(
+            latest?.chapters && !value.chapters
+              ? { ...pick(latest, CONTENT), ...value }
+              : value,
+          );
           this.books.set(id, value);
-          this.channel?.postMessage(id);
+          this.channel?.postMessage({
+            id,
+            content: textChanged,
+          });
         }
         return value || null;
       });

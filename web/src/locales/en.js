@@ -231,10 +231,10 @@ export default {
   licenses: "Open licenses & source notices",
   modelLicense: "Model / voice license",
   creditsNames:
-    "Voices: Kokoro-82M, Apache-2.0 (English); Piper with the davefx and sharvard voices, MIT, and the eSpeak NG phonemizer, GPL-3.0 (Spanish). OCR: Tesseract, Apache-2.0. ONNX Runtime and Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces and Geist: SIL OFL-1.1.",
+    "Voices: Kokoro-82M, Apache-2.0 (English and Spanish); Piper with the davefx and sharvard voices, MIT (Spanish); eSpeak NG phonemizer, GPL-3.0. OCR: Tesseract, Apache-2.0. ONNX Runtime and Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces and Geist: SIL OFL-1.1.",
   limits: "Real limits",
   limitsBody:
-    "Narration speed depends on your device; slower devices need a larger buffer. The first listen fetches the voice (about 120 MB for English, 100 MB for Spanish). OCR and dialogue detection can be wrong. Background tabs may stop preparing. Browser storage can be evicted.",
+    "Narration speed depends on your device; slower devices need a larger buffer. The first listen fetches the voice (about 120 MB for English, 100–140 MB for Spanish). OCR and dialogue detection can be wrong. Background tabs may stop preparing. Browser storage can be evicted.",
   dismiss: "Dismiss",
   progressLabel: "Preparation progress",
   bookProgress: "{percent}% read",
@@ -345,7 +345,7 @@ export default {
     "This browser could not store a file this large. Try Chromium or Firefox.",
   contact: "Contact:",
   voiceHelp:
-    "Voices run on this device: Kokoro reads English and Piper reads Spanish. The voice is fetched once, the first time you listen, and then works offline.",
+    "Voices run on this device: Kokoro reads English and Spanish, and Piper reads Spanish. Each voice is fetched once, the first time you listen, and then works offline.",
   narrationPrivacy:
     "Narration is generated in this browser. No text from this book leaves your device.",
   noVoicesForLanguage:

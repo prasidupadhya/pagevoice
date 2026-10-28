@@ -40,7 +40,8 @@ export default function PlayerPanel({
   listen,
 }) {
   const [expanded, setExpanded] = useState(false),
-    [sleep, setSleep] = useState(api.refs.current.player.sleepMinutes || 0);
+    // The player owns the timer; it may end or be changed elsewhere.
+    sleep = api.playback.sleepMinutes || 0;
   const row = playback.row || position,
     rowChapter = book.chapters[row.chapter] || book.chapters[0],
     buffer = readyRun(
@@ -110,7 +111,6 @@ export default function PlayerPanel({
             onChange={(e) => {
               const minutes = Number(e.target.value);
               api.refs.current.player.sleep(minutes);
-              setSleep(minutes);
             }}
           >
             <option value="0">{t("sleepOff")}</option>

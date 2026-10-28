@@ -1,6 +1,23 @@
 import { boundedSynthesis } from "./bounded";
+import { espeak } from "./espeak";
 // Kokoro-82M (Apache-2.0), quantized to 8 bits, on the ONNX Runtime WebAssembly
 // backend. kokoro-js supplies the English text normalization and phonemizer.
+// Spanish voices (e…) read eSpeak NG's Spanish phonemes, as Kokoro itself
+// does; kokoro-js's own phonemizer only carries English.
+
+/** Spanish text as Kokoro phonemes, from eSpeak NG as Kokoro was trained. */
+export async function spanishPhonemes(text) {
+  const lines = (await espeak())(text, "es");
+  return (
+    lines
+      .map((line) => (line.phonemes || []).join(""))
+      .join(" ")
+      // Kokoro's vocabulary writes these affricates as single symbols.
+      .replace(/tʃ/gu, "ʧ")
+      .replace(/dʒ/gu, "ʤ")
+      .trim()
+  );
+}
 export async function createAdapter() {
   const { env } = await import("@huggingface/transformers");
   env.allowLocalModels = false;
@@ -28,10 +45,13 @@ export async function createAdapter() {
   return {
     sampleRate: 24000,
     async synthesize({ text, voice }) {
-      const samples = await boundedSynthesis(
-        text,
-        async (part) => (await model.generate(part, { voice })).audio,
-      );
+      const generate = voice.startsWith("e")
+        ? async (part) => {
+            const { input_ids } = model.tokenizer(await spanishPhonemes(part));
+            return (await model.generate_from_ids(input_ids, { voice })).audio;
+          }
+        : async (part) => (await model.generate(part, { voice })).audio;
+      const samples = await boundedSynthesis(text, generate);
       return { samples, sampleRate: 24000 };
     },
     async dispose() {

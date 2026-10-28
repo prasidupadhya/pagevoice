@@ -48,11 +48,11 @@ export function useReader() {
     let active = true;
     const player = new AudioPlayer({
       store,
-      onState: (state) => {
-        if (active) {
-          setPlayback(state);
-          sync();
-        }
+      onState: (state, timeOnly) => {
+        if (!active) return;
+        setPlayback(state);
+        // Time updates arrive several times a second and change no book.
+        if (!timeOnly) sync();
       },
     });
     const queue = new RenderQueue({

@@ -334,8 +334,12 @@ export default function Reader({
         e.ctrlKey ||
         e.altKey ||
         e.target.closest(
-          "input,select,textarea,button,[contenteditable],dialog,.popover",
-        )
+          "input,select,textarea,[contenteditable],dialog,.popover",
+        ) ||
+        // A focused button keeps Space and Enter for itself; other shortcuts
+        // still work after clicking one.
+        (e.target.closest("button,a[href],[role=tab]") &&
+          [" ", "Enter"].includes(e.key))
       )
         return;
       if (e.key === "Escape") {

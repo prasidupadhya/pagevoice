@@ -11,19 +11,31 @@ const transformersRuntime = runtimes.transformers.filter((a) =>
 export const MODEL_GROUPS = {
   kokoro: {
     voice: true,
-    language: "en",
     license: "Apache-2.0",
-    files: [...models.kokoro.assets, ...transformersRuntime],
+    files: [
+      ...models.kokoro.assets,
+      ...runtimes.kokoro,
+      ...transformersRuntime,
+    ],
+  },
+  // Kokoro's Spanish voices also need eSpeak NG's Spanish data.
+  "kokoro-es": {
+    voice: true,
+    license: "Apache-2.0 · GPL-3.0 phonemizer",
+    files: [
+      ...models.kokoro.assets,
+      ...runtimes.kokoro,
+      ...transformersRuntime,
+      ...runtimes.piper,
+    ],
   },
   piper: {
     voice: true,
-    language: "es",
     license: "MIT weights · CC0 dataset · GPL-3.0 phonemizer",
     files: [...models.piper.assets, ...runtimes.piper, ...runtimes.ort],
   },
   sharvard: {
     voice: true,
-    language: "es",
     license: "MIT weights · CC-BY-3.0 dataset · GPL-3.0 phonemizer",
     files: [...models.sharvard.assets, ...runtimes.piper, ...runtimes.ort],
   },

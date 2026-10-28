@@ -53,7 +53,8 @@ PageVoice tries to do both in one place, without sending the document anywhere.
   browser and is fetched automatically the first time it is needed.
 - Read with contents, bookmarks, search within the book, themes, text size and line
   width, and focus mode.
-- Listen with voices that run on your device: Kokoro for English and Piper for Spanish.
+- Listen with voices that run on your device: Kokoro for English and Spanish, Piper for Spanish,
+  with female and male voices in both languages.
   Playback speed from 0.5× to 2×, a sleep timer, and the sentence being spoken is
   highlighted.
 - Search the whole book by keyword. Each result shows its section and sentence.
@@ -102,8 +103,8 @@ What this does not guarantee:
   Safari (WebKit) support is partial: offline reloads and some large downloads are not
   verified there. See [static verification](docs/static-verification.md) for the
   detailed test record.
-- **First listen needs a connection.** The voice is fetched once (about 118 MB for
-  English, 96 MB for Spanish), then narration works offline.
+- **First listen needs a connection.** The voice is fetched once (about 120 MB for
+  English, 96–138 MB for Spanish depending on the voice), then narration works offline.
 - **Speed.** Narration runs on your CPU. Fast devices narrate faster than playback;
   slower ones pause to prepare. A larger buffer in **Voice & cast** helps.
 - **Accuracy.** Language detection, OCR, dialogue attribution and section detection
@@ -160,8 +161,9 @@ vercel.json               Static hosting configuration for the website
 
 **Listening**
 
-- On-device voices: Kokoro-82M (8 English voices, US and UK) and Piper (3 Spain Spanish
-  voices). Each book keeps its own voice choice; characters can get their own voices.
+- On-device voices: Kokoro-82M (8 English voices, US and UK; Spanish: Dora, female, and
+  Alex, male) and Piper (Spanish: Dave, male, and Sharvard, female and male). Each
+  book keeps its own voice choice; characters can get their own voices.
 - The sentence being spoken is highlighted and scrolled into view
 - Play/pause, previous/next sentence, playback speed 0.5–2×, sleep timer, media keys
 - Audio is prepared ahead of the listening position; the buffer size is adjustable
@@ -210,7 +212,7 @@ web/
   src/browser/        Parsing (pdf.js, xmldom), sentences, language detection,
                       section analysis, keyword search
   src/offline/        Storage, model assets, voice engine, playback, workers
-  src/offline/tts/    Kokoro (English) and Piper (Spanish) adapters
+  src/offline/tts/    Kokoro and Piper adapters; eSpeak NG phonemizer
   src/styles/         Design tokens shared by the app and the introduction page
 ```
 
@@ -251,7 +253,8 @@ scanned PDF. There is no separate download step. Sizes are decimal MB for a cold
 
 | Model | First fetch | License / limitation |
 | --- | ---: | --- |
-| Kokoro English voices | 118.2 MB | Apache-2.0; 8-bit quantized, CPU (WebAssembly) |
+| Kokoro English voices | 119.2 MB | Apache-2.0; 8-bit quantized, CPU (WebAssembly) |
+| Kokoro Spanish voices (Dora, Alex) | 138.1 MB | Shares the Kokoro model with English; adds the eSpeak NG Spanish data |
 | Piper Spanish voice (Dave) | 96.3 MB | MIT weights, CC0 data; GPL-3.0 phonemizer |
 | Piper Sharvard voices | +76.7 MB | MIT weights, CC-BY-3.0 data; fetched only if chosen |
 | English + Spanish OCR | 25.4 MB | Apache-2.0. Needed only for scanned PDFs |

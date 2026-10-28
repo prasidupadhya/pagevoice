@@ -370,3 +370,28 @@ it("removes many audio sentences at once", async () => {
   await s.deleteAudios(keys);
   for (const key of keys) expect(await s.getAudio(key)).toBeFalsy();
 });
+it("an update that finishes after the text loads keeps the text in memory", async () => {
+  const a = await store("race");
+  const added = await a.add(book());
+  const s = await store("race");
+  const updating = s.update(added.id, { lastOpened: 5 });
+  await s.load(added.id);
+  await updating;
+  expect(s.get(added.id).lastOpened).toBe(5);
+  expect(s.get(added.id).chapters).toHaveLength(1);
+});
+it("other tabs keep the open text on small changes and see edited text", async () => {
+  const a = await store("tabs"),
+    added = await a.add(book()),
+    b = await store("tabs");
+  await b.load(added.id);
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  await a.update(added.id, { position: { chapter: 0, sentence: 1 } });
+  await settle();
+  expect(b.get(added.id).position.sentence).toBe(1);
+  expect(b.get(added.id).chapters).toHaveLength(1);
+  const chapters = [{ title: "Edited", source: "x", sentences: ["New."] }];
+  await a.update(added.id, { chapters });
+  await settle();
+  expect(b.get(added.id).chapters).toEqual(chapters);
+});

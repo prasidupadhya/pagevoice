@@ -16,11 +16,14 @@ export class AudioPlayer {
     this.audio.onended = () => this.next();
     this.audio.onerror = () => this.emit("error", "invalidAudio");
     this.audio.ontimeupdate = () =>
-      this.onState({
-        ...this.state,
-        time: this.audio.currentTime,
-        duration: this.audio.duration || 0,
-      });
+      this.onState(
+        {
+          ...this.state,
+          time: this.audio.currentTime,
+          duration: this.audio.duration || 0,
+        },
+        true,
+      );
   }
   emit(status, error = null) {
     this.state = {
@@ -30,6 +33,7 @@ export class AudioPlayer {
       bookId: this.bookId,
       row: this.row,
       target: this.target,
+      sleepMinutes: this.sleepMinutes || 0,
     };
     this.onState(this.state);
   }
@@ -149,6 +153,8 @@ export class AudioPlayer {
       Math.min(this.audio.duration || 0, this.audio.currentTime + seconds),
     );
   }
+  /** Pauses after `minutes`; 0 turns the timer off. Starting another
+   * sentence or book keeps the timer running. */
   sleep(minutes) {
     clearTimeout(this.sleepTimer);
     this.sleepMinutes = minutes;
@@ -157,6 +163,7 @@ export class AudioPlayer {
         this.sleepMinutes = 0;
         this.pause();
       }, minutes * 60000);
+    this.emit(this.state?.status || "idle", this.state?.error);
   }
   stop() {
     this.generation++;
@@ -167,8 +174,6 @@ export class AudioPlayer {
     this.bookId = null;
     this.row = null;
     this.emit("idle");
-    clearTimeout(this.sleepTimer);
-    this.sleepMinutes = 0;
   }
   releaseURL() {
     if (this.url) URL.revokeObjectURL(this.url);
@@ -197,6 +202,7 @@ export class AudioPlayer {
       }
   }
   dispose() {
+    clearTimeout(this.sleepTimer);
     this.stop();
     if (navigator.mediaSession) {
       navigator.mediaSession.metadata = null;

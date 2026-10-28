@@ -95,6 +95,46 @@ test("the voice tab offers only voices in the book's language", async ({
     .getByRole("combobox", { name: "Narration voice", exact: true })
     .locator("option")
     .allTextContents();
-  expect(options.length).toBe(3);
+  expect(options.length).toBe(5);
   expect(options.every((o) => /Spanish|español/u.test(o))).toBe(true);
+  expect(options.filter((o) => o.endsWith("Female"))).toEqual([
+    "Dora · European Spanish · Female",
+    "Sharvard · European Spanish · Female",
+  ]);
+});
+
+test("a Spanish book is narrated by Dora, a female Kokoro voice", async ({
+  page,
+}) => {
+  await cachedCDN(page);
+  const errors = [],
+    logs = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => logs.push(m.text()));
+  await page.goto("/app/");
+  await upload(page, fixture("sample-es.epub"));
+  const [book] = await books(page);
+  const sentences = book.chapters.flatMap((c) => c.sentences);
+  await page.getByRole("button", { name: `Open book · ${book.title}` }).click();
+  await page.getByRole("tab", { name: "Voice & cast", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Narration voice", exact: true })
+    .selectOption("ef_dora");
+  await page.getByRole("tab", { name: "Read", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Listen from here · 1", exact: true })
+    .first()
+    .click();
+  await waitPrepared(page, sentences.length);
+  const records = await stats(page);
+  // Each sentence is real speech: roughly 0.2–1.5 s per word.
+  for (const r of records) {
+    const [ch, s] = r.row.split(":").map(Number),
+      words = book.chapters[ch].sentences[s].split(/\s+/u).length;
+    expect(r.duration).toBeGreaterThan(words * 0.2);
+    expect(r.duration).toBeLessThan(words * 1.5 + 1);
+  }
+  expect((await books(page))[0].settings.voice).toBe("ef_dora");
+  expect(logs.filter((l) => /Narration failed|skipped/u.test(l))).toEqual([]);
+  expect(errors).toEqual([]);
 });

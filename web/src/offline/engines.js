@@ -1,5 +1,5 @@
-// Narration runs on this device. Kokoro reads English and Piper reads Spanish,
-// both in a Web Worker. No text leaves the browser; the only network requests
+// Narration runs on this device in a Web Worker: Kokoro reads English and
+// Spanish, and Piper reads Spanish. No text leaves the browser; the only network requests
 // are the fixed voice files, fetched once and checked against pinned hashes.
 export const NARRATION = "local";
 
@@ -21,8 +21,11 @@ export const VOICES = [
   voice("bm_george", "George", "en-GB", "male", "kokoro", "kokoro"),
   voice("bm_daniel", "Daniel", "en-GB", "male", "kokoro", "kokoro"),
   voice("davefx", "Dave", "es-ES", "male", "piper", "piper"),
-  voice("sharvard:0", "Sharvard 1", "es-ES", undefined, "piper", "sharvard"),
-  voice("sharvard:1", "Sharvard 2", "es-ES", undefined, "piper", "sharvard"),
+  voice("ef_dora", "Dora", "es-ES", "female", "kokoro", "kokoro-es"),
+  voice("em_alex", "Alex", "es-ES", "male", "kokoro", "kokoro-es"),
+  // Piper's voice catalogue lists the Sharvard speakers as { M: 0, F: 1 }.
+  voice("sharvard:1", "Sharvard", "es-ES", "female", "piper", "sharvard"),
+  voice("sharvard:0", "Sharvard", "es-ES", "male", "piper", "sharvard"),
 ];
 export const voiceById = (id) => VOICES.find((v) => v.id === id);
 /** The voice file group (see MODEL_GROUPS) a voice needs. */

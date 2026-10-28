@@ -1,6 +1,7 @@
 import models from "../model-assets.json";
 import { boundedSynthesis } from "./bounded";
 import { modelFor } from "../engines";
+import { espeak } from "./espeak";
 // Piper (VITS) Spanish voices on ONNX Runtime WebAssembly. Text becomes phoneme
 // ids with the eSpeak NG phonemizer that Piper itself uses, built for the web.
 export async function createAdapter() {
@@ -8,21 +9,7 @@ export async function createAdapter() {
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.proxy = false;
   ort.env.wasm.wasmPaths = "/runtime/ort/";
-  // The phonemizer comes from a pinned npm package and is served by this site.
-  const base = new URL("/runtime/piper/", self.location.origin).href;
-  const { default: createPhonemizer } = await import(
-    /* @vite-ignore */ `${base}piper_phonemize.js`
-  );
-  let ids = [];
-  const phonemizer = await createPhonemizer({
-    noInitialRun: true,
-    locateFile: (file) => `${base}${file}`,
-    print: (line) => {
-      const parsed = JSON.parse(line);
-      if (parsed.phoneme_ids) ids.push(...parsed.phoneme_ids);
-    },
-    printErr: () => {},
-  });
+  const phonemize = await espeak();
   const loaded = new Map();
   async function load(name) {
     if (loaded.has(name)) return loaded.get(name);
@@ -42,15 +29,9 @@ export async function createAdapter() {
       const speaker = voice.split(":")[1] || "0",
         { config, session } = await load(modelFor(voice));
       const samples = await boundedSynthesis(text, async (part) => {
-        ids = [];
-        phonemizer.callMain([
-          "-l",
-          config.espeak.voice,
-          "--input",
-          JSON.stringify([{ text: part }]),
-          "--espeak_data",
-          "/espeak-ng-data",
-        ]);
+        const ids = phonemize(part, config.espeak.voice).flatMap(
+          (line) => line.phoneme_ids || [],
+        );
         if (!ids.length) throw Error("phonemizerFailed");
         // Long inputs make VITS memory grow quickly; split them like Kokoro.
         if (ids.length > 1000) throw Error("tokenLimit");

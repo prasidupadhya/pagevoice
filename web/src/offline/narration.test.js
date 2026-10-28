@@ -33,18 +33,32 @@ it("offers on-device voices for both book languages, each with pinned files", ()
   expect(voicesFor(VOICES, "en").length).toBe(8);
   expect(voicesFor(VOICES, "es").map((v) => v.id)).toEqual([
     "davefx",
-    "sharvard:0",
+    "ef_dora",
+    "em_alex",
     "sharvard:1",
+    "sharvard:0",
   ]);
+  // Spanish has female voices as well as male ones.
+  expect(
+    voicesFor(VOICES, "es").filter((v) => v.gender === "female").length,
+  ).toBe(2);
   expect(defaultVoice("en")).toBe("af_heart");
   expect(defaultVoice("es")).toBe("davefx");
   expect(defaultVoice("fr")).toBe("");
-  for (const v of VOICES) {
-    expect(MODEL_GROUPS[modelFor(v.id)].voice).toBe(true);
-    expect(MODEL_GROUPS[modelFor(v.id)].language).toBe(v.locale.split("-")[0]);
-  }
+  for (const v of VOICES) expect(MODEL_GROUPS[modelFor(v.id)].voice).toBe(true);
+  // Every Kokoro voice style is served by this site, aliased from the URL
+  // kokoro-js asks for.
+  for (const v of VOICES.filter((v) => v.engine === "kokoro"))
+    expect(
+      MODEL_GROUPS.kokoro.files.some(
+        (f) =>
+          f.url === `/runtime/kokoro/${v.id}.bin` &&
+          f.alias.endsWith(`/resolve/main/voices/${v.id}.bin`),
+      ),
+    ).toBe(true);
   expect(Object.keys(MODEL_GROUPS)).toEqual([
     "kokoro",
+    "kokoro-es",
     "piper",
     "sharvard",
     "ocr",
