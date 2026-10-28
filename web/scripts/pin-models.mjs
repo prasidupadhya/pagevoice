@@ -16,6 +16,40 @@ for (const m of Object.values(previous)) {
 }
 const manifest = {};
 const definitions = {
+  // Narration voices. Kokoro reads English, Piper reads Spanish.
+  kokoro: [
+    "onnx-community/Kokoro-82M-v1.0-ONNX",
+    [
+      "config.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "onnx/model_quantized.onnx",
+      ...[
+        "af_heart",
+        "af_bella",
+        "am_michael",
+        "am_adam",
+        "bf_emma",
+        "bf_isabella",
+        "bm_george",
+        "bm_daniel",
+      ].map((v) => `voices/${v}.bin`),
+    ],
+  ],
+  piper: [
+    "rhasspy/piper-voices",
+    [
+      "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx",
+      "es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json",
+    ],
+  ],
+  sharvard: [
+    "rhasspy/piper-voices",
+    [
+      "es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx",
+      "es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx.json",
+    ],
+  ],
   embeddings: [
     "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     [

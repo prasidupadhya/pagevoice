@@ -53,35 +53,32 @@ PageVoice tries to do both in one place, without sending the document anywhere.
   OCR download.
 - Read with contents, bookmarks, search within the book, themes, text size and line
   width, and focus mode.
-- Listen with narration voices from ElevenLabs, served through this site. Playback speed
-  from 0.5× to 2×, a sleep timer, and the sentence being spoken is highlighted.
+- Listen with voices that run on your device: Kokoro for English and Piper for Spanish.
+  Playback speed from 0.5× to 2×, a sleep timer, and the sentence being spoken is
+  highlighted.
 - Search the whole book by keyword. Each result shows its section and sentence.
 - Keep a library in the browser, with reading progress, and back it up or restore it
   as a ZIP file.
-- Export prepared audio as MP3 files, with metadata and citations. Export as an M4B
-  audiobook is available but is best effort.
-- Read, search and open saved books offline. Narration needs an internet connection.
+- Read, search, open and listen to saved books offline. The voice is fetched once, the
+  first time you listen.
 
 ## Why local processing matters
 
 PageVoice does most of the work on your device:
 
-- Reading the file, detecting the language and sections, OCR, search and storage all run
-  in your browser.
-- The website has no server that receives your documents, and no accounts.
-- Narration is the one exception. The text of each sentence you listen to is sent to
-  ElevenLabs, which generates the speech. Nothing else from the book is sent, and the
-  generated audio is kept in your browser, not on a server.
-- The other network requests are fixed document-tool files (OCR and search models).
-  Each file is checked against a pinned hash, and the page's content security policy
-  blocks connections to other servers.
+- Reading the file, detecting the language and sections, OCR, search, narration and
+  storage all run in your browser.
+- The website has no server that receives your documents, and no accounts. No API key
+  or external speech service is involved.
+- The only network requests are fixed files: the voice (fetched the first time you
+  listen) and the optional document tools (OCR and search models). Each file is checked
+  against a pinned hash, and the page's content security policy blocks connections to
+  other servers.
 
 What this does not guarantee:
 
 - The website is served by a hosting provider, which can log standard request details
   such as IP address and the pages requested.
-- ElevenLabs processes the sentence text under its own terms and data policy. Check
-  those terms before you use narration with sensitive material.
 - Browser storage can be cleared by the browser or by you. Export a backup to keep a
   copy.
 
@@ -93,11 +90,11 @@ What this does not guarantee:
    the origin private file system when the browser supports it.
 3. **Read and search.** The reader shows the text in sections. Search runs against an
    index built on your device.
-4. **Listen.** When you press play, each sentence is sent to this site's narration
-   route, which forwards it to ElevenLabs. The returned MP3 is stored in your browser.
-   The player plays the sentences in order and prepares the next ones ahead of you.
-5. **Keep or export.** Positions and bookmarks are saved as you go. You can export the
-   library or the audio.
+4. **Listen.** When you press play, a voice model running in a Web Worker turns each
+   sentence into speech. The audio is stored in your browser. The player plays the
+   sentences in order and prepares the next ones ahead of you.
+5. **Keep.** Positions, bookmarks and audio are saved as you go. You can back up the
+   library as a ZIP file.
 
 ## Limitations
 
@@ -105,9 +102,10 @@ What this does not guarantee:
   Safari (WebKit) support is partial: offline reloads and some large downloads are not
   verified there. See [static verification](docs/static-verification.md) for the
   detailed test record.
-- **Narration needs a connection** and a configured ElevenLabs key. The service's terms,
-  limits and charges apply. Voice choice and pronunciation depend on the service.
-- **Speed.** Generating a book's audio takes time, one request per sentence.
+- **First listen needs a connection.** The voice is fetched once (about 118 MB for
+  English, 96 MB for Spanish), then narration works offline.
+- **Speed.** Narration runs on your CPU. Fast devices narrate faster than playback;
+  slower ones pause to prepare. A larger buffer in **Voice & cast** helps.
 - **Accuracy.** Language detection, OCR, dialogue attribution and section detection
   can be wrong. The app shows these results so you can correct them.
 - **Languages.** Narration is set up for English and Spanish text.
@@ -162,13 +160,11 @@ vercel.json               Static hosting configuration for the website
 
 **Listening**
 
-- Narration voices come from ElevenLabs through this site's narration route. The voice
-  list is loaded when you open a book. Each book keeps its own voice choice.
+- On-device voices: Kokoro-82M (8 English voices, US and UK) and Piper (3 Spain Spanish
+  voices). Each book keeps its own voice choice; characters can get their own voices.
 - The sentence being spoken is highlighted and scrolled into view
 - Play/pause, previous/next sentence, playback speed 0.5–2×, sleep timer, media keys
 - Audio is prepared ahead of the listening position; the buffer size is adjustable
-- Export prepared chapters as an MP3 ZIP (with metadata and citations) or, best
-  effort, as an M4B via single-threaded FFmpeg WASM
 
 **Search and structure**
 
@@ -204,8 +200,7 @@ corrected in **Voice & cast**. Other languages are not supported for narration.
 
 ## Architecture
 
-The reader is a static web application. Its one server-side part is a narration route
-that forwards requests to ElevenLabs, keeping the API key on the server.
+The reader is a static web application with no server-side code.
 
 ```
 web/
@@ -216,23 +211,22 @@ web/
   src/ui/             Reader, player, library, display menu, find-in-book
   src/browser/        Parsing (pdf.js, xmldom), sentences, language detection,
                       section analysis, keyword search
-  src/offline/        Storage, document-tool assets, narration client, playback, workers
+  src/offline/        Storage, model assets, voice engine, playback, workers
+  src/offline/tts/    Kokoro (English) and Piper (Spanish) adapters
   src/styles/         Design tokens shared by the app and the introduction page
-api/                  Vercel functions: /api/tts (narration) and /api/voices
-server/elevenlabs.js  The narration proxy, shared by the functions and the Vite dev server
 ```
 
 - **React 19 + Vite 8.** The reader route is code-split; the startup bundle holds the
   library and shell only.
-- **Narration.** The browser requests one sentence at a time from `/api/tts` and stores
-  the MP3 that comes back. The API key is read from the server environment and is never
-  part of the JavaScript.
+- **Narration.** `engine.worker` runs Kokoro (through kokoro-js and Transformers.js) or
+  Piper (ONNX Runtime Web with the eSpeak NG phonemizer) on WebAssembly, one sentence at
+  a time. Each sentence is stored as a WAV file.
 - **Web Workers** do the heavy local work: `reader.worker` (parsing, OCR, analysis,
-  search index), `knowledge.worker` (Transformers.js embeddings and NER), `search.worker`
-  and `export.worker` (joins MP3 files, FFmpeg WASM for M4B).
+  search index), `engine.worker` (narration), `knowledge.worker` (Transformers.js
+  embeddings and NER) and `search.worker`.
 - **Storage.** IndexedDB holds documents, analysis, preferences and audio bytes or
   references; audio is stored in the origin private file system (OPFS) when available.
-  Document-tool model files are cached by the service worker after hash verification.
+  Voice and document-tool model files are cached after hash verification.
 - **PWA.** `vite-plugin-pwa` precaches the app shell, fonts and runtimes, prompts before
   updating, and serves `/app/` offline.
 
@@ -243,30 +237,29 @@ What the implementation does:
 - Documents, reading positions, bookmarks and generated audio are stored in this
   browser's storage on this device. Session-only imports are kept in memory.
 - The app has no account system and no analytics.
-- Narration sends the text of each sentence you listen to through `/api/tts` to
-  ElevenLabs. The request body contains only the sentence text and the voice id. Nothing
-  else from the book is sent.
-- Voice lists come from `/api/voices`. The browser never receives the API key.
-- Document-tool downloads are fixed, SHA-256-verified files from Hugging Face and
+- Narration runs in the browser. No text from a book is sent anywhere.
+- Voice and document-tool files are fixed, SHA-256-verified files from Hugging Face and
   jsDelivr. Those requests contain no document text.
 - The content security policy restricts connections to this site and those download
   hosts.
 
-Browser tests assert that the only non-document requests the app makes are the two
-narration routes.
+Browser tests assert that every request is a GET, and that the only requests to other
+hosts are for the pinned model files.
 
-## Offline engines and download sizes
+## Voices, tools and sizes
 
-Narration uses ElevenLabs and is not downloaded. The optional document tools are
-one-time downloads, shown in **Document tools** in the app. Sizes are decimal MB for a
-cold cache.
+The voice for a book's language is fetched automatically the first time you listen, with
+its progress shown in the player. The optional document tools are fetched only when you
+choose them in **Document tools**. Sizes are decimal MB for a cold cache.
 
-| Tool | First download | License / limitation |
+| Model | First fetch | License / limitation |
 | --- | ---: | --- |
+| Kokoro English voices | 118.2 MB | Apache-2.0; 8-bit quantized, CPU (WebAssembly) |
+| Piper Spanish voice (Dave) | 96.3 MB | MIT weights, CC0 data; GPL-3.0 phonemizer |
+| Piper Sharvard voices | +76.7 MB | MIT weights, CC-BY-3.0 data; fetched only if chosen |
 | English + Spanish OCR | 25.4 MB | Apache-2.0. Needed only for scanned PDFs |
 | Multilingual meaning search | 157.0 MB | Apache-2.0; inferred similarity, not evidence of an answer |
 | Multilingual NER | 203.1 MB | AFL-3.0; news-domain model, fiction accuracy unmeasured |
-| FFmpeg M4B | 32.3 MB | GPL/LGPL components; memory-limited browser export |
 
 Full credits and licenses are in **Privacy & credits** in the app,
 [web/LICENSES](web/LICENSES) and `/licenses/credits.html`. The original PageVoice code
@@ -276,7 +269,7 @@ is MIT licensed; third-party runtime and model licenses differ.
 
 A current Chrome, Edge, Firefox or Safari with WebAssembly, Web Workers, IndexedDB and
 ES modules. OPFS is used when available. Service workers and OPFS need HTTPS or
-`localhost`. Narration needs an internet connection.
+`localhost`. The first listen needs an internet connection to fetch the voice.
 
 ## Local development
 
@@ -290,15 +283,7 @@ npm --prefix web run dev
 - Introduction page: <http://127.0.0.1:5173/>
 - App: <http://127.0.0.1:5173/app/>
 
-Reading works without configuration. To test narration locally, set the key in your
-shell only, never in a file that is committed:
-
-```sh
-ELEVENLABS_API_KEY=... npm --prefix web run dev
-```
-
-Narration calls go through the same routes the production site uses. `.env.example`
-lists the variable names, without values.
+Nothing needs configuring: there are no API keys or environment variables.
 
 ## Production build
 
@@ -312,22 +297,10 @@ The build copies pinned runtimes into static files and does not download model w
 ## Deployment
 
 `vercel.json` deploys the build from the repository root (Node 22, install
-`npm ci --prefix web`, build `npm --prefix web run build`, output `web/dist`) and the
-`api/` functions. `.vercelignore` must keep `api/` and `server/`. It sets security
+`npm ci --prefix web`, build `npm --prefix web run build`, output `web/dist`). It sets security
 headers (CSP, HSTS, `nosniff`, frame denial, permissions policy), long-term caching
 for hashed assets, revalidation for HTML and the service worker, and serves
 `404.html` for unknown paths.
-
-**Narration setup.** In the Vercel project settings, add `ELEVENLABS_API_KEY` as a
-**server-only** variable. Do not use a `VITE_` prefix: those values are copied into the
-public JavaScript. Optional: `ELEVENLABS_VOICE_IDS` (comma-separated `id:Name:locale:gender` entries, such as `abc…:Brad:en-US:male`; books only get voices in their own language;
-narration then skips the voice list, which keys without the voices permission cannot read), or
-`ELEVENLABS_VOICE_ID` for a single voice. `ELEVENLABS_MODEL_ID` (default `eleven_multilingual_v2`) and
-`PAGEVOICE_ALLOWED_ORIGINS` (defaults to `https://pagevoice.tech` and
-`https://www.pagevoice.tech`, plus local development origins). The narration route
-accepts only those origins, caps each request at 1000 characters, and checks the voice
-against the service's list. Its rate limit is per server instance; set a Vercel
-Firewall rate limit for the real protection.
 
 **Known issue.** At the time of writing, `pagevoice.tech` redirects to
 `https://www.pagevoice.tech`, so the canonical links point to an address that
@@ -345,9 +318,9 @@ npm --prefix web test            # unit and component tests (Vitest)
 npm --prefix web run lint
 npm --prefix web run format:check
 npm --prefix web run build
-# Browser tests. Narration tests mock the /api routes, so they need no key.
-# The first command caches pinned document-tool files for the OCR tests.
-node web/scripts/cache-e2e-models.mjs
+# Browser tests. The first command caches pinned model files (voices included) and
+# checks their hashes; files over 20 MB are fetched from Hugging Face during the test.
+node web/scripts/cache-e2e-models.mjs kokoro embeddings ner ocr
 npm --prefix web run test:e2e
 ```
 
@@ -359,8 +332,7 @@ benchmark has been performed.
 ## Limits
 
 CPU narration may prepare slower than real time; browsers can suspend background
-tabs, and a closed tab stops preparing. Exports cap loaded WAV data at 256 MB and
-backup import caps uncompressed data at 512 MB. Optional analysis caps 12,000 passage
+tabs, and a closed tab stops preparing. Backup import caps uncompressed data at 512 MB. Optional analysis caps 12,000 passage
 windows. OCR, dialogue attribution, language detection and section classification can
 need correction. Highlighting follows sentences, not individual words.
 

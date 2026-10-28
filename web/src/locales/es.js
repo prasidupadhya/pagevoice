@@ -6,7 +6,7 @@ export default {
   private: "Una sala de lectura privada",
   intro: "Trae un libro. Escúchalo. Guárdalo aquí.",
   introBody:
-    "Lee PDF y EPUB en tu navegador. La narración envía la frase que escuchas a un servicio de voz. No necesitas cuenta.",
+    "Lee PDF y EPUB en tu navegador y escúchalos con una voz que funciona en tu dispositivo. No se sube nada y no necesitas cuenta.",
   add: "Añadir un libro",
   drop: "Suelta un PDF o EPUB aquí",
   choose: "Elegir archivo",
@@ -33,12 +33,12 @@ export default {
   update: "Hay una actualización",
   reload: "Actualizar la aplicación",
   privacy:
-    "Los documentos se quedan en este navegador. Solo se envía al servicio de voz la frase que se narra.",
+    "Los documentos se quedan en este navegador. La narración se genera en este dispositivo; no se envía ningún texto.",
   empty: "Añade un PDF o EPUB para empezar a leer.",
   emptyBody:
     "PageVoice abre tu documento en este navegador, detecta sus secciones e idioma y recuerda por dónde vas. Sin cuenta.",
   emptyNote:
-    "La narración necesita conexión a internet. La lectura y la búsqueda funcionan sin conexión.",
+    "La lectura, la búsqueda y la narración funcionan sin conexión. La voz se obtiene una vez, la primera vez que escuchas.",
   shelfCount: "{n} libros",
   shelfOne: "1 libro",
   filterBooks: "Buscar en tu estantería",
@@ -91,15 +91,14 @@ export default {
   modelNotCached:
     "Descarga primero esta herramienta en Herramientas de documento.",
   engineFailed:
-    "Esta herramienta no pudo ejecutarse. Inténtalo de nuevo o recarga PageVoice.",
+    "La voz no pudo ejecutarse en este dispositivo. Inténtalo de nuevo o recarga PageVoice.",
   silentAudio:
-    "El servicio de voz devolvió audio en silencio. Inténtalo de nuevo o elige otra voz.",
-  sentenceTooLong: "La frase es demasiado larga. Divídela en el editor.",
+    "La voz produjo audio en silencio para esta frase. Edita la frase o elige otra voz.",
+  sentenceTooLong:
+    "La frase es demasiado larga para narrarla. Divídela en el editor.",
   invalidAudio: "No se pudo reproducir el audio. Regenera esta frase.",
   quotaExceeded:
     "El almacenamiento está lleno. Elimina un libro o modelo, o usa solo la sesión.",
-  exportIncomplete: "Prepara todas las frases del capítulo antes de exportar.",
-  m4bFailed: "No se pudo crear M4B. Exporta el ZIP MP3.",
   analysisLimit:
     "El libro supera el límite de 12000 pasajes del análisis opcional.",
   back: "Volver a la biblioteca",
@@ -111,7 +110,6 @@ export default {
   read: "Leer",
   explore: "Explorar",
   voice: "Voz y reparto",
-  export: "Exportar audio",
   bookLanguage: "Idioma del libro",
   detected: "Detectado en el documento",
   manual: "Corrección manual",
@@ -153,7 +151,7 @@ export default {
   listenHere: "Escuchar desde aquí",
   editSentence: "Editar frase",
   editHelp:
-    "Solo se regenera esta frase. [pause:1] añade un segundo de pausa; [voice:id-de-voz] cambia la voz dentro del mismo motor.",
+    "Solo se regenera esta frase. [pause:1] añade un segundo de pausa; [voice:Nombre] … [/voice] lee una parte con la voz de un personaje del reparto o con un id de voz.",
   splitHelp: "Un salto de línea divide la frase en varias.",
   editText: "Texto de la frase",
   regenerate: "Regenerar esta frase",
@@ -171,7 +169,7 @@ export default {
   buffering: "Preparando audio para escuchar",
   buffer: "Empezar después de",
   bufferHelp:
-    "Frases consecutivas desde tu posición. En libros cortos se espera a todas las restantes.",
+    "Frases preparadas por delante de tu posición antes de empezar a escuchar. Un búfer mayor evita pausas en dispositivos lentos.",
   readyBuffer: "{ready} / {required} frases preparadas por delante",
   prepare: "Preparar audiolibro",
   pausePreparation: "Pausar preparación",
@@ -181,7 +179,7 @@ export default {
   ready: "Listo para escuchar",
   tapAudio: "Toca para habilitar audio",
   preparingNote:
-    "La preparación llama al servicio de voz por cada frase. Mantén esta pestaña abierta; los navegadores pueden pausar las pestañas en segundo plano.",
+    "La narración se genera en este dispositivo, frase a frase. Mantén esta pestaña abierta; los navegadores pueden ralentizar las pestañas en segundo plano.",
   rtf: "{rtf}× tiempo real",
   rtfHelp:
     "Tiempo de generación dividido por duración. Menos de 1 es más rápido que reproducir.",
@@ -245,20 +243,6 @@ export default {
   ocrLabel: "OCR · inglés y español",
   embeddingLabel: "Búsqueda semántica multilingüe",
   nerLabel: "Nombres multilingües",
-  ffmpegLabel: "Crear M4B · mejor esfuerzo",
-  chapterZIP: "ZIP MP3 por capítulos",
-  wholeBook: "Audiolibro completo",
-  currentChapter: "Sección actual",
-  exportScope: "Contenido a exportar",
-  exportHelp:
-    "Los MP3 incluyen un archivo con metadatos, tiempos y citas. Se etiqueta la voz generada. Solo se exporta audio preparado.",
-  m4b: "M4B con capítulos · mejor esfuerzo",
-  m4bHelp:
-    "Los libros grandes pueden superar la memoria. FFmpeg local usa un solo hilo; el ZIP MP3 es la alternativa fiable.",
-  exporting: "Uniendo audio",
-  exportLimit:
-    "Por seguridad, exporta un capítulo cuando el audio supere 256 MB.",
-  downloadAudio: "Descargar audio",
   removeTitle: "¿Eliminar «{title}»?",
   removeBody:
     "Se elimina de este navegador el archivo original, análisis, posición, portada y {n} frases de audio, liberando unos {size}. Otros libros y modelos se conservan.",
@@ -274,14 +258,14 @@ export default {
   imported: "Copia importada",
   creditsTitle: "Privacidad y créditos",
   creditsIntro:
-    "La lectura, la búsqueda y el procesamiento de documentos se ejecutan en este navegador. La narración envía el texto de cada frase que escuchas, a través del servicio de narración de este sitio, a ElevenLabs. Las herramientas de documento son archivos fijos de CDN públicas.",
+    "La lectura, la búsqueda, el procesamiento de documentos y la narración se ejecutan en este navegador. Las voces y las herramientas de documento son archivos fijos de CDN públicas que se obtienen una sola vez.",
   licenses: "Licencias y avisos de código fuente",
   modelLicense: "Licencia de modelo / voz",
   creditsNames:
-    "Narración: ElevenLabs (texto a voz, sujeto a sus condiciones). OCR: Tesseract, Apache-2.0. Modelos de búsqueda: Multilingual MiniLM, Apache-2.0. Detección de nombres: Davlan multilingual NER, AFL-3.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Herramientas MP3 y M4B: FFmpeg, componentes GPL/LGPL. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
+    "Voces: Kokoro-82M, Apache-2.0 (inglés); Piper con las voces davefx y sharvard, MIT, y el fonemizador eSpeak NG, GPL-3.0 (español). OCR: Tesseract, Apache-2.0. Modelos de búsqueda: Multilingual MiniLM, Apache-2.0. Detección de nombres: Davlan multilingual NER, AFL-3.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
   limits: "Límites reales",
   limitsBody:
-    "La narración necesita conexión y depende del servicio de voz. El OCR y la detección de diálogos pueden equivocarse. La memoria del navegador limita las exportaciones largas. Las pestañas en segundo plano pueden dejar de preparar. El almacenamiento del navegador puede borrarse.",
+    "La velocidad de la narración depende de tu dispositivo; los dispositivos lentos necesitan un búfer mayor. La primera escucha obtiene la voz (unos 120 MB en inglés y 100 MB en español). El OCR y la detección de diálogos pueden equivocarse. Las pestañas en segundo plano pueden dejar de preparar. El almacenamiento del navegador puede borrarse.",
   dismiss: "Descartar",
   progressLabel: "Progreso de preparación",
   bookProgress: "{percent}% leído",
@@ -318,7 +302,7 @@ export default {
     "Los archivos importados, las posiciones de lectura, los marcadores y el audio generado se guardan en el almacenamiento de este navegador (IndexedDB y el sistema de archivos privado del origen), en este dispositivo. PageVoice no tiene cuentas ni un servidor que reciba tus documentos. Eliminar un libro o borrar los datos del sitio lo borra; exporta una copia de la biblioteca para conservarla.",
   privacyNetworkTitle: "Qué usa la red",
   privacyNetwork:
-    "La narración envía el texto de cada frase que escuchas, a través del servicio de narración de este sitio, a ElevenLabs. Las herramientas de documento (OCR, modelos de búsqueda) solo se descargan cuando las eliges, desde Hugging Face y jsDelivr, como archivos fijos verificados con hashes; esas solicitudes no contienen texto de tus documentos. La política de seguridad de contenido bloquea conexiones con otros servidores. PageVoice no incluye analítica ni seguimiento.",
+    "La narración se genera en este dispositivo: no se envía ningún texto de tus libros. La primera vez que escuchas, los archivos de la voz se obtienen de Hugging Face; las herramientas de documento (OCR, modelos de búsqueda) solo se obtienen cuando las eliges, desde Hugging Face y jsDelivr. Son archivos fijos verificados con hashes, y las solicitudes no contienen texto de tus documentos. La política de seguridad de contenido bloquea conexiones con otros servidores. PageVoice no incluye analítica ni seguimiento.",
   sourceCode: "Código fuente en GitHub",
   notStarted: "Sin empezar",
   step1: "Añade un documento",
@@ -329,7 +313,7 @@ export default {
     "Elige tema, tamaño de texto y ancho de línea. Busca texto, muévete entre secciones y marca pasajes.",
   step3: "Escucha",
   step3Body:
-    "Elige una voz y escucha. La narración necesita conexión a internet.",
+    "Pulsa reproducir. La voz se obtiene una vez y después la narración funciona sin conexión.",
   continueReading: "Seguir leyendo",
   continue: "Continuar",
   recentOpened: "Abiertos recientemente",
@@ -361,8 +345,6 @@ export default {
     "Secciones detectadas en el documento. Corrige un título, el tipo de sección o dónde empieza la escucha si algo no encaja.",
   reviewSections: "{n} secciones · {review} por revisar",
   editSection: "Editar sección",
-  preparedCount: "{n} de {total} frases tienen audio",
-  exportFormat: "Formato",
   clipboardFailed:
     "No se pudo copiar la cita porque el navegador bloqueó el portapapeles.",
   shortcutsNote: "Los atajos no funcionan mientras escribes en un campo.",
@@ -380,9 +362,9 @@ export default {
   hideAudioOptions: "Ocultar opciones de audio",
   sentenceOf: "Frase {current} de {total}",
   sentencePosition: "Posición en la frase actual",
-  voiceMissing: "La narración no está disponible.",
+  voiceMissing: "Ninguna voz lee el idioma de este libro.",
   voiceMissingBody:
-    "Revisa tu conexión y abre Voz y reparto para intentarlo de nuevo.",
+    "Elige inglés o español como idioma del libro en Voz y reparto.",
   display: "Pantalla",
   smallerText: "Texto más pequeño",
   largerText: "Texto más grande",
@@ -396,35 +378,39 @@ export default {
     "Añadido solo para esta sesión: este navegador no pudo guardar el archivo de forma permanente (ocurre en algunos modos de navegación privada). Desaparecerá al cerrar la pestaña.",
   importingQueue: "{index} de {total}",
   emptyKicker: "hola, lector",
-  exportNeedsAudio:
-    "{ready} de {total} frases de esta selección tienen audio. Prepara el resto antes de exportar.",
   cacheTooLarge:
     "Este navegador no pudo guardar un archivo tan grande. Prueba Chromium o Firefox, o una voz más pequeña.",
   contact: "Contacto:",
   voiceHelp:
-    "La narración usa voces de ElevenLabs. Cada frase que escuchas se envía al servicio para leerla en voz alta.",
+    "Las voces funcionan en este dispositivo: Kokoro lee inglés y Piper lee español. La voz se obtiene una vez, la primera vez que escuchas, y después funciona sin conexión.",
   narrationPrivacy:
-    "La narración envía el texto de cada frase a ElevenLabs. Los libros no se suben, y no se envía nada más de ellos.",
-  noVoices: "No hay voces disponibles en este momento.",
+    "La narración se genera en este navegador. Ningún texto de este libro sale de tu dispositivo.",
   noVoicesForLanguage:
-    "No hay una voz de narración para el idioma de este libro. Cambia el idioma del libro o pide una voz en ese idioma.",
+    "No hay una voz de narración para el idioma de este libro. Elige inglés o español como idioma del libro.",
   voiceMale: "Masculina",
   voiceFemale: "Femenina",
-  ttsOffline: "Estás sin conexión. La narración necesita conexión.",
-  ttsUnavailable:
-    "El servicio de voz no está disponible ahora. Inténtalo más tarde.",
-  ttsNotConfigured:
-    "La narración todavía no está configurada en este servidor.",
-  ttsRateLimited:
-    "Demasiadas solicitudes de narración. Espera un minuto e inténtalo de nuevo.",
-  ttsFailed: "El servicio de voz no pudo crear esta frase. Inténtalo de nuevo.",
-  ttsRejectedText:
-    "El servicio de voz no puede leer esta frase. Edítala e inténtalo de nuevo.",
-  textTooLong:
-    "Esta frase es demasiado larga para narrarla. Divídela en el editor de frases.",
   voiceUnknown: "Primero elige una voz de narración en Voz y reparto.",
-  ttsKeyRejected:
-    "El servicio de voz no aceptó la clave del servidor. Revisa ELEVENLABS_API_KEY en Vercel.",
-  ttsKeyRestricted:
-    "El servicio de voz rechazó esta solicitud. La clave es válida pero tiene restricciones: revisa sus permisos, la lista de IP permitidas y la cuota de créditos en ElevenLabs.",
+  loadingVoice: "Cargando la voz",
+  loadingVoiceNote:
+    "Solo la primera vez. La voz se guarda en este navegador y después funciona sin conexión.",
+  voiceLoadFailed:
+    "No se pudo obtener la voz. Revisa tu conexión y vuelve a pulsar reproducir; solo hace falta una vez.",
+  invalidVoice:
+    "Una marca [voice:…] de esta frase nombra una voz que no puede leerla. Usa un personaje del reparto o una voz del idioma del libro.",
+  invalidPause: "Una marca [pause:…] debe estar entre 0 y 30 segundos.",
+  phonemizerFailed:
+    "La voz no pudo leer esta frase. Edítala e inténtalo de nuevo.",
+  mixedSampleRates:
+    "Esta frase mezcla voces que no se pueden unir. Usa solo voces del idioma del libro.",
+  noVoices: "Ninguna voz lee este idioma.",
+  analysisBusy:
+    "Ya hay un análisis en curso. Espera a que termine e inténtalo de nuevo.",
+  analysisChanged: "El libro cambió durante el análisis. Vuelve a ejecutarlo.",
+  storageError:
+    "El navegador no pudo guardar este cambio. Inténtalo de nuevo o libera espacio.",
+  zipLimit: "El EPUB supera los límites de seguridad del archivo.",
+  epubTextLimit: "Este EPUB supera el límite de seguridad de texto.",
+  encryptedOrInvalid:
+    "Este archivo está protegido, cifrado o dañado, y no se puede abrir.",
+  unsupportedLanguage: "La narración admite libros en inglés y en español.",
 };

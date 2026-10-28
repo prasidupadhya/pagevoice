@@ -1,78 +1,100 @@
 import { test, expect } from "@playwright/test";
-import { mkdir, readFile } from "node:fs/promises";
-import JSZip from "jszip";
+import models from "../src/offline/model-assets.json" with { type: "json" };
 import {
+  cachedCDN,
+  controlledByServiceWorker,
   fixture,
   upload,
   books,
   stats,
   waitPrepared,
-  mockNarration,
 } from "./helpers";
 
-test("narration sends one sentence per request, plays it, saves it and exports MP3 files", async ({
+const pinned = new Set(
+  Object.values(models).flatMap((m) => m.assets.map((a) => a.url)),
+);
+
+test("narration runs in the browser: the voice is fetched once, nothing is uploaded, audio is kept", async ({
   page,
+  context,
 }) => {
-  const sent = await mockNarration(page);
-  const errors = [];
+  await cachedCDN(page);
+  const requests = [],
+    errors = [];
+  page.on("request", (r) => requests.push(r));
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/app/");
   await upload(page, fixture("sample-epub3.epub"));
   const [book] = await books(page);
   const sentences = book.chapters.flatMap((c) => c.sentences);
+  expect(book.settings).toMatchObject({ engine: "local", voice: "af_heart" });
   await page.getByRole("button", { name: `Open book · ${book.title}` }).click();
+  // Audio is no longer exported, so there is no export tab.
+  await expect(page.getByRole("tab", { name: "Export audio" })).toHaveCount(0);
   await page
     .getByRole("button", { name: "Listen from here · 1", exact: true })
     .first()
     .click();
   await expect(page.locator(".sentence.speaking")).toHaveCount(1, {
-    timeout: 15000,
+    timeout: 180000,
   });
   await waitPrepared(page, sentences.length);
-  // Every request carries exactly one sentence of the book and the chosen voice.
-  expect(sent.length).toBeGreaterThanOrEqual(sentences.length);
-  for (const body of sent) {
-    expect(sentences).toContain(body.text);
-    expect(Object.keys(body).sort()).toEqual(["text", "voice"]);
-    expect(body.voice).toBe("voice123456");
-  }
   const records = await stats(page);
   expect(records.length).toBe(sentences.length);
-  expect(records.every((r) => r.duration > 0)).toBe(true);
-  await page.getByRole("button", { name: "Pause", exact: true }).click();
-  await page.getByRole("tab", { name: "Export audio", exact: true }).click();
-  const download = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download audio", exact: true })
-    .click();
-  await mkdir("test-results/artifacts", { recursive: true });
-  await (await download).saveAs("test-results/artifacts/narration.zip");
-  const zip = await JSZip.loadAsync(
-    await readFile("test-results/artifacts/narration.zip"),
-  );
-  expect(Object.keys(zip.files).some((n) => n.endsWith(".mp3"))).toBe(true);
-  expect(zip.file("metadata-and-citations.json")).toBeTruthy();
+  expect(records.every((r) => r.duration > 0.2)).toBe(true);
+  // The only requests that leave this site are GETs for the pinned voice files.
+  for (const r of requests) {
+    const url = new URL(r.url());
+    if (url.protocol === "blob:" || url.protocol === "data:") continue;
+    expect(r.method()).toBe("GET");
+    if (url.origin !== new URL(page.url()).origin)
+      expect(pinned.has(r.url())).toBe(true);
+  }
   // Prepared audio survives a reload, so narration does not start over.
   await page.reload();
   await expect(page.locator(".shelf-book")).toHaveCount(1);
-  expect(
-    (await books(page))[0].prepared &&
-      Object.keys((await books(page))[0].prepared).length,
-  ).toBe(sentences.length);
+  expect(Object.keys((await books(page))[0].prepared).length).toBe(
+    sentences.length,
+  );
+  // Once fetched, the voice works offline: a new sentence can be narrated.
+  await controlledByServiceWorker(page);
+  await page.getByRole("button", { name: `Open book · ${book.title}` }).click();
+  await page
+    .getByRole("button", { name: "Edit sentence · 1", exact: true })
+    .first()
+    .click();
+  await context.setOffline(true);
+  await page
+    .getByLabel("Sentence text")
+    .fill("A new first line, read offline.");
+  await page
+    .getByRole("button", { name: "Regenerate this sentence", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 120000 });
+  await expect(page.locator(".error-banner")).toHaveCount(0);
+  // The open section's first sentence was replaced and narrated again.
+  const edited = (await books(page))[0],
+    chapter = edited.chapters.findIndex(
+      (c) => c.sentences[0] === "A new first line, read offline.",
+    );
+  expect(chapter).toBeGreaterThanOrEqual(0);
+  expect(edited.prepared[`${chapter}:0`]).toBeTruthy();
   expect(errors).toEqual([]);
 });
 
-test("a narration outage is explained where the reader needs it", async ({
+test("the voice tab offers only voices in the book's language", async ({
   page,
 }) => {
-  await mockNarration(page, { voicesStatus: 503 });
   await page.goto("/app/");
-  await upload(page, fixture("sample-epub3.epub"));
+  await upload(page, fixture("sample-es.epub"));
   const [book] = await books(page);
+  expect(book.settings.voice).toBe("davefx");
   await page.getByRole("button", { name: `Open book · ${book.title}` }).click();
   await page.getByRole("tab", { name: "Voice & cast", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "Narration is not set up on this server yet.",
-  );
-  await expect(page.getByRole("alert")).not.toContainText(/Error|stack|at /);
+  const options = await page
+    .getByRole("combobox", { name: "Narration voice", exact: true })
+    .locator("option")
+    .allTextContents();
+  expect(options.length).toBe(3);
+  expect(options.every((o) => /Spanish|español/u.test(o))).toBe(true);
 });

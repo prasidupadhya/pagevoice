@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, Check, Pause, Trash2 } from "lucide-react";
 import Modal from "./Modal";
-import { MODEL_GROUPS, groupBytes } from "../offline/assets";
+import { MODEL_GROUPS, TOOL_GROUPS, groupBytes } from "../offline/assets";
 import { bytes } from "../offline/format";
 export default function ModelDialog({
   t,
@@ -15,10 +15,7 @@ export default function ModelDialog({
     [paused, setPaused] = useState({});
   const refresh = async () => {
     const pairs = await Promise.all(
-      Object.keys(MODEL_GROUPS).map(async (id) => [
-        id,
-        await assets.status(id),
-      ]),
+      TOOL_GROUPS.map(async (id) => [id, await assets.status(id)]),
     );
     setStatus(Object.fromEntries(pairs));
   };
@@ -30,7 +27,6 @@ export default function ModelDialog({
     ocr: "ocrLabel",
     embeddings: "embeddingLabel",
     ner: "nerLabel",
-    ffmpeg: "ffmpegLabel",
   };
   const install = async (id) => {
     setProgress((p) => ({
@@ -61,7 +57,7 @@ export default function ModelDialog({
       <p className="muted">{t("downloadIntro")}</p>
       {!online && <p className="notice">{t("offlineDownloads")}</p>}
       <div className="model-list">
-        {Object.entries(MODEL_GROUPS).map(([id, g]) => (
+        {TOOL_GROUPS.map((id) => [id, MODEL_GROUPS[id]]).map(([id, g]) => (
           <section key={id} className="model-row" data-model={id}>
             <div>
               <h3>{t(labels[id])}</h3>

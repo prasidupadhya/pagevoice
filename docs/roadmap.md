@@ -9,14 +9,12 @@ integration, no API key handling, and no model calls.
 - Import PDF (text layer) and EPUB files in the browser. Scanned PDFs need the
   optional OCR download.
 - Read with sections, bookmarks, themes, text size and line width, and focus mode.
-- Listen with narration voices from ElevenLabs, through the site's narration route. The
-  text of each sentence you listen to is sent to the service.
-  Speed, sleep timer, and sentence-level control.
+- Listen with voices that run on your device (Kokoro for English, Piper for Spanish).
+  No text is sent anywhere. Speed, sleep timer, and sentence-level control.
 - Keyword search across the book, with citations to sections and sentences.
 - Optional local meaning search and character-name detection, each a separate
   download that runs on the device.
-- Library storage in the browser, backup and restore as ZIP files, and export of
-  prepared audio as MP3 or an experimental M4B.
+- Library storage in the browser, and backup and restore as ZIP files.
 
 ## Planned: a Claude-based analysis layer
 
@@ -45,7 +43,7 @@ explain an idea in other words. Those tasks need a model that reads the passages
 themselves. PageVoice's current search deliberately stops at finding passages, so
 that every result can be checked against the book.
 
-Narration has a separate need. The voice service reads whatever text it is given. Numbers, abbreviations, footnote markers, and OCR errors are often read wrongly,
+Narration has a separate need. The voice reads whatever text it is given. Numbers, abbreviations, footnote markers, and OCR errors are often read wrongly,
 and deciding how to read them depends on context. Rules can handle the common cases.
 A model can handle the rest, but only if its output is checked against the original
 text before it is spoken.

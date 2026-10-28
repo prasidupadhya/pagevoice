@@ -9,7 +9,7 @@
     <title>PageVoice | Read and listen to your documents</title>
     <meta
       name="description"
-      content="PageVoice is an open-source reading app for PDFs and EPUBs. Read in your browser, search every document, and listen with a narration voice. No account is needed."
+      content="PageVoice is an open-source reading app for PDFs and EPUBs. Read in your browser, search every document, and listen with a voice that runs on your device. No account is needed."
     />
     <link rel="canonical" href="https://pagevoice.tech/" />
     <meta
@@ -105,10 +105,10 @@
           <p class="annotation hero-kicker">for PDFs and EPUBs</p>
           <h1 id="hero-title">read and listen to your documents.</h1>
           <p class="lede">
-            PageVoice is an open-source reading app. Import a PDF or EPUB and
-            read it in your <span class="pen-underline">browser</span>. To
-            listen, the sentence you hear is sent to a voice service. Your
-            documents stay in your browser, and no account is needed.
+            PageVoice is an open-source reading app. Import a PDF or EPUB, read
+            it, and listen with a voice that runs on
+            <span class="pen-underline">your&nbsp;device</span>. Your files are
+            processed in your browser, and no account is needed.
           </p>
           <div class="hero-actions">
             <a class="button primary large" href="/app/" data-open-app
@@ -169,7 +169,7 @@
           <div class="name-label" aria-hidden="true">
             <span><small>title</small>The Happy Prince</span>
             <span><small>format</small>EPUB</span>
-            <span><small>voice</small>ElevenLabs</span>
+            <span><small>voice</small>Kokoro, on-device</span>
           </div>
           <img
             class="sticker st-a"
@@ -225,18 +225,14 @@
           />
           <h3>listening</h3>
           <p>
-            Narration uses voices from ElevenLabs through this site's narration
-            service.
+            Voices run on your device. They are fetched once, the first time you
+            listen, and then work offline.
           </p>
           <ul>
-            <li>Choose a voice for each book from the service's list</li>
+            <li>Kokoro for English and Piper for Spanish</li>
             <li>The sentence being spoken is highlighted and kept in view</li>
             <li>Speed from 0.5× to 2×, a sleep timer, and media keys</li>
             <li>Start listening from any sentence. Audio is prepared ahead.</li>
-            <li>
-              Export prepared chapters as MP3 files. M4B audiobook export is
-              best effort.
-            </li>
           </ul>
         </article>
         <article>
@@ -322,21 +318,19 @@
             <div>
               <dt>What uses the network</dt>
               <dd>
-                Loading the app. Narration sends the text of each sentence you
-                listen to through this site's narration service to ElevenLabs.
-                Document tools (OCR, search models) are downloaded only when you
-                choose them, from Hugging Face and jsDelivr. Those downloads
-                contain no document text. The app blocks connections to any
-                other server. No analytics.
+                Loading the app, fetching the voice the first time you listen,
+                and fetching optional document tools (OCR, search models) when
+                you choose them, from Hugging Face and jsDelivr. These are fixed
+                files checked against pinned hashes; the requests contain no
+                document text. The app blocks connections to any other server.
+                No analytics.
               </dd>
             </div>
             <div>
               <dt>Narration</dt>
               <dd>
-                Narration is the one part that leaves your browser. Each
-                sentence you listen to is sent to ElevenLabs, which generates
-                the speech. Nothing else from a book is sent, and PageVoice does
-                not store the audio on a server.
+                Speech is generated in your browser. No sentence of your books
+                is sent anywhere, and the audio is kept in this browser only.
               </dd>
             </div>
           </dl>
@@ -402,8 +396,9 @@
           <li>
             <h3>listen</h3>
             <p>
-              Choose a voice in Voice &amp; cast, then press play. Narration
-              needs an internet connection; reading and search do not.
+              Press play. The voice (about 120&nbsp;MB for English, 100&nbsp;MB
+              for Spanish) is fetched once; after that, listening works
+              offline.
             </p>
           </li>
         </ol>

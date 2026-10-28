@@ -1,3 +1,4 @@
+import { NARRATION, defaultVoice } from "./engines";
 // JSZip is only needed for backups, so it stays out of the startup bundle.
 const loadZip = async () => (await import("jszip")).default;
 
@@ -13,15 +14,15 @@ const complete = (tx) =>
       reject(tx.error || new Error("storageError"));
   });
 export const rowId = (chapter, sentence) => `${chapter}:${sentence}`;
-// Narration settings. The voice id is chosen from the ElevenLabs list.
-export const defaultSettings = (voice = "") => ({
-  engine: "elevenlabs",
-  voice,
+// Narration settings. Each book starts with the first voice for its language.
+export const defaultSettings = (language) => ({
+  engine: NARRATION,
+  voice: defaultVoice(language),
   cast: {},
-  buffer: 20,
+  buffer: 5,
 });
-// Audio made by the earlier local voices is not compatible with ElevenLabs.
-const needsNarrationReset = (book) => book.settings?.engine !== "elevenlabs";
+// Audio and voices from an earlier narration service cannot be reused.
+const needsNarrationReset = (book) => book.settings?.engine !== NARRATION;
 // A file that is already gone is the outcome we want, so it is not an error.
 export async function removeIfPresent(dir, name) {
   if (!dir || !name) return;
@@ -183,7 +184,7 @@ export class LibraryStore {
         for (const a of Object.values(book.prepared || {}))
           await this.deleteAudio(a.key);
         await this.update(book.id, {
-          settings: defaultSettings(),
+          settings: defaultSettings(book.language),
           prepared: {},
         });
       }
@@ -251,7 +252,7 @@ export class LibraryStore {
         chapter: book.startChapter || 0,
         sentence: 0,
       },
-      settings: book.settings || defaultSettings(),
+      settings: book.settings || defaultSettings(book.language),
     };
     if (this.books.has(value.id)) throw new Error("duplicateBook");
     if (keep)
@@ -580,13 +581,16 @@ export class LibraryStore {
       for (const b of data.books) {
         const oldId = b.id;
         const id = crypto.randomUUID();
-        const prepared = b.prepared || {};
+        // Audio from an earlier narration service is left out and regenerated.
+        const compatible = !needsNarrationReset(b),
+          prepared = compatible ? b.prepared || {} : {};
         const book = await this.add(
           {
             ...b,
             id,
             deletedAt: null,
             prepared: {},
+            settings: compatible ? b.settings : defaultSettings(b.language),
             coverBlob: await zip.file(`covers/${oldId}`)?.async("blob"),
             sourceFile: await zip.file(`sources/${oldId}`)?.async("blob"),
           },
@@ -601,7 +605,14 @@ export class LibraryStore {
           )
             throw new Error("invalidBackup");
           const blob = await zip.file(`audio/${a.key}.wav`)?.async("blob");
-          if (blob) await this.putAudio(id, row, a.signature, blob, a);
+          if (blob)
+            await this.putAudio(
+              id,
+              row,
+              a.signature,
+              blob.slice(0, blob.size, "audio/wav"),
+              a,
+            );
         }
       }
       return added;

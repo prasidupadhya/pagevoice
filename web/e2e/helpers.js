@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import JSZip from "jszip";
 import manifest from "../src/offline/model-assets.json" with { type: "json" };
 const fixture = (name) =>
   fileURLToPath(new URL(`../src/browser/fixtures/${name}`, import.meta.url));
@@ -15,24 +14,22 @@ async function cachedCDN(page) {
       await route.abort();
       return;
     }
-    if (a.size > 5000000) {
+    const path = `/tmp/pagevoice-model-files/${a.sha256}`;
+    // Playwright cannot hand very large bodies to the page; those use the network.
+    if (a.size > 20000000 || !(await stat(path).catch(() => null))) {
       await route.continue();
       return;
     }
-    try {
-      await route.fulfill({
-        status: 200,
-        headers: {
-          "access-control-allow-origin": "*",
-          "content-type": a.path.endsWith(".json")
-            ? "application/json"
-            : "application/octet-stream",
-        },
-        body: await readFile(`/tmp/pagevoice-model-files/${a.sha256}`),
-      });
-    } catch {
-      await route.continue();
-    }
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "access-control-allow-origin": "*",
+        "content-type": a.path.endsWith(".json")
+          ? "application/json"
+          : "application/octet-stream",
+      },
+      path,
+    });
   });
   await page.route("https://cdn.jsdelivr.net/**", async (route) => {
     const a = assets.find((a) => a.url === route.request().url());
@@ -108,51 +105,6 @@ async function waitPrepared(page, count, id) {
     )
     .toBeGreaterThanOrEqual(count);
 }
-// Narration tests use a fixed voice from a mocked service (see mockNarration).
-const VOICE = { id: "voice123456", name: "Test voice", locale: "en" };
-// Silent PCM WAV bytes. The mocked service returns them as audio/mpeg; browsers
-// sniff the container, so this exercises the same playback and storage paths.
-function silentWav(seconds = 1.2, rate = 8000) {
-  const samples = Math.floor(rate * seconds),
-    buffer = Buffer.alloc(44 + samples * 2);
-  buffer.write("RIFF", 0);
-  buffer.writeUInt32LE(36 + samples * 2, 4);
-  buffer.write("WAVE", 8);
-  buffer.write("fmt ", 12);
-  buffer.writeUInt32LE(16, 16);
-  buffer.writeUInt16LE(1, 20);
-  buffer.writeUInt16LE(1, 22);
-  buffer.writeUInt32LE(rate, 24);
-  buffer.writeUInt32LE(rate * 2, 28);
-  buffer.writeUInt16LE(2, 32);
-  buffer.writeUInt16LE(16, 34);
-  buffer.write("data", 36);
-  buffer.writeUInt32LE(samples * 2, 40);
-  return buffer;
-}
-/** Mocks the site's narration routes. Returns the bodies sent to /api/tts. */
-async function mockNarration(page, { voicesStatus = 200, delayMs = 0 } = {}) {
-  const sent = [];
-  await page.route("**/api/voices", (route) =>
-    voicesStatus === 200
-      ? route.fulfill({ json: { voices: [VOICE] } })
-      : route.fulfill({
-          status: voicesStatus,
-          json: { error: "ttsNotConfigured" },
-        }),
-  );
-  await page.route("**/api/tts", async (route) => {
-    sent.push(route.request().postDataJSON());
-    // Real services take time per sentence; instant replies would hide buffering.
-    if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    await route.fulfill({
-      status: 200,
-      contentType: "audio/mpeg",
-      body: silentWav(),
-    });
-  });
-  return sent;
-}
 // Stored narration records: which sentences have audio, and how long each lasts.
 async function stats(page) {
   return page.evaluate(async () => {
@@ -181,6 +133,4 @@ export {
   stats,
   waitPrepared,
   controlledByServiceWorker,
-  mockNarration,
-  VOICE,
 };

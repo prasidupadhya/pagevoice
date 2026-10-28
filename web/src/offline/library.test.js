@@ -267,3 +267,34 @@ it("keeps a cover image intact across a reload when browsers expose Blob.bytes()
     137, 80, 78, 71,
   ]);
 });
+it("gives new books an on-device voice for their language", async () => {
+  const s = await store("voices");
+  expect((await s.add(book())).settings).toMatchObject({
+    engine: "local",
+    voice: "af_heart",
+  });
+  expect((await s.add({ ...book(), language: "es" })).settings.voice).toBe(
+    "davefx",
+  );
+});
+it("resets books narrated by an earlier service so they use local voices", async () => {
+  const s = await store("migrate");
+  const added = await s.add({
+    ...book(),
+    settings: { engine: "elevenlabs", voice: "voice123", cast: {}, buffer: 20 },
+  });
+  await s.putAudio(added.id, "0:0", "a".repeat(64), new Blob(["mp3"]), {
+    duration: 1,
+  });
+  s.dispose();
+  stores = stores.filter((x) => x !== s);
+  const reopened = await store("migrate");
+  const b = reopened.get(added.id);
+  expect(b.settings).toEqual({
+    engine: "local",
+    voice: "af_heart",
+    cast: {},
+    buffer: 5,
+  });
+  expect(b.prepared).toEqual({});
+});

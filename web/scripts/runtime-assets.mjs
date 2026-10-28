@@ -23,7 +23,10 @@ const groups = {
     "node_modules/tesseract.js-core",
     /^tesseract-core-(?:(?:relaxed)?simd-)?lstm\.wasm(?:\.js)?$/,
   ],
-  ffmpeg: ["node_modules/@ffmpeg/core/dist/esm", /^ffmpeg-core\.(?:wasm|js)$/],
+  piper: [
+    "node_modules/@diffusionstudio/piper-wasm/build",
+    /^piper_phonemize\.(?:wasm|data|js)$/,
+  ],
 };
 const manifest = {};
 for (const [name, [path, pattern]] of Object.entries(groups)) {
@@ -34,6 +37,13 @@ for (const [name, [path, pattern]] of Object.entries(groups)) {
     if (!pattern.test(file)) continue;
     const source = resolve(root, path, file);
     let buffer = await readFile(source);
+    // The Emscripten phonemizer is a classic script; the voice worker imports it
+    // as a module, so it gets a default export.
+    if (name === "piper" && file.endsWith(".js"))
+      buffer = Buffer.concat([
+        buffer,
+        Buffer.from("\nexport default createPiperPhonemize;\n"),
+      ]);
     await writeFile(resolve(destination, file), buffer);
     manifest[name].push({
       url: `/runtime/${name}/${file}`,
@@ -60,7 +70,7 @@ await writeFile(
   JSON.stringify(manifest, null, 2) + "\n",
 );
 console.log(
-  "Prepared self-hosted, version-pinned inference/OCR/export runtimes.",
+  "Prepared self-hosted, version-pinned voice, inference and OCR runtimes.",
 );
 await cp(resolve(root, "LICENSES"), resolve(root, "public/licenses/notices"), {
   recursive: true,

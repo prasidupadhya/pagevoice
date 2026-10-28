@@ -5,7 +5,6 @@ import {
   BookOpen,
   Search,
   SlidersHorizontal,
-  Download,
   Play,
   Bookmark,
   PenLine,
@@ -37,7 +36,6 @@ const TABS = [
   ["read", BookOpen],
   ["explore", Search],
   ["voice", SlidersHorizontal],
-  ["export", Download],
 ];
 
 function useMediaQuery(query) {
@@ -80,16 +78,13 @@ export default function Reader({
     [hits, setHits] = useState([]),
     [searching, setSearching] = useState(false),
     [analysis, setAnalysis] = useState(null),
-    [exportScope, setExportScope] = useState(""),
-    [format, setFormat] = useState("zip"),
-    [exportProgress, setExportProgress] = useState(null),
+    [voiceLoad, setVoiceLoad] = useState(null),
     [busy, setBusy] = useState(false),
     [charName, setCharName] = useState(""),
     [findOpen, setFindOpen] = useState(false),
     [findQuery, setFindQuery] = useState(""),
     [findIndex, setFindIndex] = useState(0),
     [activeSentence, setActiveSentence] = useState(null),
-    [voiceReady, setVoiceReady] = useState(null),
     [headingHeight, setHeadingHeight] = useState(0);
   const scroll = useRef(null),
     searchRef = useRef(null),
@@ -121,23 +116,10 @@ export default function Reader({
     preparation =
       api.preparation.bookId === book.id ? api.preparation : { status: "idle" };
   // Only voices in the book's language are offered for it.
-  const voices = voicesFor(api.voices, book.language);
+  const voices = voicesFor(api.voices, book.language),
+    voiceReady = voices.length > 0;
   const genderLabels = { male: t("voiceMale"), female: t("voiceFemale") };
   const percent = progressOf({ ...book, position });
-  // Export needs audio for every sentence in the chosen scope.
-  const exportReady = (() => {
-    const scope = exportScope || String(chapter),
-      indexes =
-        scope === "all" ? book.chapters.map((_, i) => i) : [Number(scope)],
-      total = indexes.reduce(
-        (n, i) => n + book.chapters[i].sentences.length,
-        0,
-      ),
-      ready = Object.keys(book.prepared).filter((k) =>
-        indexes.includes(Number(k.split(":")[0])),
-      ).length;
-    return { ready, total, complete: ready >= total, first: indexes[0] };
-  })();
 
   // Find in book
   const foldedBook = useMemo(
@@ -210,14 +192,6 @@ export default function Reader({
     observer.observe(heading.current);
     return () => observer.disconnect();
   }, [tab]);
-  // Ask for the voice list when a book is opened, so the Voice tab is ready.
-  useEffect(() => {
-    api.ensureVoices();
-  }, [book.id]);
-  // Narration is ready once the service has listed its voices.
-  useEffect(() => {
-    setVoiceReady(api.voicesError ? false : voices.length > 0 ? true : null);
-  }, [api.voicesError, voices.length]);
   useEffect(() => {
     const worker = new Worker(
       new URL("../offline/search.worker.js", import.meta.url),
@@ -1061,11 +1035,6 @@ export default function Reader({
               <section className="panel-section">
                 <h2>{t("voice")}</h2>
                 <p className="muted">{t("voiceHelp")}</p>
-                {api.voicesError && (
-                  <p className="notice" role="alert">
-                    {t(api.voicesError)}
-                  </p>
-                )}
                 <div className="form-grid">
                   <label>
                     {t("bookLanguage")}
@@ -1112,7 +1081,7 @@ export default function Reader({
                           .catch((e) => api.setError(e.message))
                       }
                     >
-                      {[5, 10, 20, 40].map((n) => (
+                      {[2, 5, 10, 20, 40].map((n) => (
                         <option key={n} value={n}>
                           {n} {t("sentences")}
                         </option>
@@ -1124,13 +1093,39 @@ export default function Reader({
                 <p className="notice">{t("narrationPrivacy")}</p>
                 <div className="button-row">
                   <button
-                    onClick={() => run(() => api.preview(book))}
+                    onClick={() =>
+                      run(async () => {
+                        try {
+                          await api.preview(book, undefined, setVoiceLoad);
+                        } finally {
+                          setVoiceLoad(null);
+                        }
+                      })
+                    }
                     disabled={busy || !voices.length}
                   >
-                    <Volume2 size={16} aria-hidden="true" />
+                    {busy && voiceLoad ? (
+                      <LoaderCircle
+                        className="spin"
+                        size={16}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Volume2 size={16} aria-hidden="true" />
+                    )}
                     {t("preview")}
                   </button>
                 </div>
+                {voiceLoad && (
+                  <div className="inline-progress">
+                    <progress
+                      value={voiceLoad.loaded}
+                      max={voiceLoad.total}
+                      aria-label={t("loadingVoice")}
+                    />
+                    <small className="muted">{t("loadingVoice")}</small>
+                  </div>
+                )}
               </section>
               <section className="panel-section casting-panel">
                 <h2>{t("cast")}</h2>
@@ -1149,17 +1144,14 @@ export default function Reader({
                     <select
                       aria-label={`${t("voicePicker")} · ${character.name}`}
                       value={book.settings.cast[character.name] || ""}
-                      onChange={(e) =>
-                        run(() =>
-                          api.settings(book.id, {
-                            cast: {
-                              ...book.settings.cast,
-                              [character.name]:
-                                e.target.value || book.settings.voice,
-                            },
-                          }),
-                        )
-                      }
+                      onChange={(e) => {
+                        // "Narrator's voice" removes the character's own voice.
+                        const cast = { ...book.settings.cast };
+                        if (e.target.value)
+                          cast[character.name] = e.target.value;
+                        else delete cast[character.name];
+                        run(() => api.settings(book.id, { cast }));
+                      }}
                     >
                       <option value="">{t("defaultVoice")}</option>
                       {voices.map((v) => (
@@ -1212,124 +1204,6 @@ export default function Reader({
               </section>
             </div>
           )}
-          {tab === "export" && (
-            <div
-              className="panel-scroll export-panel"
-              role="tabpanel"
-              id="panel-export"
-              aria-labelledby="tab-export"
-            >
-              <section className="panel-section">
-                <h2>{t("export")}</h2>
-                <p className="muted">{t("exportHelp")}</p>
-                <p className="eyebrow">
-                  {t("preparedCount", {
-                    n: Object.keys(book.prepared).length,
-                    total: book.chapters.reduce(
-                      (n, ch) => n + ch.sentences.length,
-                      0,
-                    ),
-                  })}
-                </p>
-                <div className="form-grid">
-                  <label>
-                    {t("exportScope")}
-                    <select
-                      aria-label={t("exportScope")}
-                      value={exportScope || String(chapter)}
-                      onChange={(e) => setExportScope(e.target.value)}
-                    >
-                      <option value="all">{t("wholeBook")}</option>
-                      {book.chapters.map((ch, i) => (
-                        <option key={i} value={String(i)}>
-                          {ch.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {t("exportFormat")}
-                    <select
-                      aria-label={t("exportFormat")}
-                      value={format}
-                      onChange={(e) => setFormat(e.target.value)}
-                    >
-                      <option value="zip">{t("chapterZIP")}</option>
-                      <option value="m4b">{t("m4b")}</option>
-                    </select>
-                  </label>
-                </div>
-                {format === "m4b" && (
-                  <p className="notice">
-                    {t("m4bHelp")}{" "}
-                    <button className="text-button" onClick={onModels}>
-                      {t("models")}
-                    </button>
-                  </p>
-                )}
-                {!exportReady.complete && (
-                  <p className="notice">
-                    {t("exportNeedsAudio", exportReady)}{" "}
-                    <button
-                      className="text-button"
-                      disabled={!voiceReady}
-                      onClick={() =>
-                        api.refs.current.queue
-                          .prepare(book.id, exportReady.first, 0)
-                          .catch((e) => api.setError(e.message))
-                      }
-                    >
-                      {t("prepare")}
-                    </button>
-                  </p>
-                )}
-                <div className="button-row">
-                  <button
-                    className="primary"
-                    disabled={busy || !exportReady.complete}
-                    onClick={() =>
-                      run(async () => {
-                        setExportProgress({ current: 0, total: 1 });
-                        try {
-                          await api.exportAudio(
-                            book,
-                            exportScope || String(chapter),
-                            format,
-                            setExportProgress,
-                          );
-                        } finally {
-                          setExportProgress(null);
-                        }
-                      })
-                    }
-                  >
-                    {exportProgress ? (
-                      <LoaderCircle
-                        className="spin"
-                        size={18}
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <Download size={18} aria-hidden="true" />
-                    )}
-                    {t(exportProgress ? "exporting" : "downloadAudio")}
-                  </button>
-                  {exportProgress && (
-                    <button onClick={() => api.refs.current.cancelExport?.()}>
-                      {t("cancel")}
-                    </button>
-                  )}
-                </div>
-                {exportProgress && (
-                  <progress
-                    value={exportProgress.current}
-                    max={exportProgress.total}
-                    aria-label={t("exporting")}
-                  />
-                )}
-              </section>
-            </div>
-          )}
         </section>
         <PlayerPanel
           book={book}
@@ -1345,7 +1219,6 @@ export default function Reader({
             api.refs.current.player.setRate(rate);
             setPref("rate", rate);
           }}
-
           onVoice={() => setTab("voice")}
           listen={listen}
         />

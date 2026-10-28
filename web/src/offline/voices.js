@@ -8,7 +8,9 @@ export function voicesFor(voices, language) {
 export function voiceLabel(voice, uiLocale, genderLabels) {
   const parts = [voice.name];
   try {
-    const name = new Intl.DisplayNames([uiLocale], { type: "language" }).of(voice.locale);
+    const name = new Intl.DisplayNames([uiLocale], { type: "language" }).of(
+      voice.locale,
+    );
     if (name && name !== voice.locale) parts.push(name);
   } catch {
     // Unsupported locale tag: the name alone is still useful.

@@ -3,27 +3,46 @@ import runtimes from "./runtime-assets.json";
 import { hashText, opfsWritable, removeIfPresent } from "./library";
 
 export const ASSET_CACHE = "pagevoice-models-v1";
+const transformersRuntime = runtimes.transformers.filter((a) =>
+  a.url.includes(".jsep."),
+);
+// Voices are fetched automatically the first time a book in their language is
+// narrated. Document tools are fetched only when the reader chooses them.
 export const MODEL_GROUPS = {
+  kokoro: {
+    voice: true,
+    language: "en",
+    license: "Apache-2.0",
+    files: [...models.kokoro.assets, ...transformersRuntime],
+  },
+  piper: {
+    voice: true,
+    language: "es",
+    license: "MIT weights · CC0 dataset · GPL-3.0 phonemizer",
+    files: [...models.piper.assets, ...runtimes.piper, ...runtimes.ort],
+  },
+  sharvard: {
+    voice: true,
+    language: "es",
+    license: "MIT weights · CC-BY-3.0 dataset · GPL-3.0 phonemizer",
+    files: [...models.sharvard.assets, ...runtimes.piper, ...runtimes.ort],
+  },
   embeddings: {
     license: "Apache-2.0",
-    files: [
-      ...models.embeddings.assets,
-      ...runtimes.transformers.filter((a) => a.url.includes(".jsep.")),
-    ],
+    files: [...models.embeddings.assets, ...transformersRuntime],
   },
   ner: {
     license: "AFL-3.0",
-    files: [
-      ...models.ner.assets,
-      ...runtimes.transformers.filter((a) => a.url.includes(".jsep.")),
-    ],
+    files: [...models.ner.assets, ...transformersRuntime],
   },
   ocr: {
     license: "Apache-2.0",
     files: [...models.ocr.assets, ...runtimes.ocr],
   },
-  ffmpeg: { license: "GPL / LGPL components", files: runtimes.ffmpeg },
 };
+export const TOOL_GROUPS = Object.keys(MODEL_GROUPS).filter(
+  (id) => !MODEL_GROUPS[id].voice,
+);
 export const groupBytes = (id) =>
   MODEL_GROUPS[id].files.reduce((n, a) => n + a.size, 0);
 const absolute = (value) =>
@@ -122,6 +141,22 @@ export class AssetManager {
   }
   pause(id) {
     this.running.get(id)?.abort();
+  }
+  /** Installs a group unless it is already cached. Concurrent callers share
+   * one download and each receives its progress. */
+  ensure(id, onProgress = () => {}) {
+    this.ensuring ||= new Map();
+    if (!this.ensuring.has(id))
+      this.ensuring.set(
+        id,
+        (async () => {
+          if (!(await this.status(id)).ready) await this.install(id);
+        })().finally(() => this.ensuring.delete(id)),
+      );
+    const unsubscribe = this.subscribe(
+      (progress) => progress[id] && onProgress(progress[id]),
+    );
+    return this.ensuring.get(id).finally(unsubscribe);
   }
   async install(id, onProgress = () => {}) {
     if (this.running.has(id)) throw Error("downloadBusy");
@@ -281,7 +316,7 @@ export class AssetManager {
     for (const [other, group] of Object.entries(MODEL_GROUPS))
       if (other !== id && (await this.status(other)).ready)
         for (const asset of group.files) retained.add(asset.url);
-    // Shared runtimes remain cached so removing one voice cannot break another.
+    // Shared runtimes remain cached so removing one tool cannot break another.
     for (const a of MODEL_GROUPS[id].files.filter(
       (a) => !a.url.startsWith("/runtime/"),
     )) {

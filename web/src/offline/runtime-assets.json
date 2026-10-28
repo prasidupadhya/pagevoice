@@ -70,16 +70,21 @@
       "sha256": "576b7df7e3393e137e51849357c9adb53fe7ac1bb69bfa06cf3d61520f182c6d"
     }
   ],
-  "ffmpeg": [
+  "piper": [
     {
-      "url": "/runtime/ffmpeg/ffmpeg-core.js",
-      "size": 111804,
-      "sha256": "67a48f11645f85439f3fde4f2119042c16b374b910206b7a7a24f342e28dcae3"
+      "url": "/runtime/piper/piper_phonemize.data",
+      "size": 18077249,
+      "sha256": "29f1025eb23a5b5c192cd14a6efbce4509402ff265405072ee6f7d1a09b78f8c"
     },
     {
-      "url": "/runtime/ffmpeg/ffmpeg-core.wasm",
-      "size": 32232419,
-      "sha256": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7"
+      "url": "/runtime/piper/piper_phonemize.js",
+      "size": 120752,
+      "sha256": "e7a60b1651333fe4fe3d2a9738cd0ab11d6c963f3029744b9a106d0cde5c8b88"
+    },
+    {
+      "url": "/runtime/piper/piper_phonemize.wasm",
+      "size": 635212,
+      "sha256": "b777cd107a91d2bcc6a1ea46f2c26a662a7407394fe84589198aeaa83dd7a9d6"
     }
   ]
 }

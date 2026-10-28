@@ -7,7 +7,6 @@ import {
   SlidersHorizontal,
   ChevronUp,
   ChevronDown,
-  Download,
   LoaderCircle,
   Volume2,
 } from "lucide-react";
@@ -53,7 +52,9 @@ export default function PlayerPanel({
     total = book.chapters.reduce((n, ch) => n + ch.sentences.length, 0),
     status = playback.status || "idle",
     playing = status === "playing",
-    waiting = status === "buffering" || status === "starting";
+    waiting = status === "buffering" || status === "starting",
+    // The voice files are being fetched for the first time.
+    loadingVoice = preparation.status === "loading" && preparation.voice;
   const step = (delta) => api.refs.current.player.next(delta);
   const details = (
     <>
@@ -145,10 +146,30 @@ export default function PlayerPanel({
               required: buffer.required,
             })}
           </small>
+          {loadingVoice && (
+            <div className="voice-loading">
+              <div className="preparation-total">
+                <span>{t("loadingVoice")}</span>
+                <strong>
+                  {Math.floor(
+                    (100 * loadingVoice.loaded) /
+                      Math.max(1, loadingVoice.total),
+                  )}
+                  %
+                </strong>
+              </div>
+              <progress
+                aria-label={t("loadingVoice")}
+                value={loadingVoice.loaded}
+                max={loadingVoice.total}
+              />
+              <small className="fine-print">{t("loadingVoiceNote")}</small>
+            </div>
+          )}
           <div className="preparation-total">
             <span>
               {t(
-                preparation.status === "preparing"
+                ["preparing", "loading"].includes(preparation.status)
                   ? "preparing"
                   : prepared >= total
                     ? "complete"
@@ -168,7 +189,7 @@ export default function PlayerPanel({
             <button
               className="small prepare-button"
               onClick={() => {
-                if (preparation.status === "preparing")
+                if (["preparing", "loading"].includes(preparation.status))
                   api.refs.current.queue.pause();
                 else
                   api.refs.current.queue
@@ -177,13 +198,13 @@ export default function PlayerPanel({
               }}
               disabled={!voiceReady && preparation.status !== "preparing"}
             >
-              {preparation.status === "preparing" ? (
+              {["preparing", "loading"].includes(preparation.status) ? (
                 <Pause size={16} aria-hidden="true" />
               ) : (
                 <Play size={16} aria-hidden="true" />
               )}
               {t(
-                preparation.status === "preparing"
+                ["preparing", "loading"].includes(preparation.status)
                   ? "pausePreparation"
                   : preparation.status === "paused"
                     ? "resumePreparation"
@@ -223,7 +244,13 @@ export default function PlayerPanel({
           ) : playing ? (
             <Volume2 size={14} aria-hidden="true" />
           ) : null}
-          <span>{t(STATUS_KEY[status] || "ready")}</span>
+          <span>
+            {loadingVoice && waiting
+              ? `${t("loadingVoice")} · ${Math.floor(
+                  (100 * loadingVoice.loaded) / Math.max(1, loadingVoice.total),
+                )}%`
+              : t(STATUS_KEY[status] || "ready")}
+          </span>
         </p>
         <p className="player-title">{rowChapter.title}</p>
         <p className="player-sub">

@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { LibraryStore, rowsOf } from "./library";
 import { AssetManager } from "./assets";
-import { listVoices, synthesize, durationOf } from "./engines";
-import { RenderQueue, signatureFor, effectiveVoice } from "./render";
+import { LocalEngine, VOICES, defaultVoice, modelFor } from "./engines";
+import {
+  RenderQueue,
+  signatureFor,
+  renderRow,
+  modelsFor,
+  loadVoiceFiles,
+} from "./render";
+import { encodeWav } from "./audio";
 import { AudioPlayer } from "./player";
 import { detectCharacters } from "./knowledge";
 import { buildSearchIndex } from "../browser/search";
 import { analyzeSections } from "../browser/analysis";
-import { downloadBlob } from "./format";
 import { voicesFor } from "./voices";
 
 export function useReader() {
@@ -17,9 +23,7 @@ export function useReader() {
     [errorFile, setErrorFile] = useState(null),
     [progress, setProgress] = useState(null),
     [preparation, setPreparation] = useState({ status: "idle" }),
-    [playback, setPlayback] = useState({ status: "idle" }),
-    [voices, setVoices] = useState([]),
-    [voicesError, setVoicesError] = useState(null);
+    [playback, setPlayback] = useState({ status: "idle" });
   const refs = useRef({}),
     lastFile = useRef(null),
     previewURL = useRef(null);
@@ -40,7 +44,8 @@ export function useReader() {
           sync();
         },
       }),
-      assets = new AssetManager();
+      assets = new AssetManager(),
+      engine = new LocalEngine();
     let active = true;
     const player = new AudioPlayer({
       store,
@@ -53,6 +58,8 @@ export function useReader() {
     });
     const queue = new RenderQueue({
       store,
+      engine,
+      assets,
       onChange: (state) => {
         if (!active) return;
         setPreparation(state);
@@ -60,7 +67,7 @@ export function useReader() {
         player.notifyReady().catch((e) => showError(e.message));
       },
     });
-    refs.current = { store, assets, player, queue };
+    refs.current = { store, assets, engine, player, queue };
     store
       .init()
       .then(() => {
@@ -82,7 +89,6 @@ export function useReader() {
         store.dispose();
         queue.dispose();
         refs.current.queryWorker?.terminate();
-        refs.current.exportWorker?.terminate();
         URL.revokeObjectURL(previewURL.current);
       }
     };
@@ -94,7 +100,6 @@ export function useReader() {
       player.dispose();
       refs.current.analysisWorker?.terminate();
       refs.current.queryWorker?.terminate();
-      refs.current.exportWorker?.terminate();
       refs.current.previewAudio?.pause();
       store.dispose();
       URL.revokeObjectURL(previewURL.current);
@@ -242,7 +247,7 @@ export function useReader() {
       prepared: {},
       semantics: null,
       entities: null,
-      settings: { ...book.settings, cast: {}, voice: "" },
+      settings: { ...book.settings, cast: {}, voice: defaultVoice(language) },
       languageDetection: {
         ...book.languageDetection,
         source: "manual",
@@ -256,52 +261,29 @@ export function useReader() {
   function stopPlayback() {
     refs.current.player.stop();
   }
-  // Voices are requested when a book is opened or narration starts, not at
-  // startup. Every caller shares one request.
-  function ensureVoices() {
-    refs.current.voicesRequest ||= listVoices()
-      .then((list) => {
-        setVoices(list);
-        setVoicesError(null);
-        return list;
-      })
-      .catch((e) => {
-        refs.current.voicesRequest = null;
-        refs.current.voicesFailure = e.message;
-        setVoicesError(e.message);
-        return [];
-      });
-    return refs.current.voicesRequest;
-  }
-  // The narration voice is the one chosen for the book, or the first voice
-  // the service offers.
-  // The saved voice when it speaks the book's language, otherwise the first
-  // voice for that language. Empty when the list has none for the language.
-  const narrationVoice = (book, list) => {
-    const pool = voicesFor(list, book.language);
-    if (!pool.length) return list.length ? "" : book.settings.voice || "";
-    return pool.some((v) => v.id === book.settings.voice)
+  // The saved voice when it reads the book's language, otherwise the first
+  // voice for that language.
+  const narrationVoice = (book) =>
+    voicesFor(VOICES, book.language).some((v) => v.id === book.settings.voice)
       ? book.settings.voice
-      : pool[0].id;
-  };
+      : defaultVoice(book.language);
   async function listen(id, chapter, sentence) {
     showError(null);
     const book = refs.current.store.get(id),
-      list = await ensureVoices(),
-      voice = narrationVoice(book, list);
+      voice = narrationVoice(book);
     if (!voice) {
-      showError(
-        refs.current.voicesFailure ||
-          (list.length ? "noVoicesForLanguage" : "ttsUnavailable"),
-      );
+      showError("noVoicesForLanguage");
       return;
     }
     if (voice !== book.settings.voice)
       await update(id, { settings: { ...book.settings, voice } });
     await refs.current.player.start(id, chapter, sentence);
-    refs.current.queue
-      .prepare(id, chapter, sentence)
-      .catch((e) => showError(e.message));
+    refs.current.queue.prepare(id, chapter, sentence).catch((e) => {
+      showError(e.message);
+      // Without new audio the player would wait forever.
+      if (refs.current.player.state?.status === "buffering")
+        refs.current.player.pause();
+    });
   }
   function togglePlayback(book) {
     if (playback.bookId === book.id && playback.status === "playing")
@@ -313,20 +295,23 @@ export function useReader() {
       refs.current.player.resume();
     else listen(book.id, book.position.chapter, book.position.sentence);
   }
-  async function preview(book) {
+  async function preview(book, voice = narrationVoice(book), onProgress) {
     showError(null);
     stopPlayback();
+    if (!voice) throw Error("noVoicesForLanguage");
+    await loadVoiceFiles(refs.current.assets, [modelFor(voice)], onProgress);
     const text =
       book.language === "es"
         ? "Una habitación tranquila, un libro abierto y una voz que te acompaña."
         : "A quiet room, an open book, and a voice that keeps you company.";
-    const voice = narrationVoice(book, await ensureVoices());
-    if (!voice) throw Error("voiceUnknown");
-    const blob = await synthesize(text, voice);
+    const result = await refs.current.engine.synthesize({ text, voice });
     refs.current.previewAudio?.pause();
     URL.revokeObjectURL(previewURL.current);
-    previewURL.current = URL.createObjectURL(blob);
+    previewURL.current = URL.createObjectURL(
+      encodeWav(result.samples, result.sampleRate),
+    );
     const audio = new Audio(previewURL.current);
+    audio.playbackRate = refs.current.player.rate;
     refs.current.previewAudio = audio;
     audio.onended = () => {
       URL.revokeObjectURL(previewURL.current);
@@ -434,8 +419,12 @@ export function useReader() {
         (r) => r.chapter === chapter && r.sentence === sentence,
       );
     const signature = await signatureFor(book, row);
-    const blob = await synthesize(row.text, effectiveVoice(book, row));
-    const duration = await durationOf(blob);
+    await loadVoiceFiles(refs.current.assets, modelsFor(book));
+    const { blob, duration, rtf } = await renderRow(
+      refs.current.engine,
+      book,
+      row,
+    );
     const latest = refs.current.store.get(id),
       latestRow = latest && rowsOf(latest).find((r) => r.id === row.id);
     if (
@@ -447,7 +436,7 @@ export function useReader() {
       throw Error("sentenceChanged");
     await refs.current.store.putAudio(id, row.id, signature, blob, {
       duration,
-      rtf: 0,
+      rtf,
     });
     sync();
   }
@@ -529,57 +518,6 @@ export function useReader() {
       refs.current.queryWorker.postMessage({ id, kind: "embeddings", query });
     });
   }
-  async function exportAudio(book, scope, format, onProgress = () => {}) {
-    const selected =
-        scope === "all" ? book.chapters : [book.chapters[Number(scope)]],
-      chapters = [];
-    let size = 0;
-    for (const c of selected) {
-      const index = book.chapters.indexOf(c),
-        audio = [];
-      for (let s = 0; s < c.sentences.length; s++) {
-        const a = book.prepared[`${index}:${s}`],
-          blob = a && (await refs.current.store.getAudio(a.key));
-        if (!blob) throw Error("exportIncomplete");
-        size += blob.size;
-        audio.push({ blob, duration: a.duration || 0 });
-      }
-      chapters.push({ ...c, audio });
-    }
-    if (size > 256 * 1024 * 1024) throw Error("exportLimit");
-    if (format === "m4b" && !(await refs.current.assets.status("ffmpeg")).ready)
-      throw Error("modelNotCached");
-    const result = await new Promise((resolve, reject) => {
-      const worker = new Worker(
-        new URL("./export.worker.js", import.meta.url),
-        { type: "module" },
-      );
-      refs.current.exportWorker = worker;
-      worker.onmessage = ({ data }) => {
-        if (data.type === "progress") onProgress(data);
-        else {
-          worker.terminate();
-          refs.current.exportWorker = null;
-          if (data.type === "error") reject(Error(data.message));
-          else resolve(data);
-        }
-      };
-      worker.onerror = () => {
-        worker.terminate();
-        reject(Error("exportFailed"));
-      };
-      worker.postMessage({ book, chapters, format });
-      refs.current.cancelExport = () => {
-        worker.terminate();
-        refs.current.exportWorker = null;
-        reject(Error("cancelled"));
-      };
-    });
-    downloadBlob(
-      result.blob,
-      `${book.title.replace(/[<>:"/\\|?*]/gu, "")}.${result.extension}`,
-    );
-  }
   return {
     books,
     loading,
@@ -589,10 +527,8 @@ export function useReader() {
     progress,
     preparation,
     playback,
-    voices,
-    voicesError,
+    voices: VOICES,
     refs,
-    ensureVoices,
     sync,
     upload,
     cancelUpload: () => refs.current.cancelParse?.(),
@@ -610,7 +546,6 @@ export function useReader() {
     regenerate,
     analyze,
     semanticQuery,
-    exportAudio,
     stopPlayback,
   };
 }

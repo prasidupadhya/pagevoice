@@ -1,13 +1,7 @@
 import { test, expect } from "@playwright/test";
-import {
-  controlledByServiceWorker,
-  fixture,
-  upload,
-  books,
-  mockNarration,
-} from "./helpers";
+import { controlledByServiceWorker, fixture, upload, books } from "./helpers";
 
-test("reading, search and saved books work offline; only narration uses the network", async ({
+test("reading, search and saved books work offline and send nothing anywhere", async ({
   page,
   context,
 }) => {
@@ -19,7 +13,6 @@ test("reading, search and saved books work offline; only narration uses the netw
       requests.push(`${r.method()} ${path}`);
   });
   page.on("pageerror", (e) => errors.push(e.message));
-  await mockNarration(page);
   await page.goto("/app/");
   await expect(
     page.getByRole("heading", { name: "Add a PDF or EPUB to start reading." }),
@@ -57,10 +50,6 @@ test("reading, search and saved books work offline; only narration uses the netw
     .getByPlaceholder("Find a phrase, a place, a character…")
     .fill("lantern");
   await expect(page.locator(".search-hits article").first()).toBeVisible();
-  expect(
-    requests.every(
-      (r) => r.startsWith("GET /api/") || r.startsWith("POST /api/tts"),
-    ),
-  ).toBe(true);
+  expect(requests).toEqual([]);
   expect(errors).toEqual([]);
 });

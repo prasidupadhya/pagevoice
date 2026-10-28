@@ -27,19 +27,27 @@ describe("voicesFor", () => {
 
 describe("voiceLabel", () => {
   it("names the voice, its accent and its gender", () => {
-    expect(voiceLabel(VOICES[1], "en", GENDER)).toBe("Verity · British English · Female");
-    expect(voiceLabel(VOICES[0], "en", GENDER)).toBe("Adam · American English · Male");
+    expect(voiceLabel(VOICES[1], "en", GENDER)).toBe(
+      "Verity · British English · Female",
+    );
+    expect(voiceLabel(VOICES[0], "en", GENDER)).toBe(
+      "Adam · American English · Male",
+    );
   });
 
   it("follows the app language for the accent name", () => {
-    expect(voiceLabel(VOICES[2], "es", { male: "Masculina", female: "Femenina" })).toBe(
-      "Sofia · español de España · Femenina",
-    );
+    expect(
+      voiceLabel(VOICES[2], "es", { male: "Masculina", female: "Femenina" }),
+    ).toBe("Sofia · español de España · Femenina");
   });
 
   it("omits the gender when it is unknown", () => {
-    expect(voiceLabel({ id: "x", name: "Michael", locale: "en", gender: "" }, "en", GENDER)).toBe(
-      "Michael · English",
-    );
+    expect(
+      voiceLabel(
+        { id: "x", name: "Michael", locale: "en", gender: "" },
+        "en",
+        GENDER,
+      ),
+    ).toBe("Michael · English");
   });
 });

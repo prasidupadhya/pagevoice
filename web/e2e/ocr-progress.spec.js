@@ -8,7 +8,6 @@ import {
   upload,
   install,
   books,
-  mockNarration,
 } from "./helpers";
 test("scanned PDF OCR runs locally and after language data is cached offline", async ({
   page,
@@ -50,7 +49,7 @@ test("scanned PDF OCR runs locally and after language data is cached offline", a
     (await books(page))[1].chapters.flatMap((c) => c.sentences).join(" "),
   ).toContain("birds in the garden");
 });
-test("selected chapter waits for 20 consecutive sentences, prepares ahead and deletion cancels work", async ({
+test("selected chapter waits for 5 consecutive sentences, prepares ahead and deletion cancels work", async ({
   page,
 }) => {
   await cachedCDN(page);
@@ -64,7 +63,7 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
   );
   z.file(
     "book.opf",
-    "<package><metadata><title>Una biblioteca tranquila</title><language>es</language><creator>PageVoice tests</creator></metadata><manifest>" +
+    "<package><metadata><title>A quiet library</title><language>en</language><creator>PageVoice tests</creator></metadata><manifest>" +
       [1, 2, 3, 4]
         .map(
           (i) =>
@@ -78,7 +77,7 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
   for (const i of [1, 2, 3, 4])
     z.file(
       `c${i}.xhtml`,
-      `<html><body><h1>Capítulo ${i}</h1><p>${Array.from({ length: i < 3 ? 2 : i === 3 ? 23 : 30 }, (_, s) => `María lee el libro junto al mar y escucha las olas en la mañana ${s + 1}.`).join(" ")}</p></body></html>`,
+      `<html><body><h1>Chapter ${i}</h1><p>${Array.from({ length: i < 3 ? 2 : i === 3 ? 23 : 30 }, (_, s) => `Mary reads her book by the sea and hears the waves in the morning ${s + 1}.`).join(" ")}</p></body></html>`,
     );
   await upload(page, {
     name: "progressive.es.epub",
@@ -87,10 +86,9 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
   });
   const [book] = await books(page);
   await page.getByRole("button", { name: `Open book · ${book.title}` }).click();
-  await mockNarration(page, { delayMs: 250 });
   await page
     .locator(".chapter-drawer")
-    .getByRole("button", { name: /^3 Capítulo 3/ })
+    .getByRole("button", { name: /^3 Chapter 3/ })
     .click();
   await page
     .locator(".sentence")
@@ -111,13 +109,13 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
             (k) => k.startsWith("0:") || k.startsWith("1:"),
           );
         }
-        if (count < 20) expect(playing).toBe(0);
+        if (count < 5) expect(playing).toBe(0);
         return playing;
       },
-      { timeout: 150000 },
+      { timeout: 300000 },
     )
     .toBe(1);
-  expect(smallestPlaying).toBeGreaterThanOrEqual(20);
+  expect(smallestPlaying).toBeGreaterThanOrEqual(5);
   expect(previousAtStart).toBe(false);
   expect(smallestPlaying).toBeLessThan(57);
   await expect
@@ -126,7 +124,7 @@ test("selected chapter waits for 20 consecutive sentences, prepares ahead and de
         Object.keys((await books(page))[0].prepared).some((k) =>
           k.startsWith("3:"),
         ),
-      { timeout: 60000 },
+      { timeout: 600000 },
     )
     .toBe(true);
   await page.getByRole("button", { name: "Remove book", exact: true }).click();
