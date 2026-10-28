@@ -59,7 +59,6 @@ export default {
     "Your browser did not grant storage protection. You can still export a backup.",
   reading: "Reading the file",
   structuring: "Finding sections",
-  indexing: "Building the search index",
   ocr: "Recognizing scanned pages",
   cancel: "Cancel",
   largeFile: "Large book: parsing may use substantial device memory.",

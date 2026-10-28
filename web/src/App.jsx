@@ -145,6 +145,15 @@ export default function App() {
   useEffect(() => {
     if (!book) setFocus(false);
   }, [book]);
+  // A saved book's text is read when it is opened, not when the app starts.
+  const needsText = book && !book.chapters;
+  useEffect(() => {
+    if (needsText)
+      api.load(selected).catch((e) => {
+        api.setError(e.message);
+        setSelected(null);
+      });
+  }, [needsText, selected]);
   const perform = async (fn) => {
     try {
       await fn();
@@ -194,6 +203,12 @@ export default function App() {
         ? t("readingPage", progress)
         : t(progress.stage);
   const knownError = api.error && en[api.error];
+  const opening = (
+    <div className="page-loading" aria-busy="true">
+      <LoaderCircle className="spin" size={22} aria-hidden="true" />
+      <span>{t("openingBook")}</span>
+    </div>
+  );
   return (
     <div
       className={`app-shell ${book ? "has-reader" : ""} ${focus ? "is-focus" : ""}`}
@@ -345,27 +360,24 @@ export default function App() {
             <ShelfSkeleton t={t} />
           </main>
         ) : book ? (
-          <Suspense
-            fallback={
-              <div className="page-loading" aria-busy="true">
-                <LoaderCircle className="spin" size={22} aria-hidden="true" />
-                <span>{t("openingBook")}</span>
-              </div>
-            }
-          >
-            <Reader
-              key={book.id}
-              book={book}
-              api={api}
-              t={t}
-              prefs={prefs}
-              setPref={setPref}
-              focus={focus}
-              setFocus={setFocus}
-              onBack={() => setSelected(null)}
-              onDelete={askDelete}
-              toast={notify}
-            />
+          <Suspense fallback={opening}>
+            {book.chapters ? (
+              <Reader
+                key={book.id}
+                book={book}
+                api={api}
+                t={t}
+                prefs={prefs}
+                setPref={setPref}
+                focus={focus}
+                setFocus={setFocus}
+                onBack={() => setSelected(null)}
+                onDelete={askDelete}
+                toast={notify}
+              />
+            ) : (
+              opening
+            )}
           </Suspense>
         ) : (
           <main className="shelf-room">

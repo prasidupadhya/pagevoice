@@ -39,8 +39,8 @@ function Progress({ book, t }) {
 const extentOf = (book, t) =>
   book.pageCount
     ? t(book.pageCount === 1 ? "pageOne" : "pages", { n: book.pageCount })
-    : t(book.chapters.length === 1 ? "sectionOne" : "sectionsCount", {
-        n: book.chapters.length,
+    : t(book.outline.length === 1 ? "sectionOne" : "sectionsCount", {
+        n: book.outline.length,
       });
 
 const SORTS = {
@@ -155,7 +155,7 @@ export default function Shelf({
             </h2>
             <p className="continue-title">{recent.title}</p>
             <p className="muted">
-              {[recent.author, recent.chapters[recent.position.chapter]?.title]
+              {[recent.author, recent.outline[recent.position.chapter]?.title]
                 .filter(Boolean)
                 .join(" · ")}
             </p>

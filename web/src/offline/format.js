@@ -25,7 +25,10 @@ export function downloadBlob(blob, name) {
 // Progress is measured from the detected start of the content, so skipped front
 // matter (title pages, contents) does not make a new book look partly read.
 export function progressOf(book) {
-  const lengths = book.chapters.map((c) => c.sentences.length),
+  // Saved books carry a section outline; the text itself may not be loaded.
+  const lengths = book.outline
+      ? book.outline.map((c) => c.length)
+      : book.chapters.map((c) => c.sentences.length),
     before = (n) => lengths.slice(0, n).reduce((a, b) => a + b, 0),
     start = before(Math.min(book.startChapter || 0, book.position.chapter)),
     total = before(lengths.length) - start;

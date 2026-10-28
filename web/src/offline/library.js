@@ -92,12 +92,74 @@ async function canStoreBlobs(db) {
     return false;
   }
 }
-const fromStored = (book) =>
-  book && {
-    ...book,
-    sourceFile: unpackBlob(book.sourceFile),
-    coverBlob: unpackBlob(book.coverBlob),
-  };
+const fromStored = (book) => {
+  if (!book) return book;
+  const value = { ...book };
+  for (const key of ["sourceFile", "coverBlob"])
+    if (key in value) value[key] = unpackBlob(value[key]);
+  return value;
+};
+// The large, rarely changed parts of a book are stored apart from the rest, so
+// the shelf opens without reading them and small updates (reading position,
+// prepared audio) do not rewrite them. The rest carries a short outline of the
+// sections for the shelf.
+const CONTENT = [
+  "chapters",
+  "analysis",
+  "sourceFile",
+  "characters",
+  "warnings",
+];
+const pick = (value, keys) =>
+  Object.fromEntries(keys.filter((k) => k in value).map((k) => [k, value[k]]));
+const outlineOf = (chapters) =>
+  chapters.map((c) => ({ title: c.title, length: c.sentences.length }));
+function split(book) {
+  const meta = { ...book };
+  for (const key of CONTENT) delete meta[key];
+  // The keyword index is rebuilt by the search worker; storing it tripled the
+  // size of every book. Older records and backups may still carry one.
+  delete meta.searchIndex;
+  if (book.chapters) meta.outline = outlineOf(book.chapters);
+  return { meta, content: { id: book.id, ...pick(book, CONTENT) } };
+}
+/** One sentence as a row, or undefined when it does not exist. Cheaper than
+ * rowsOf when only a few sentences are needed. */
+export function rowAt(book, chapter, sentence) {
+  const c = book.chapters[chapter],
+    text = c?.sentences[sentence];
+  return text === undefined
+    ? undefined
+    : {
+        id: rowId(chapter, sentence),
+        chapter,
+        sentence,
+        text,
+        title: c.title,
+        source: c.source,
+      };
+}
+export const rowById = (book, id) => {
+  const [chapter, sentence] = id.split(":").map(Number);
+  return rowAt(book, chapter, sentence);
+};
+/** The sentence `delta` sentences away, across section boundaries. */
+export function rowAfter(book, chapter, sentence, delta) {
+  let c = chapter,
+    s = sentence + delta;
+  while (c >= 0 && c < book.chapters.length) {
+    const length = book.chapters[c].sentences.length;
+    if (s < 0) {
+      c--;
+      if (c >= 0) s += book.chapters[c].sentences.length;
+    } else if (s >= length) {
+      s -= length;
+      c++;
+    } else return rowAt(book, c, s);
+  }
+}
+export const sentenceCount = (book) =>
+  book.chapters.reduce((n, c) => n + c.sentences.length, 0);
 export const rowsOf = (book) =>
   book.chapters.flatMap((c, chapter) =>
     c.sentences.map((text, sentence) => ({
@@ -141,13 +203,32 @@ export class LibraryStore {
       this.sessionOnly = true;
       return this;
     }
-    const opened = indexedDB.open(this.name, 1);
-    opened.onupgradeneeded = () => {
-      opened.result.createObjectStore("books", { keyPath: "id" });
-      opened.result
-        .createObjectStore("audio", { keyPath: "key" })
-        .createIndex("book", "bookId");
-      opened.result.createObjectStore("prefs");
+    const opened = indexedDB.open(this.name, 2);
+    opened.onupgradeneeded = ({ oldVersion }) => {
+      const db = opened.result;
+      if (oldVersion < 1) {
+        db.createObjectStore("books", { keyPath: "id" });
+        db.createObjectStore("audio", { keyPath: "key" }).createIndex(
+          "book",
+          "bookId",
+        );
+        db.createObjectStore("prefs");
+      }
+      if (oldVersion < 2) {
+        const content = db.createObjectStore("content", { keyPath: "id" });
+        // Move the large parts of existing books into the new store.
+        if (oldVersion >= 1)
+          opened.transaction.objectStore("books").openCursor().onsuccess = ({
+            target,
+          }) => {
+            const cursor = target.result;
+            if (!cursor) return;
+            const parts = split(cursor.value);
+            content.put(parts.content);
+            cursor.update(parts.meta);
+            cursor.continue();
+          };
+      }
     };
     try {
       this.db = await request(opened);
@@ -178,7 +259,6 @@ export class LibraryStore {
         await this.purge(book.id);
       else if (book.deletedAt) this.schedulePurge(book);
     }
-    await this.lockAudio(() => this.recoverAudioFiles());
     for (const book of this.books.values())
       if (!book.deletedAt && needsNarrationReset(book)) {
         for (const a of Object.values(book.prepared || {}))
@@ -193,10 +273,14 @@ export class LibraryStore {
       this.channel.onmessage = async ({ data: id }) => {
         if (!this.db || typeof id !== "string") return;
         try {
-          const current = await request(
-            this.db.transaction("books").objectStore("books").get(id),
-          );
-          if (current) this.books.set(id, fromStored(current));
+          const loaded = !!this.get(id)?.chapters,
+            tx = this.db.transaction(["books", "content"]);
+          const [current, content] = await Promise.all([
+            request(tx.objectStore("books").get(id)),
+            loaded ? request(tx.objectStore("content").get(id)) : null,
+          ]);
+          if (current)
+            this.books.set(id, fromStored({ ...current, ...content }));
           else {
             this.books.delete(id);
             this.revokeCover(id);
@@ -207,6 +291,11 @@ export class LibraryStore {
         }
       };
     }
+    // Orphan cleanup reads every audio record, so it runs after the shelf is
+    // shown. It holds the audio lock, so it cannot race a new recording.
+    this.recovered = this.lockAudio(() => this.recoverAudioFiles()).catch(
+      () => {},
+    );
     return this;
   }
   async recoverAudioFiles() {
@@ -225,6 +314,29 @@ export class LibraryStore {
   get(id) {
     return this.books.get(id);
   }
+  /** Reads a book's text and analysis, which the shelf does not need. */
+  async load(id) {
+    const book = this.get(id);
+    if (!book || book.chapters) return book;
+    this.loading ||= new Map();
+    if (!this.loading.has(id))
+      this.loading.set(
+        id,
+        request(this.db.transaction("content").objectStore("content").get(id))
+          .then((content) => {
+            if (!content) throw new Error("invalidBook");
+            const current = this.get(id);
+            if (current && !current.chapters)
+              this.books.set(
+                id,
+                fromStored({ ...current, ...pick(content, CONTENT) }),
+              );
+            return this.get(id);
+          })
+          .finally(() => this.loading.delete(id)),
+      );
+    return this.loading.get(id);
+  }
   async removeFile(name) {
     await removeIfPresent(this.audioDir, name);
   }
@@ -240,6 +352,14 @@ export class LibraryStore {
     else tx.objectStore(store).put(value, key);
     await done;
   }
+  /** Stores a book's two parts together, or neither. */
+  async writeBook({ meta, content }) {
+    const tx = this.db.transaction(["books", "content"], "readwrite"),
+      done = complete(tx);
+    tx.objectStore("content").put(content);
+    tx.objectStore("books").put(meta);
+    await done;
+  }
   async add(book, keep = true) {
     keep = keep && !this.sessionOnly;
     const value = {
@@ -253,13 +373,13 @@ export class LibraryStore {
         sentence: 0,
       },
       settings: book.settings || defaultSettings(book.language),
+      outline: outlineOf(book.chapters),
     };
     if (this.books.has(value.id)) throw new Error("duplicateBook");
     if (keep)
       try {
-        await this.write(
-          "books",
-          this.packBlobs ? await toStored(value) : value,
+        await this.writeBook(
+          split(this.packBlobs ? await toStored(value) : value),
         );
       } catch (error) {
         // Some browsers (e.g. WebKit private sessions) refuse to store files in
@@ -280,22 +400,49 @@ export class LibraryStore {
         const apply = (current) => {
           if (!current || (current.deletedAt && !allowDeleted)) return null;
           const changes = typeof patch === "function" ? patch(current) : patch;
-          return changes ? { ...current, ...changes } : null;
+          if (!changes) return null;
+          const value = { ...current, ...changes };
+          if (changes.chapters) value.outline = outlineOf(changes.chapters);
+          return value;
         };
         let value;
         if (this.get(id)?.keep && this.db) {
           // Read/modify/write in ONE IDB transaction. A stale tab cannot overwrite
-          // a deletion or lose another tab's position/audio changes.
-          const tx = this.db.transaction("books", "readwrite"),
+          // a deletion or lose another tab's position/audio changes. Content is
+          // only read and written when the change touches it.
+          const memory = this.get(id),
+            loaded = memory?.chapters ? pick(memory, CONTENT) : {};
+          const tx = this.db.transaction(["books", "content"], "readwrite"),
             done = complete(tx),
             table = tx.objectStore("books");
           const get = table.get(id);
           get.onsuccess = () => {
-            const current = get.result;
-            value = apply(current);
-            if (value) table.put(value);
-            else if (current) this.books.set(id, fromStored(current));
-            else this.books.delete(id);
+            const stored = get.result;
+            const current = stored && { ...fromStored(stored), ...loaded };
+            const changes =
+              current && !(current.deletedAt && !allowDeleted)
+                ? typeof patch === "function"
+                  ? patch(current)
+                  : patch
+                : null;
+            if (!changes) {
+              if (stored) this.books.set(id, current);
+              else this.books.delete(id);
+              return;
+            }
+            const metaChanges = { ...changes };
+            for (const key of CONTENT) delete metaChanges[key];
+            if (changes.chapters)
+              metaChanges.outline = outlineOf(changes.chapters);
+            table.put({ ...stored, ...metaChanges });
+            const contentChanges = pick(changes, CONTENT);
+            if (Object.keys(contentChanges).length) {
+              const store = tx.objectStore("content"),
+                read = store.get(id);
+              read.onsuccess = () =>
+                store.put({ ...read.result, ...contentChanges, id });
+            }
+            value = { ...current, ...changes, ...metaChanges };
           };
           await done;
         } else value = apply(this.get(id));
@@ -418,6 +565,24 @@ export class LibraryStore {
       await done;
     }
   }
+  /** Removes many audio records and files with one transaction. */
+  async deleteAudios(keys) {
+    const wanted = new Set(keys);
+    let records = [...this.audio.values()].filter((r) => wanted.has(r.key));
+    if (this.db) {
+      const tx = this.db.transaction("audio", "readwrite"),
+        done = complete(tx),
+        table = tx.objectStore("audio");
+      // Requests run in order: each record is read before it is deleted.
+      const reads = keys.map((key) => table.get(key));
+      for (const key of keys) table.delete(key);
+      await done;
+      records = [...records, ...reads.map((r) => r.result).filter(Boolean)];
+    }
+    for (const key of keys) this.audio.delete(key);
+    for (const record of records)
+      if (record.path) await this.removeFile(record.path);
+  }
   async softDelete(id) {
     const book = this.get(id);
     if (!book || book.deletedAt) return null;
@@ -482,9 +647,10 @@ export class LibraryStore {
     ))
       await this.deleteAudio(r.key);
     if (this.db) {
-      const tx = this.db.transaction("books", "readwrite");
+      const tx = this.db.transaction(["books", "content"], "readwrite");
       const done = complete(tx);
       tx.objectStore("books").delete(id);
+      tx.objectStore("content").delete(id);
       await done;
     }
     this.channel?.postMessage(id);
@@ -525,8 +691,14 @@ export class LibraryStore {
     const JSZip = await loadZip();
     const zip = new JSZip();
     const books = [];
-    for (const [index, book] of this.list().entries()) {
-      const data = { ...book, coverBlob: undefined, sourceFile: undefined };
+    for (const [index, listed] of this.list().entries()) {
+      const book = await this.load(listed.id);
+      const data = {
+        ...book,
+        coverBlob: undefined,
+        sourceFile: undefined,
+        outline: undefined,
+      };
       if (book.coverBlob)
         zip.file(`covers/${book.id}`, await book.coverBlob.arrayBuffer());
       if (book.sourceFile)

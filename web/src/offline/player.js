@@ -1,5 +1,5 @@
 import { readyRun } from "./render";
-import { rowsOf as listRows } from "./library";
+import { rowAt, rowAfter } from "./library";
 // A media element per sentence keeps the source highlight aligned with the file
 // that is actually playing. Preparation and playback have independent lifecycles.
 export class AudioPlayer {
@@ -72,9 +72,7 @@ export class AudioPlayer {
     const generation = ++this.generation,
       book = this.store.get(this.bookId);
     if (!book || book.deletedAt) return;
-    const row = listRows(book).find(
-      (r) => r.chapter === chapter && r.sentence === sentence,
-    );
+    const row = rowAt(book, chapter, sentence);
     if (!row) {
       this.emit("finished");
       return;
@@ -106,9 +104,9 @@ export class AudioPlayer {
   async next(delta = 1) {
     const book = this.store.get(this.bookId);
     if (!book || book.deletedAt) return;
-    const rows = listRows(book),
-      index = rows.findIndex((r) => r.id === this.row?.id),
-      row = rows[index + delta];
+    const row = this.row
+      ? rowAfter(book, this.row.chapter, this.row.sentence, delta)
+      : delta > 0 && rowAfter(book, 0, -1, 1);
     if (!row) {
       this.emit("finished");
       return;

@@ -255,3 +255,23 @@ it("a sentence the voice cannot read becomes a short pause instead of stopping t
   expect(queue.state.status).toBe("complete");
   warn.mockRestore();
 });
+
+it("steps between sentences across sections, skipping empty ones", async () => {
+  const { rowAfter, rowAt } = await import("./library");
+  const b = book({
+    chapters: [
+      { title: "A", sentences: ["a1", "a2"] },
+      { title: "Empty", sentences: [] },
+      { title: "C", sentences: ["c1"] },
+    ],
+  });
+  expect(rowAfter(b, 0, 1, 1).id).toBe("2:0");
+  expect(rowAfter(b, 2, 0, -1).id).toBe("0:1");
+  expect(rowAfter(b, 2, 0, 1)).toBeUndefined();
+  expect(rowAfter(b, 0, 0, -1)).toBeUndefined();
+  expect(rowAt(b, 1, 0)).toBeUndefined();
+  // The buffer looks ahead across the empty section and stops at its size.
+  b.prepared = { "0:1": {}, "2:0": {} };
+  expect(readyRun(b, 0, 1)).toEqual({ count: 2, required: 2 });
+  expect(readyRun(b, 1, 0)).toEqual({ count: 0, required: 0 });
+});

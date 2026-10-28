@@ -182,7 +182,7 @@ it("purging a book wins over an in-flight render result", async () => {
 
 it("keeps a book for the session when the browser cannot store its files", async () => {
   const a = await store();
-  vi.spyOn(a, "write").mockRejectedValueOnce(new Error("storageError"));
+  vi.spyOn(a, "writeBook").mockRejectedValueOnce(new Error("storageError"));
   const b = await a.add({ ...book(), sourceFile: new Blob(["x"]) });
   expect(b.keep).toBe(false);
   expect(b.storageFallback).toBe(true);
@@ -194,7 +194,7 @@ it("keeps a book for the session when the browser cannot store its files", async
 it("still reports a full disk instead of silently keeping the book", async () => {
   const a = await store();
   const full = Object.assign(new Error("full"), { name: "QuotaExceededError" });
-  vi.spyOn(a, "write").mockRejectedValueOnce(full);
+  vi.spyOn(a, "writeBook").mockRejectedValueOnce(full);
   await expect(a.add(book())).rejects.toThrow("full");
   expect(a.list()).toEqual([]);
 });
@@ -203,18 +203,19 @@ it("stores book files as bytes so browsers that reject Blobs in IndexedDB keep t
   const a = await store("bytes");
   // Simulate a browser whose IndexedDB refuses Blobs (probed at startup).
   a.packBlobs = true;
-  const realWrite = a.write.bind(a);
-  vi.spyOn(a, "write").mockImplementation((table, value, key) => {
-    if (Object.values(value).some((v) => v instanceof Blob))
-      throw new Error("DataCloneError: Blob");
-    return realWrite(table, value, key);
+  const realWrite = a.writeBook.bind(a);
+  vi.spyOn(a, "writeBook").mockImplementation((parts) => {
+    for (const value of [parts.meta, parts.content])
+      if (Object.values(value).some((v) => v instanceof Blob))
+        throw new Error("DataCloneError: Blob");
+    return realWrite(parts);
   });
   const source = new Blob(["epub bytes"], { type: "application/epub+zip" });
   const added = await a.add({ ...book(), sourceFile: source });
   expect(added.keep).toBe(true);
   expect(added.storageFallback).toBeUndefined();
   const reopened = await store("bytes");
-  const restored = reopened.get(added.id);
+  const restored = await reopened.load(added.id);
   expect(restored.sourceFile).toBeInstanceOf(Blob);
   expect(await restored.sourceFile.text()).toBe("epub bytes");
   expect(restored.sourceFile.type).toBe("application/epub+zip");
@@ -297,4 +298,75 @@ it("resets books narrated by an earlier service so they use local voices", async
     buffer: 5,
   });
   expect(b.prepared).toEqual({});
+});
+it("opens the shelf without reading book text, and loads it when a book is opened", async () => {
+  const a = await store("split");
+  const added = await a.add({
+    ...book(),
+    searchIndex: [{ tokens: ["first"] }],
+  });
+  const reopened = await store("split");
+  const listed = reopened.get(added.id);
+  expect(listed.chapters).toBeUndefined();
+  expect(listed.outline).toEqual([{ title: "Chapter 1", length: 2 }]);
+  const loaded = await reopened.load(added.id);
+  expect(loaded.chapters[0].sentences).toEqual(book().chapters[0].sentences);
+  // The keyword index is rebuilt by the search worker, never stored.
+  expect(loaded.searchIndex).toBeUndefined();
+});
+it("small updates leave the text alone; edits update the text and the outline", async () => {
+  const a = await store("updates");
+  const added = await a.add(book());
+  await a.update(added.id, { position: { chapter: 0, sentence: 1 } });
+  const chapters = [{ title: "Renamed", source: "x", sentences: ["One."] }];
+  await a.update(added.id, { chapters });
+  const reopened = await store("updates");
+  expect(reopened.get(added.id).position.sentence).toBe(1);
+  expect(reopened.get(added.id).outline).toEqual([
+    { title: "Renamed", length: 1 },
+  ]);
+  expect((await reopened.load(added.id)).chapters).toEqual(chapters);
+});
+it("moves the text of books saved by the previous version into its own store", async () => {
+  const name = "upgrade";
+  const legacy = indexedDB.open(name, 1);
+  legacy.onupgradeneeded = () => {
+    legacy.result.createObjectStore("books", { keyPath: "id" });
+    legacy.result
+      .createObjectStore("audio", { keyPath: "key" })
+      .createIndex("book", "bookId");
+    legacy.result.createObjectStore("prefs");
+  };
+  const db = await new Promise(
+    (r) => (legacy.onsuccess = () => r(legacy.result)),
+  );
+  await new Promise((r) => {
+    const tx = db.transaction("books", "readwrite");
+    tx.objectStore("books").put({
+      ...book(),
+      id: "old",
+      keep: true,
+      created: 1,
+      prepared: {},
+      position: { chapter: 0, sentence: 0 },
+      settings: { engine: "local", voice: "af_heart", cast: {}, buffer: 5 },
+    });
+    tx.oncomplete = r;
+  });
+  db.close();
+  const s = await store(name);
+  expect(s.get("old").chapters).toBeUndefined();
+  expect(s.get("old").outline).toEqual([{ title: "Chapter 1", length: 2 }]);
+  expect((await s.load("old")).chapters[0].sentences).toHaveLength(2);
+});
+it("removes many audio sentences at once", async () => {
+  const s = await store("many");
+  const added = await s.add(book());
+  for (const row of ["0:0", "0:1"])
+    await s.putAudio(added.id, row, "b".repeat(64), new Blob([row]), {
+      duration: 1,
+    });
+  const keys = Object.values(s.get(added.id).prepared).map((a) => a.key);
+  await s.deleteAudios(keys);
+  for (const key of keys) expect(await s.getAudio(key)).toBeFalsy();
 });

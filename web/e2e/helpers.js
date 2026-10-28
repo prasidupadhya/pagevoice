@@ -66,12 +66,19 @@ async function books(page) {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-    const r = db.transaction("books").objectStore("books").getAll();
-    const result = await new Promise(
-      (resolve) => (r.onsuccess = () => resolve(r.result)),
-    );
+    // A book's text and analysis are stored apart from the rest of it.
+    const tx = db.transaction(["books", "content"]);
+    const all = (store) =>
+      new Promise((resolve) => {
+        const r = tx.objectStore(store).getAll();
+        r.onsuccess = () => resolve(r.result);
+      });
+    const [books, content] = await Promise.all([all("books"), all("content")]);
     db.close();
-    return result;
+    return books.map((b) => ({
+      ...b,
+      ...content.find((c) => c.id === b.id),
+    }));
   });
 }
 async function waitPrepared(page, count, id) {

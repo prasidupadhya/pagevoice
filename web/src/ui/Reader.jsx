@@ -117,6 +117,16 @@ export default function Reader({
     voiceReady = voices.length > 0;
   const genderLabels = { male: t("voiceMale"), female: t("voiceFemale") };
   const percent = progressOf({ ...book, position });
+  // Sentences with audio per section, counted once per change rather than on
+  // every render (the reader re-renders on each scroll frame).
+  const preparedByChapter = useMemo(() => {
+    const counts = [];
+    for (const key in book.prepared) {
+      const chapter = Number(key.slice(0, key.indexOf(":")));
+      counts[chapter] = (counts[chapter] || 0) + 1;
+    }
+    return counts;
+  }, [book.prepared]);
 
   // Find in book
   const foldedBook = useMemo(
@@ -198,8 +208,11 @@ export default function Reader({
     return () => worker.terminate();
   }, []);
   useEffect(() => {
-    searchWorker.current?.postMessage({ book });
-  }, [book.chapters, book.searchIndex]);
+    // The worker only needs the text; it builds its own keyword index.
+    searchWorker.current?.postMessage({
+      book: { language: book.language, chapters: book.chapters },
+    });
+  }, [book.chapters, book.language]);
   useEffect(() => {
     const id = ++searchSequence.current;
     setSearching(!!query.trim());
@@ -496,9 +509,7 @@ export default function Reader({
           <ol>
             {book.chapters.map((ch, index) => {
               const section = book.analysis.sections[index],
-                count = Object.keys(book.prepared).filter((k) =>
-                  k.startsWith(`${index}:`),
-                ).length;
+                count = preparedByChapter[index] || 0;
               return (
                 <li key={index}>
                   <button

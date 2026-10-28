@@ -1,4 +1,4 @@
-import { rowsOf, hashText } from "./library";
+import { rowsOf, rowAt, rowById, sentenceCount, hashText } from "./library";
 import { NARRATION, modelFor } from "./engines";
 import { encodeWav, speechParts } from "./audio";
 export function preparationOrder(book, chapter = 0, sentence = 0) {
@@ -64,21 +64,28 @@ export async function loadVoiceFiles(assets, models, onProgress) {
       throw Error("voiceLoadFailed", { cause: error });
     }
 }
+/** Prepared sentences in a row from a position, up to the buffer size. Runs
+ * on every player render, so it looks only as far ahead as it needs to. */
 export function readyRun(book, chapter, sentence) {
-  const all = rowsOf(book),
-    start = all.findIndex(
-      (r) => r.chapter === chapter && r.sentence === sentence,
-    );
+  if (!rowAt(book, chapter, sentence)) return { count: 0, required: 0 };
+  let remaining = book.chapters[chapter].sentences.length - sentence;
+  for (let c = chapter + 1; c < book.chapters.length; c++)
+    remaining += book.chapters[c].sentences.length;
+  const required = Math.min(book.settings.buffer || 5, remaining);
   let count = 0;
-  if (start < 0) return { count: 0, required: 0 };
-  for (const row of all.slice(start)) {
-    if (!book.prepared[row.id]) break;
-    count++;
+  for (
+    let c = chapter, s = sentence;
+    c < book.chapters.length && count < required;
+  ) {
+    if (s >= book.chapters[c].sentences.length) {
+      c++;
+      s = 0;
+    } else if (book.prepared[`${c}:${s}`]) {
+      count++;
+      s++;
+    } else break;
   }
-  return {
-    count,
-    required: Math.min(book.settings.buffer || 5, all.length - start),
-  };
+  return { count, required };
 }
 const UNREADABLE = new Set([
   "silentAudio",
@@ -171,7 +178,7 @@ export class RenderQueue {
           status: "preparing",
           current: row,
           prepared: Object.keys(book.prepared).length,
-          total: rowsOf(book).length,
+          total: sentenceCount(book),
         });
         const { blob, duration, rtf } = await renderRow(
           this.engine,
@@ -191,7 +198,7 @@ export class RenderQueue {
         const latest = this.store.get(id);
         if (!latest || latest.deletedAt) break;
         // Edits and casting changes invalidate just their affected signature.
-        const latestRow = rowsOf(latest).find((r) => r.id === row.id);
+        const latestRow = rowById(latest, row.id);
         if (
           !latestRow ||
           (await signatureFor(latest, latestRow)) !== signature
@@ -210,16 +217,17 @@ export class RenderQueue {
           speed =
             recent.reduce((s, a) => s + (a.rtf || 0), 0) /
             Math.max(1, recent.length);
-        const missing = rowsOf(updated).filter((r) => !updated.prepared[r.id]);
-        const audioEstimate = missing.reduce(
-          (n, r) => n + r.text.split(/\s+/u).length / 2.5,
-          0,
-        );
+        // Remaining audio is estimated from the recent sentences' length,
+        // without walking the whole book after every sentence.
+        const total = sentenceCount(updated),
+          average =
+            recent.reduce((n, a) => n + (a.duration || 0), 0) /
+            Math.max(1, recent.length);
         this.emit({
           prepared: prepared.length,
-          total: rowsOf(updated).length,
+          total,
           rtf: speed,
-          eta: audioEstimate * speed,
+          eta: (total - prepared.length) * average * speed,
           updatedBook: updated,
         });
       }

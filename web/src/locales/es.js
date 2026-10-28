@@ -61,7 +61,6 @@ export default {
     "El navegador no concedió protección. Puedes exportar una copia.",
   reading: "Leyendo archivo",
   structuring: "Detectando secciones",
-  indexing: "Creando el índice de búsqueda",
   ocr: "Reconociendo páginas escaneadas",
   cancel: "Cancelar",
   largeFile: "Libro grande: el análisis puede consumir mucha memoria.",

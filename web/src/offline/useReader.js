@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LibraryStore, rowsOf } from "./library";
+import { LibraryStore, rowAt, rowById } from "./library";
 import { AssetManager } from "./assets";
 import { LocalEngine, VOICES, defaultVoice, modelFor } from "./engines";
 import {
@@ -12,7 +12,6 @@ import {
 import { encodeWav } from "./audio";
 import { AudioPlayer } from "./player";
 import { detectCharacters } from "./knowledge";
-import { buildSearchIndex } from "../browser/search";
 import { analyzeSections } from "../browser/analysis";
 import { voicesFor } from "./voices";
 
@@ -229,6 +228,10 @@ export function useReader() {
     }
     return added;
   }
+  async function load(id) {
+    await refs.current.store.load(id);
+    sync();
+  }
   async function update(id, patch) {
     await refs.current.store.update(id, patch);
     sync();
@@ -240,25 +243,23 @@ export function useReader() {
     if (["voice", "cast"].some((k) => k in patch)) {
       stopPlayback();
       await update(id, { settings: next });
-      // Only the sentences whose voice changed lose their audio.
+      // Only the sentences whose voice changed lose their audio: find them
+      // all first, then remove them in one write.
+      const latest = refs.current.store.get(id),
+        stale = [];
       for (const [row, a] of Object.entries(book.prepared)) {
-        const current = rowsOf(refs.current.store.get(id)).find(
-          (r) => r.id === row,
-        );
-        if (
-          !current ||
-          (await signatureFor(refs.current.store.get(id), current)) !==
-            a.signature
-        ) {
-          await refs.current.store.deleteAudio(a.key);
-          await update(id, (b) => {
-            if (b.prepared[row]?.key !== a.key) return {};
-            const prepared = { ...b.prepared };
-            delete prepared[row];
-            return { prepared };
-          });
-        }
+        const current = rowById(latest, row);
+        if (!current || (await signatureFor(latest, current)) !== a.signature)
+          stale.push([row, a.key]);
       }
+      if (!stale.length) return;
+      await refs.current.store.deleteAudios(stale.map(([, key]) => key));
+      await update(id, (b) => {
+        const prepared = { ...b.prepared };
+        for (const [row, key] of stale)
+          if (prepared[row]?.key === key) delete prepared[row];
+        return { prepared };
+      });
     } else await update(id, { settings: next });
   }
   async function changeLanguage(id, language) {
@@ -266,10 +267,12 @@ export function useReader() {
     refs.current.queue.stop(id);
     stopPlayback();
     const book = refs.current.store.get(id);
-    for (const a of Object.values(book.prepared))
-      await refs.current.store.deleteAudio(a.key);
-    const next = {
-      ...book,
+    await refs.current.store.deleteAudios(
+      Object.values(book.prepared).map((a) => a.key),
+    );
+    // Only the fields that change are written; the text and the source file
+    // stay as they are.
+    const patch = {
       language,
       prepared: {},
       settings: { ...book.settings, cast: {}, voice: defaultVoice(language) },
@@ -279,9 +282,8 @@ export function useReader() {
         review: false,
       },
     };
-    next.searchIndex = buildSearchIndex(next);
-    next.analysis = analyzeSections(next);
-    await update(id, next);
+    patch.analysis = analyzeSections({ ...book, ...patch });
+    await update(id, patch);
   }
   function stopPlayback() {
     refs.current.player.stop();
@@ -426,7 +428,6 @@ export function useReader() {
             ? book.position.sentence + lines.length - 1
             : book.position.sentence,
       },
-      searchIndex: buildSearchIndex({ ...book, chapters }),
       analysis: analyzeSections({ ...book, chapters }),
     });
   }
@@ -434,9 +435,7 @@ export function useReader() {
     refs.current.queue.pause();
     if (refs.current.queue.running) await refs.current.queue.running;
     const book = refs.current.store.get(id),
-      row = rowsOf(book).find(
-        (r) => r.chapter === chapter && r.sentence === sentence,
-      );
+      row = rowAt(book, chapter, sentence);
     const signature = await signatureFor(book, row);
     await loadVoiceFiles(refs.current.assets, modelsFor(book));
     const { blob, duration, rtf } = await renderRow(
@@ -445,7 +444,7 @@ export function useReader() {
       row,
     );
     const latest = refs.current.store.get(id),
-      latestRow = latest && rowsOf(latest).find((r) => r.id === row.id);
+      latestRow = latest && rowById(latest, row.id);
     if (
       !latest ||
       latest.deletedAt ||
@@ -475,6 +474,7 @@ export function useReader() {
     cancelUpload: () => refs.current.cancelParse?.(),
     retryUpload: () =>
       lastFile.current && upload(lastFile.current.files, lastFile.current.keep),
+    load,
     update,
     settings,
     changeLanguage,
