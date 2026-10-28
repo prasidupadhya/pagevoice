@@ -6,7 +6,6 @@ import {
   fixture,
   cachedCDN,
   upload,
-  install,
   books,
 } from "./helpers";
 test("scanned PDF OCR runs locally and after language data is cached offline", async ({
@@ -21,9 +20,6 @@ test("scanned PDF OCR runs locally and after language data is cached offline", a
   await page.goto("/app/");
   await expect(page.locator(".empty-room")).toBeVisible();
   await upload(page, fixture("scanned-reader.pdf"));
-  await expect(page.locator(".error-banner")).toContainText("Download");
-  await install(page, "ocr");
-  await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect
     .poll(
       async () => {

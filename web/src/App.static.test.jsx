@@ -74,17 +74,13 @@ it("starts without a backend, makes no API probe and never presents a connection
     screen.queryByText(/could not reach|PageVoice API|PocketBase/i),
   ).toBeNull();
 });
-it("lists only document tools in Document tools, with no voice downloads", async () => {
+it("has no downloads menu: voices and OCR are fetched only when needed", async () => {
   render(<App />);
   await screen.findByRole("heading", {
     name: "Add a PDF or EPUB to start reading.",
   });
-  await userEvent.click(
-    screen.getByRole("button", { name: "Document tools", exact: true }),
-  );
-  await screen.findByRole("heading", { name: "Document tools" });
-  expect(screen.getByText(/Multilingual meaning search/)).toBeTruthy();
-  expect(screen.queryByText(/Kokoro|Piper|Supertonic/)).toBeNull();
+  expect(screen.queryByRole("button", { name: /Document tools/ })).toBeNull();
+  expect(screen.queryByText(/Download/)).toBeNull();
 });
 it("session-only import disappears in a fresh app instance, with keyboard-accessible confirmation", async () => {
   const first = render(<App />);

@@ -253,10 +253,6 @@
               Detected sections and front matter you can review and correct
             </li>
             <li>
-              Optional meaning search and character-name detection, run on your
-              device
-            </li>
-            <li>
               Results are passages from the book. PageVoice does not generate
               summaries or answers.
             </li>
@@ -318,9 +314,9 @@
             <div>
               <dt>What uses the network</dt>
               <dd>
-                Loading the app, fetching the voice the first time you listen,
-                and fetching optional document tools (OCR, search models) when
-                you choose them, from Hugging Face and jsDelivr. These are fixed
+                Loading the app, fetching the voice from Hugging Face the first
+                time you listen, and fetching text recognition data from
+                jsDelivr the first time you import a scanned PDF. These are fixed
                 files checked against pinned hashes; the requests contain no
                 document text. The app blocks connections to any other server.
                 No analytics.
@@ -367,8 +363,8 @@
             <tr>
               <th scope="row">Scanned PDF</th>
               <td>
-                Readable after an optional 25&nbsp;MB English + Spanish OCR
-                download.
+                Readable. English + Spanish text recognition (25&nbsp;MB) is
+                fetched automatically the first time.
               </td>
             </tr>
           </tbody>

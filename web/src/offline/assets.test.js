@@ -21,7 +21,7 @@ function memoryCache() {
   return { entries, cache, open: async () => cache };
 }
 it("maps mutable library requests to pinned static artifacts", () => {
-  const p = models.embeddings;
+  const p = models.kokoro;
   expect(
     canonicalAsset(`https://huggingface.co/${p.id}/resolve/main/config.json`),
   ).toBe(`https://huggingface.co/${p.id}/resolve/${p.revision}/config.json`);
@@ -84,7 +84,7 @@ it("inference never fetches uncached remote data or POSTs book text", async () =
     await expect(
       fetch("https://somewhere.example", { method: "POST", body: "book text" }),
     ).rejects.toThrow("blockedRequest");
-    const r = await fetch(models.embeddings.assets[0].url);
+    const r = await fetch(models.kokoro.assets[0].url);
     expect(r.status).toBe(404);
     expect(fetcher).not.toHaveBeenCalled();
     expect(await cache.open(ASSET_CACHE)).toBeTruthy();
@@ -168,39 +168,6 @@ it("pause retains a partial file and resumes by HTTP Range with hash verificatio
     unsubscribe();
   } finally {
     delete MODEL_GROUPS.test;
-  }
-});
-it("removing a CPU model preserves files needed by an installed GPU model", async () => {
-  vi.stubGlobal("crypto", webcrypto);
-  const cache = memoryCache();
-  const asset = async (name) => ({
-    url: `https://static.example/${name}`,
-    size: name.length,
-    sha256: Buffer.from(
-      await webcrypto.subtle.digest("SHA-256", new TextEncoder().encode(name)),
-    ).toString("hex"),
-  });
-  const shared = await asset("shared"),
-    cpu = await asset("cpu"),
-    gpu = await asset("gpu");
-  MODEL_GROUPS.cpu = { files: [shared, cpu] };
-  MODEL_GROUPS.gpu = { files: [shared, gpu] };
-  try {
-    const manager = new AssetManager({
-      fetcher: async (url) => new Response(url.split("/").at(-1)),
-      cacheStorage: cache,
-      storage: {},
-    });
-    await manager.install("cpu");
-    await manager.install("gpu");
-    await manager.remove("cpu");
-    expect((await manager.status("gpu")).ready).toBe(true);
-    expect((await manager.status("cpu")).ready).toBe(false);
-    await manager.remove("gpu");
-    expect(await cache.cache.match(shared.url)).toBeUndefined();
-  } finally {
-    delete MODEL_GROUPS.cpu;
-    delete MODEL_GROUPS.gpu;
   }
 });
 it("downloads without OPFS when the browser blocks it with a SecurityError", async () => {

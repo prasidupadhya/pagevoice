@@ -49,8 +49,8 @@ PageVoice tries to do both in one place, without sending the document anywhere.
 
 ## What works today
 
-- Import EPUB files and PDFs with a text layer. Scanned PDFs need an optional one-time
-  OCR download.
+- Import EPUB files and PDFs, including scanned PDFs: text recognition runs in the
+  browser and is fetched automatically the first time it is needed.
 - Read with contents, bookmarks, search within the book, themes, text size and line
   width, and focus mode.
 - Listen with voices that run on your device: Kokoro for English and Piper for Spanish.
@@ -71,7 +71,7 @@ PageVoice does most of the work on your device:
 - The website has no server that receives your documents, and no accounts. No API key
   or external speech service is involved.
 - The only network requests are fixed files: the voice (fetched the first time you
-  listen) and the optional document tools (OCR and search models). Each file is checked
+  listen) and the text recognition data (the first time you import a scanned PDF). Each file is checked
   against a pinned hash, and the page's content security policy blocks connections to
   other servers.
 
@@ -172,8 +172,6 @@ vercel.json               Static hosting configuration for the website
   "Listen from here"
 - Detected sections (chapters, front and back matter) with confidence, reasons and
   manual correction
-- Optional local meaning search (multilingual MiniLM embeddings) and character-name
-  detection (multilingual NER), each an opt-in download
 - No language model generates summaries or answers; every result is a passage from
   the document
 
@@ -193,7 +191,7 @@ vercel.json               Static hosting configuration for the website
 | --- | --- |
 | EPUB 2 / 3 | Chapters, metadata and cover. DRM-protected or encrypted books are rejected. |
 | PDF with a text layer | Sections from bookmarks and headings; repeated headers, footers and page numbers are removed and listed as review notes. |
-| Scanned PDF | Needs the optional English + Spanish OCR download (Tesseract). Multi-column or damaged scans may not be reconstructed well. |
+| Scanned PDF | Read with Tesseract OCR (English + Spanish), fetched automatically the first time. Multi-column or damaged scans may not be reconstructed well. |
 
 Files up to 100 MB. Language (English or Spanish) is detected automatically and can be
 corrected in **Voice & cast**. Other languages are not supported for narration.
@@ -222,8 +220,7 @@ web/
   Piper (ONNX Runtime Web with the eSpeak NG phonemizer) on WebAssembly, one sentence at
   a time. Each sentence is stored as a WAV file.
 - **Web Workers** do the heavy local work: `reader.worker` (parsing, OCR, analysis,
-  search index), `engine.worker` (narration), `knowledge.worker` (Transformers.js
-  embeddings and NER) and `search.worker`.
+  search index), `engine.worker` (narration) and `search.worker`.
 - **Storage.** IndexedDB holds documents, analysis, preferences and audio bytes or
   references; audio is stored in the origin private file system (OPFS) when available.
   Voice and document-tool model files are cached after hash verification.
@@ -249,8 +246,8 @@ hosts are for the pinned model files.
 ## Voices, tools and sizes
 
 The voice for a book's language is fetched automatically the first time you listen, with
-its progress shown in the player. The optional document tools are fetched only when you
-choose them in **Document tools**. Sizes are decimal MB for a cold cache.
+its progress shown in the player. Text recognition is fetched the first time you import a
+scanned PDF. There is no separate download step. Sizes are decimal MB for a cold cache.
 
 | Model | First fetch | License / limitation |
 | --- | ---: | --- |
@@ -258,8 +255,6 @@ choose them in **Document tools**. Sizes are decimal MB for a cold cache.
 | Piper Spanish voice (Dave) | 96.3 MB | MIT weights, CC0 data; GPL-3.0 phonemizer |
 | Piper Sharvard voices | +76.7 MB | MIT weights, CC-BY-3.0 data; fetched only if chosen |
 | English + Spanish OCR | 25.4 MB | Apache-2.0. Needed only for scanned PDFs |
-| Multilingual meaning search | 157.0 MB | Apache-2.0; inferred similarity, not evidence of an answer |
-| Multilingual NER | 203.1 MB | AFL-3.0; news-domain model, fiction accuracy unmeasured |
 
 Full credits and licenses are in **Privacy & credits** in the app,
 [web/LICENSES](web/LICENSES) and `/licenses/credits.html`. The original PageVoice code
@@ -320,7 +315,7 @@ npm --prefix web run format:check
 npm --prefix web run build
 # Browser tests. The first command caches pinned model files (voices included) and
 # checks their hashes; files over 20 MB are fetched from Hugging Face during the test.
-node web/scripts/cache-e2e-models.mjs kokoro embeddings ner ocr
+node web/scripts/cache-e2e-models.mjs kokoro ocr
 npm --prefix web run test:e2e
 ```
 

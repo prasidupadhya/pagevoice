@@ -88,7 +88,6 @@ export function useReader() {
       if (!persisted) {
         store.dispose();
         queue.dispose();
-        refs.current.queryWorker?.terminate();
         URL.revokeObjectURL(previewURL.current);
       }
     };
@@ -98,8 +97,6 @@ export function useReader() {
       refs.current.parser?.terminate();
       queue.dispose();
       player.dispose();
-      refs.current.analysisWorker?.terminate();
-      refs.current.queryWorker?.terminate();
       refs.current.previewAudio?.pause();
       store.dispose();
       URL.revokeObjectURL(previewURL.current);
@@ -116,6 +113,35 @@ export function useReader() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [books]);
+  // Reads one file in a worker. Rejects with the reader's error code.
+  function parse(file, ocr) {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(
+        new URL("../browser/reader.worker.js", import.meta.url),
+        { type: "module" },
+      );
+      refs.current.parser = worker;
+      refs.current.rejectParse = reject;
+      worker.onmessage = ({ data }) => {
+        if (data.type === "progress")
+          setProgress((p) => ({ ...p, ...data.value }));
+        else if (["complete", "error"].includes(data.type)) {
+          worker.terminate();
+          if (data.type === "complete") resolve(data.book);
+          else {
+            if (data.message)
+              console.warn("Book processing failed:", data.message);
+            reject(Error(data.code || "processingError"));
+          }
+        }
+      };
+      worker.onerror = () => {
+        worker.terminate();
+        reject(Error("processingError"));
+      };
+      worker.postMessage({ file, language: "auto", options: { ocr } });
+    });
+  }
   async function upload(files, keep) {
     showError(null);
     let cancelled = false;
@@ -140,33 +166,34 @@ export function useReader() {
         });
         // One unreadable file must not stop the rest of a multi-file import.
         try {
-          const ocr = (await refs.current.assets.status("ocr")).ready;
-          const parsed = await new Promise((resolve, reject) => {
-            const worker = new Worker(
-              new URL("../browser/reader.worker.js", import.meta.url),
-              { type: "module" },
+          let parsed;
+          try {
+            parsed = await parse(
+              file,
+              (await refs.current.assets.status("ocr")).ready,
             );
-            refs.current.parser = worker;
-            refs.current.rejectParse = reject;
-            worker.onmessage = ({ data }) => {
-              if (data.type === "progress")
-                setProgress((p) => ({ ...p, ...data.value }));
-              else if (["complete", "error"].includes(data.type)) {
-                worker.terminate();
-                if (data.type === "complete") resolve(data.book);
-                else {
-                  if (data.message)
-                    console.warn("Book processing failed:", data.message);
-                  reject(Error(data.code || "processingError"));
-                }
-              }
-            };
-            worker.onerror = () => {
-              worker.terminate();
-              reject(Error("processingError"));
-            };
-            worker.postMessage({ file, language: "auto", options: { ocr } });
-          });
+          } catch (e) {
+            if (e.message !== "ocrRequired" || cancelled) throw e;
+            // Scanned pages need text recognition. Its files are fetched
+            // once, the first time a scanned PDF is imported.
+            setProgress((p) => ({ ...p, stage: "ocrLoading", fraction: 0 }));
+            try {
+              await refs.current.assets.ensure("ocr", ({ loaded, total }) =>
+                setProgress((p) => ({
+                  ...p,
+                  current: 0,
+                  total: 1,
+                  fraction: loaded / Math.max(1, total),
+                })),
+              );
+            } catch (error) {
+              if (error.name === "QuotaExceededError") throw error;
+              throw Error("ocrLoadFailed", { cause: error });
+            }
+            if (cancelled) break;
+            setProgress((p) => ({ ...p, stage: "reading", fraction: 0 }));
+            parsed = await parse(file, true);
+          }
           if (cancelled) break;
           const book = {
             ...parsed,
@@ -245,8 +272,6 @@ export function useReader() {
       ...book,
       language,
       prepared: {},
-      semantics: null,
-      entities: null,
       settings: { ...book.settings, cast: {}, voice: defaultVoice(language) },
       languageDetection: {
         ...book.languageDetection,
@@ -323,10 +348,6 @@ export function useReader() {
     refs.current.queue.stop(id);
     if (playback.bookId === id) stopPlayback();
     refs.current.previewAudio?.pause();
-    if (refs.current.analysisBook === id) {
-      refs.current.analysisWorker?.terminate();
-      refs.current.analysisWorker = null;
-    }
     await refs.current.store.softDelete(id);
     sync();
     setTimeout(
@@ -405,8 +426,6 @@ export function useReader() {
             ? book.position.sentence + lines.length - 1
             : book.position.sentence,
       },
-      semantics: null,
-      entities: null,
       searchIndex: buildSearchIndex({ ...book, chapters }),
       analysis: analyzeSections({ ...book, chapters }),
     });
@@ -440,84 +459,6 @@ export function useReader() {
     });
     sync();
   }
-  async function analyze(id, kind, onProgress = () => {}) {
-    if (!(await refs.current.assets.status(kind)).ready)
-      throw Error("modelNotCached");
-    if (refs.current.analysisWorker) throw Error("analysisBusy");
-    const book = refs.current.store.get(id),
-      version = JSON.stringify(book.chapters.map((c) => c.sentences));
-    const result = await new Promise((resolve, reject) => {
-      const worker = new Worker(
-        new URL("./knowledge.worker.js", import.meta.url),
-        { type: "module" },
-      );
-      refs.current.analysisWorker = worker;
-      refs.current.analysisBook = id;
-      worker.onmessage = ({ data }) => {
-        if (data.progress) onProgress(data.progress);
-        else {
-          worker.terminate();
-          refs.current.analysisWorker = null;
-          if (data.error) reject(Error(data.error));
-          else resolve(data.result);
-        }
-      };
-      worker.onerror = () => {
-        worker.terminate();
-        refs.current.analysisWorker = null;
-        reject(Error("engineFailed"));
-      };
-      worker.postMessage({ id: 1, kind, book });
-      refs.current.cancelAnalysis = () => {
-        worker.terminate();
-        refs.current.analysisWorker = null;
-        reject(Error("cancelled"));
-      };
-    });
-    const latest = refs.current.store.get(id);
-    if (
-      !latest ||
-      latest.deletedAt ||
-      JSON.stringify(latest.chapters.map((c) => c.sentences)) !== version
-    )
-      throw Error("analysisChanged");
-    if (kind === "embeddings") await update(id, { semantics: result });
-    else {
-      const characters = detectCharacters(latest, result);
-      Object.assign(characters.speakers, latest.manualSpeakers || {});
-      await update(id, { entities: result, characters });
-    }
-  }
-  async function semanticQuery(query) {
-    refs.current.queryPending ||= new Map();
-    refs.current.querySequence ||= 0;
-    if (!refs.current.queryWorker) {
-      const worker = new Worker(
-        new URL("./knowledge.worker.js", import.meta.url),
-        { type: "module" },
-      );
-      refs.current.queryWorker = worker;
-      worker.onmessage = ({ data }) => {
-        const pending = refs.current.queryPending.get(data.id);
-        if (!pending) return;
-        refs.current.queryPending.delete(data.id);
-        if (data.error) pending.reject(Error(data.error));
-        else pending.resolve(data.result);
-      };
-      worker.onerror = () => {
-        for (const p of refs.current.queryPending.values())
-          p.reject(Error("engineFailed"));
-        refs.current.queryPending.clear();
-        worker.terminate();
-        refs.current.queryWorker = null;
-      };
-    }
-    return new Promise((resolve, reject) => {
-      const id = ++refs.current.querySequence;
-      refs.current.queryPending.set(id, { resolve, reject });
-      refs.current.queryWorker.postMessage({ id, kind: "embeddings", query });
-    });
-  }
   return {
     books,
     loading,
@@ -544,8 +485,6 @@ export function useReader() {
     undo,
     edit,
     regenerate,
-    analyze,
-    semanticQuery,
     stopPlayback,
   };
 }

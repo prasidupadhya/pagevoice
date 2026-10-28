@@ -10,7 +10,7 @@ import {
 } from "./engines";
 import { encodeWav, speechParts } from "./audio";
 import { RenderQueue, signatureFor, modelsFor, readyRun } from "./render";
-import { MODEL_GROUPS, TOOL_GROUPS } from "./assets";
+import { MODEL_GROUPS } from "./assets";
 import { voicesFor } from "./voices";
 
 beforeEach(() => {
@@ -43,8 +43,12 @@ it("offers on-device voices for both book languages, each with pinned files", ()
     expect(MODEL_GROUPS[modelFor(v.id)].voice).toBe(true);
     expect(MODEL_GROUPS[modelFor(v.id)].language).toBe(v.locale.split("-")[0]);
   }
-  // Voices are fetched when needed, never listed with the optional tools.
-  expect(TOOL_GROUPS).toEqual(["embeddings", "ner", "ocr"]);
+  expect(Object.keys(MODEL_GROUPS)).toEqual([
+    "kokoro",
+    "piper",
+    "sharvard",
+    "ocr",
+  ]);
 });
 
 it("encodes 16-bit mono WAV that browsers can play", async () => {

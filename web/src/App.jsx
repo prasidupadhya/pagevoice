@@ -24,7 +24,6 @@ import Modal from "./ui/Modal";
 import DisplayMenu from "./ui/DisplayMenu";
 import { TEXT_SIZES, THEMES, WIDTHS } from "./ui/prefs";
 const Reader = lazy(() => import("./ui/Reader"));
-const ModelDialog = lazy(() => import("./ui/ModelDialog"));
 const THEME_COLORS = { dark: "#151f25", light: "#faf8f3", sepia: "#eee5d4" };
 const DEFAULT_PREFS = {
   theme: null,
@@ -46,7 +45,6 @@ export default function App() {
   const [prefs, setPrefs] = useState(DEFAULT_PREFS),
     [selected, setSelected] = useState(null),
     [focus, setFocus] = useState(false),
-    [tools, setTools] = useState(false),
     [credits, setCredits] = useState(false),
     [deleteBook, setDeleteBook] = useState(null),
     [typed, setTyped] = useState(""),
@@ -114,7 +112,7 @@ export default function App() {
         .estimate()
         .then(setStorage)
         .catch(() => {});
-  }, [api.books, api.loading, tools]);
+  }, [api.books, api.loading]);
   useEffect(() => {
     const status = () => setOnline(navigator.onLine),
       install = (e) => {
@@ -234,15 +232,6 @@ export default function App() {
               {t("offline")}
             </span>
           )}
-          <button
-            className="ghost header-button"
-            onClick={() => setTools(true)}
-            disabled={api.loading}
-            aria-label={t("models")}
-          >
-            <Download size={18} aria-hidden="true" />
-            <span className="header-label">{t("models")}</span>
-          </button>
           <DisplayMenu prefs={prefs} setPref={setPref} t={t} />
           <button
             className="ghost header-button"
@@ -304,19 +293,7 @@ export default function App() {
             )}
           </div>
           <div className="button-row">
-            {["modelNotCached", "ocrRequired", "scannedPdf"].includes(
-              api.error,
-            ) && (
-              <button className="small" onClick={() => setTools(true)}>
-                {t("models")}
-              </button>
-            )}
-            {[
-              "ocrRequired",
-              "scannedPdf",
-              "processingError",
-              "downloadFailed",
-            ].includes(api.error) && (
+            {["ocrLoadFailed", "processingError"].includes(api.error) && (
               <button className="small" onClick={api.retryUpload}>
                 {t("retry")}
               </button>
@@ -387,7 +364,6 @@ export default function App() {
               setFocus={setFocus}
               onBack={() => setSelected(null)}
               onDelete={askDelete}
-              onModels={() => setTools(true)}
               toast={notify}
             />
           </Suspense>
@@ -581,17 +557,6 @@ export default function App() {
             <p className="notice">{t("storageUnavailable")}</p>
           )}
         </Modal>
-      )}
-      {tools && (
-        <Suspense fallback={null}>
-          <ModelDialog
-            t={t}
-            assets={api.refs.current.assets}
-            online={online}
-            onClose={() => setTools(false)}
-            onError={api.setError}
-          />
-        </Suspense>
       )}
       {credits && (
         <Modal

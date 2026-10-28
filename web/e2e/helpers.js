@@ -50,23 +50,6 @@ async function upload(page, path) {
     timeout: 90000,
   });
 }
-async function install(page, id) {
-  await page
-    .getByRole("button", { name: "Document tools", exact: true })
-    .first()
-    .click();
-  const row = page.locator(`[data-model="${id}"]`);
-  if (!(await row.getByText("Cached", { exact: true }).count())) {
-    await row.getByRole("button", { name: "Download", exact: true }).click();
-    await expect(row.getByText("Cached", { exact: true })).toBeVisible({
-      timeout: 180000,
-    });
-  }
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Close", exact: true })
-    .click();
-}
 // A page loaded before its service worker activated is not controlled by it.
 // Reloading once under the worker is what a real user does before going offline.
 async function controlledByServiceWorker(page) {
@@ -128,7 +111,6 @@ export {
   fixture,
   cachedCDN,
   upload,
-  install,
   books,
   stats,
   waitPrepared,

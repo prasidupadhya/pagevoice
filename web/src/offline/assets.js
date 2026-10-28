@@ -6,8 +6,8 @@ export const ASSET_CACHE = "pagevoice-models-v1";
 const transformersRuntime = runtimes.transformers.filter((a) =>
   a.url.includes(".jsep."),
 );
-// Voices are fetched automatically the first time a book in their language is
-// narrated. Document tools are fetched only when the reader chooses them.
+// Nothing is bundled with the site's pages. A voice is fetched the first time a
+// book in its language is narrated, and OCR the first time a scanned PDF is read.
 export const MODEL_GROUPS = {
   kokoro: {
     voice: true,
@@ -27,22 +27,11 @@ export const MODEL_GROUPS = {
     license: "MIT weights · CC-BY-3.0 dataset · GPL-3.0 phonemizer",
     files: [...models.sharvard.assets, ...runtimes.piper, ...runtimes.ort],
   },
-  embeddings: {
-    license: "Apache-2.0",
-    files: [...models.embeddings.assets, ...transformersRuntime],
-  },
-  ner: {
-    license: "AFL-3.0",
-    files: [...models.ner.assets, ...transformersRuntime],
-  },
   ocr: {
     license: "Apache-2.0",
     files: [...models.ocr.assets, ...runtimes.ocr],
   },
 };
-export const TOOL_GROUPS = Object.keys(MODEL_GROUPS).filter(
-  (id) => !MODEL_GROUPS[id].voice,
-);
 export const groupBytes = (id) =>
   MODEL_GROUPS[id].files.reduce((n, a) => n + a.size, 0);
 const absolute = (value) =>
@@ -307,22 +296,6 @@ export class AssetManager {
     } finally {
       this.running.delete(id);
       this.publish(id, null);
-    }
-  }
-  async remove(id) {
-    this.pause(id);
-    const cache = await this.caches.open(ASSET_CACHE);
-    const retained = new Set();
-    for (const [other, group] of Object.entries(MODEL_GROUPS))
-      if (other !== id && (await this.status(other)).ready)
-        for (const asset of group.files) retained.add(asset.url);
-    // Shared runtimes remain cached so removing one tool cannot break another.
-    for (const a of MODEL_GROUPS[id].files.filter(
-      (a) => !a.url.startsWith("/runtime/"),
-    )) {
-      if (retained.has(a.url)) continue;
-      await cache.delete(absolute(a.url));
-      if (a.alias) await cache.delete(absolute(a.alias));
     }
   }
 }

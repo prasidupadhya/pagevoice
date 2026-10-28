@@ -19,7 +19,6 @@ export default {
   temporaryWarning: "Hay un libro de sesión abierto. Al actualizar se perderá.",
   storageUnavailable:
     "No hay almacenamiento persistente. Los libros solo estarán en esta pestaña.",
-  models: "Herramientas de documento",
   credits: "Créditos y licencias",
   theme: "Tema",
   light: "Claro",
@@ -76,9 +75,9 @@ export default {
   encryptedBook: "No se pueden abrir libros protegidos o cifrados.",
   noReadableText: "No se encontró texto legible.",
   scannedPdf:
-    "Este PDF no tiene texto. Descarga OCR para leer páginas escaneadas.",
+    "Este PDF no tiene texto legible, ni siquiera tras el reconocimiento de texto.",
   ocrRequired:
-    "El PDF contiene páginas escaneadas. Descarga OCR en inglés y español y vuelve a intentarlo.",
+    "Este PDF incluye páginas escaneadas que necesitan reconocimiento de texto.",
   pdfUnavailable:
     "No se pudo cargar el lector PDF. Actualiza con conexión para guardar la aplicación.",
   pdfPageLimit: "El PDF supera el límite de 2500 páginas.",
@@ -86,10 +85,12 @@ export default {
   archiveLimit: "El EPUB supera los límites de seguridad del archivo.",
   invalidBackup: "La copia de PageVoice no es válida.",
   backupLimit: "Las copias están limitadas a 512 MB.",
-  downloadFailed: "Falló la descarga. Continúa cuando haya conexión.",
-  assetIntegrity: "El archivo no superó la verificación. Descárgalo de nuevo.",
+  downloadFailed:
+    "No se pudo obtener un archivo. Revisa tu conexión e inténtalo de nuevo.",
+  assetIntegrity:
+    "Un archivo obtenido no superó la comprobación de integridad. Inténtalo de nuevo.",
   modelNotCached:
-    "Descarga primero esta herramienta en Herramientas de documento.",
+    "Un archivo necesario aún no está disponible. Conéctate a internet e inténtalo de nuevo.",
   engineFailed:
     "La voz no pudo ejecutarse en este dispositivo. Inténtalo de nuevo o recarga PageVoice.",
   silentAudio:
@@ -98,9 +99,7 @@ export default {
     "La frase es demasiado larga para narrarla. Divídela en el editor.",
   invalidAudio: "No se pudo reproducir el audio. Regenera esta frase.",
   quotaExceeded:
-    "El almacenamiento está lleno. Elimina un libro o modelo, o usa solo la sesión.",
-  analysisLimit:
-    "El libro supera el límite de 12000 pasajes del análisis opcional.",
+    "El almacenamiento del navegador está lleno. Elimina un libro o usa el modo solo de sesión.",
   back: "Volver a la biblioteca",
   chapters: "Contenido",
   chapter: "Sección",
@@ -197,7 +196,7 @@ export default {
   cast: "Reparto de personajes",
   narrator: "Narrador",
   noCharacters:
-    "No hay diálogo atribuido con confianza. Añade nombres o usa el detector local opcional.",
+    "Aún no hay diálogos atribuidos con seguridad. Añade nombres de personajes abajo para asignarles voces.",
   characterName: "Nombre del personaje",
   addCharacter: "Añadir personaje",
   speaker: "Personaje de esta frase",
@@ -208,61 +207,36 @@ export default {
   query: "Palabras o un pasaje",
   searchPlaceholder: "Busca una frase, un lugar, un personaje…",
   allChapters: "Todas las secciones",
-  lexical: "Palabras clave",
-  hybrid: "Palabras + significado local",
   searchNotice:
-    "La búsqueda léxica es local, sin respuestas generadas. Los vectores opcionales comparan significado; cada resultado cita el libro.",
+    "La búsqueda por palabras se ejecuta en este dispositivo. Cada resultado es un pasaje del libro, con su sección y frase.",
   noEvidence: "No se encontró un pasaje de apoyo.",
   exact: "Términos exactos",
   partial: "Términos parciales",
-  semantic: "Coincidencia semántica",
   showSource: "Mostrar en el texto",
   copyCitation: "Copiar cita",
   copied: "Cita copiada",
   matched: "Términos coincidentes",
   searchResults: "Resultados",
-  semanticIndex: "Crear índice semántico",
-  nerIndex: "Buscar nombres de personajes",
-  cancelAnalysis: "Cancelar análisis",
-  optionalAnalysis: "Análisis local opcional",
-  analysisNotice:
-    "Los modelos se descargan solo si los eliges. Infieren semejanzas y nombres; nunca generan afirmaciones ni resúmenes.",
-  semanticReady: "Índice semántico guardado",
-  nerReady: "Detección de nombres terminada",
-  download: "Descargar",
-  resumeDownload: "Continuar descarga",
-  pauseDownload: "Pausar descarga",
-  cached: "Guardado",
-  notCached: "Sin descargar",
-  downloadIntro:
-    "Las herramientas de documento son descargas únicas. Solo estos archivos estáticos viajan por la red; tus libros se quedan aquí.",
-  downloadPaused:
-    "Descarga pausada. Se conservan archivos completos. Los parciales continúan si el servidor admite rangos.",
-  removeModel: "Eliminar modelo",
-  size: "Tamaño de descarga",
-  ocrLabel: "OCR · inglés y español",
-  embeddingLabel: "Búsqueda semántica multilingüe",
-  nerLabel: "Nombres multilingües",
   removeTitle: "¿Eliminar «{title}»?",
   removeBody:
-    "Se elimina de este navegador el archivo original, análisis, posición, portada y {n} frases de audio, liberando unos {size}. Otros libros y modelos se conservan.",
+    "Esto elimina de este navegador el archivo original, el análisis, la posición de lectura, la portada y {n} frases de audio preparadas, y libera unos {size}. Los demás libros y las voces se conservan.",
   typeTitle: "Hay audio generado. Escribe el título para confirmar.",
   removeConfirm: "Eliminar de este navegador",
   undo: "Deshacer",
   removed: "Libro eliminado · 8 segundos para deshacer",
   clearTitle: "¿Vaciar tu estantería?",
   clearBody:
-    "Elimina todos los libros, originales, análisis y audio de este navegador. Los modelos se conservan. No se puede deshacer.",
+    "Elimina de este navegador todos los libros, archivos originales, análisis y audio preparado. Las voces se conservan. Esta acción no se puede deshacer.",
   close: "Cerrar",
   backupDone: "Copia de la biblioteca descargada",
   imported: "Copia importada",
   creditsTitle: "Privacidad y créditos",
   creditsIntro:
-    "La lectura, la búsqueda, el procesamiento de documentos y la narración se ejecutan en este navegador. Las voces y las herramientas de documento son archivos fijos de CDN públicas que se obtienen una sola vez.",
+    "La lectura, la búsqueda, el procesamiento de documentos y la narración se ejecutan en este navegador. Las voces y el reconocimiento de texto son archivos fijos de CDN públicas que se obtienen una vez, cuando se necesitan.",
   licenses: "Licencias y avisos de código fuente",
   modelLicense: "Licencia de modelo / voz",
   creditsNames:
-    "Voces: Kokoro-82M, Apache-2.0 (inglés); Piper con las voces davefx y sharvard, MIT, y el fonemizador eSpeak NG, GPL-3.0 (español). OCR: Tesseract, Apache-2.0. Modelos de búsqueda: Multilingual MiniLM, Apache-2.0. Detección de nombres: Davlan multilingual NER, AFL-3.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
+    "Voces: Kokoro-82M, Apache-2.0 (inglés); Piper con las voces davefx y sharvard, MIT, y el fonemizador eSpeak NG, GPL-3.0 (español). OCR: Tesseract, Apache-2.0. ONNX Runtime y Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces y Geist: SIL OFL-1.1.",
   limits: "Límites reales",
   limitsBody:
     "La velocidad de la narración depende de tu dispositivo; los dispositivos lentos necesitan un búfer mayor. La primera escucha obtiene la voz (unos 120 MB en inglés y 100 MB en español). El OCR y la detección de diálogos pueden equivocarse. Las pestañas en segundo plano pueden dejar de preparar. El almacenamiento del navegador puede borrarse.",
@@ -270,7 +244,6 @@ export default {
   progressLabel: "Progreso de preparación",
   bookProgress: "{percent}% leído",
   timeRemaining: "Tiempo restante",
-  downloadedModel: "Modelo descargado",
   confirm: "Confirmar",
   bookmarkSaved: "Marcador guardado",
   bookmarkRemoved: "Marcador eliminado",
@@ -278,7 +251,6 @@ export default {
   sentenceSaved: "Frase guardada; audio afectado eliminado",
   sentenceChanged:
     "La frase o su voz cambiaron durante la preparación. Regenera la versión actual.",
-  modelRemoved: "Modelo eliminado",
   help: "Ayuda",
   skipToContent: "Saltar al contenido",
   added: "Se añadió «{title}».",
@@ -302,7 +274,7 @@ export default {
     "Los archivos importados, las posiciones de lectura, los marcadores y el audio generado se guardan en el almacenamiento de este navegador (IndexedDB y el sistema de archivos privado del origen), en este dispositivo. PageVoice no tiene cuentas ni un servidor que reciba tus documentos. Eliminar un libro o borrar los datos del sitio lo borra; exporta una copia de la biblioteca para conservarla.",
   privacyNetworkTitle: "Qué usa la red",
   privacyNetwork:
-    "La narración se genera en este dispositivo: no se envía ningún texto de tus libros. La primera vez que escuchas, los archivos de la voz se obtienen de Hugging Face; las herramientas de documento (OCR, modelos de búsqueda) solo se obtienen cuando las eliges, desde Hugging Face y jsDelivr. Son archivos fijos verificados con hashes, y las solicitudes no contienen texto de tus documentos. La política de seguridad de contenido bloquea conexiones con otros servidores. PageVoice no incluye analítica ni seguimiento.",
+    "La narración y el reconocimiento de texto se ejecutan en este dispositivo: no se envía ningún texto de tus libros. La primera vez que escuchas, los archivos de la voz se obtienen de Hugging Face; la primera vez que importas un PDF escaneado, los datos de reconocimiento de texto se obtienen de jsDelivr. Son archivos fijos verificados con hashes, y las solicitudes no contienen texto de tus documentos. La política de seguridad de contenido bloquea conexiones con otros servidores. PageVoice no incluye analítica ni seguimiento.",
   sourceCode: "Código fuente en GitHub",
   notStarted: "Sin empezar",
   step1: "Añade un documento",
@@ -336,7 +308,6 @@ export default {
   closeFind: "Cerrar búsqueda",
   focusMode: "Modo concentración",
   exitFocus: "Salir del modo concentración",
-  searchMode: "Tipo de búsqueda",
   searching: "Buscando…",
   results: "{n} pasajes",
   resultOne: "1 pasaje",
@@ -372,14 +343,12 @@ export default {
   widthNarrow: "Estrecho",
   widthMedium: "Medio",
   widthWide: "Ancho",
-  offlineDownloads:
-    "Estás sin conexión. Las descargas necesitan conexión; las herramientas ya descargadas siguen funcionando.",
   savedForSession:
     "Añadido solo para esta sesión: este navegador no pudo guardar el archivo de forma permanente (ocurre en algunos modos de navegación privada). Desaparecerá al cerrar la pestaña.",
   importingQueue: "{index} de {total}",
   emptyKicker: "hola, lector",
   cacheTooLarge:
-    "Este navegador no pudo guardar un archivo tan grande. Prueba Chromium o Firefox, o una voz más pequeña.",
+    "Este navegador no pudo guardar un archivo tan grande. Prueba Chromium o Firefox.",
   contact: "Contacto:",
   voiceHelp:
     "Las voces funcionan en este dispositivo: Kokoro lee inglés y Piper lee español. La voz se obtiene una vez, la primera vez que escuchas, y después funciona sin conexión.",
@@ -403,9 +372,6 @@ export default {
   mixedSampleRates:
     "Esta frase mezcla voces que no se pueden unir. Usa solo voces del idioma del libro.",
   noVoices: "Ninguna voz lee este idioma.",
-  analysisBusy:
-    "Ya hay un análisis en curso. Espera a que termine e inténtalo de nuevo.",
-  analysisChanged: "El libro cambió durante el análisis. Vuelve a ejecutarlo.",
   storageError:
     "El navegador no pudo guardar este cambio. Inténtalo de nuevo o libera espacio.",
   zipLimit: "El EPUB supera los límites de seguridad del archivo.",
@@ -413,4 +379,7 @@ export default {
   encryptedOrInvalid:
     "Este archivo está protegido, cifrado o dañado, y no se puede abrir.",
   unsupportedLanguage: "La narración admite libros en inglés y en español.",
+  ocrLoading: "Cargando el reconocimiento de texto (solo la primera vez)",
+  ocrLoadFailed:
+    "No se pudo obtener el reconocimiento de texto para páginas escaneadas. Revisa tu conexión e inténtalo de nuevo; solo hace falta una vez.",
 };

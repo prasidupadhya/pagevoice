@@ -17,7 +17,6 @@ export default {
   temporaryWarning: "A session-only book is open. Refreshing will remove it.",
   storageUnavailable:
     "Persistent storage is unavailable. Books will remain in this tab only.",
-  models: "Document tools",
   credits: "Credits & licenses",
   theme: "Theme",
   light: "Light",
@@ -73,10 +72,8 @@ export default {
   invalidBook: "This file is damaged or is not a valid book.",
   encryptedBook: "Protected or encrypted books cannot be opened.",
   noReadableText: "No readable text was found.",
-  scannedPdf:
-    "This PDF has no readable text layer. Download OCR to read scanned pages.",
-  ocrRequired:
-    "This PDF includes scanned pages. Download English + Spanish OCR, then retry.",
+  scannedPdf: "This PDF has no readable text, even after text recognition.",
+  ocrRequired: "This PDF includes scanned pages that need text recognition.",
   pdfUnavailable:
     "The PDF reader could not load. Reload while online to cache the app.",
   pdfPageLimit: "This PDF exceeds the 2,500 page safety limit.",
@@ -85,10 +82,10 @@ export default {
   invalidBackup: "This is not a valid PageVoice backup.",
   backupLimit: "Backups are limited to 512 MB.",
   downloadFailed:
-    "The download failed. Resume when your connection is available.",
-  assetIntegrity:
-    "The downloaded file failed its integrity check. Try downloading it again.",
-  modelNotCached: "Download this document tool in Document tools first.",
+    "A file could not be fetched. Check your connection and try again.",
+  assetIntegrity: "A fetched file failed its integrity check. Try again.",
+  modelNotCached:
+    "A required file is not available yet. Connect to the internet and try again.",
   engineFailed:
     "The voice could not run on this device. Try again, or reload PageVoice.",
   silentAudio:
@@ -98,9 +95,7 @@ export default {
   invalidAudio:
     "This audio file could not be played. Regenerate this sentence.",
   quotaExceeded:
-    "Browser storage is full. Remove a book or downloaded model, or use session-only mode.",
-  analysisLimit:
-    "This book exceeds the optional analysis limit of 12,000 passage windows.",
+    "Browser storage is full. Remove a book, or use session-only mode.",
   back: "Back to library",
   chapters: "Contents",
   chapter: "Section",
@@ -197,7 +192,7 @@ export default {
   cast: "Character casting",
   narrator: "Narrator",
   noCharacters:
-    "No confidently attributed dialogue yet. Assign names manually or use the optional local name detector.",
+    "No confidently attributed dialogue yet. Add character names below to cast their voices.",
   characterName: "Character name",
   addCharacter: "Add character",
   speaker: "Speaker for this sentence",
@@ -208,61 +203,36 @@ export default {
   query: "Words or a passage",
   searchPlaceholder: "Find a phrase, a place, a character…",
   allChapters: "All sections",
-  lexical: "Keyword",
-  hybrid: "Keyword + local meaning",
   searchNotice:
-    "Keyword search is local lexical search, not AI-generated answers. Optional embeddings match meaning; results always cite the book.",
+    "Keyword search runs on this device. Every result is a passage from the book, with its section and sentence.",
   noEvidence: "No supporting passage found.",
   exact: "Exact terms",
   partial: "Partial terms",
-  semantic: "Semantic match",
   showSource: "Show in source",
   copyCitation: "Copy citation",
   copied: "Citation copied",
   matched: "Matched terms",
   searchResults: "Search results",
-  semanticIndex: "Build meaning index",
-  nerIndex: "Find character names",
-  cancelAnalysis: "Cancel analysis",
-  optionalAnalysis: "Optional local analysis",
-  analysisNotice:
-    "These models are opt-in downloads. They infer similarities and names, never generate claims or summaries.",
-  semanticReady: "Meaning index cached",
-  nerReady: "Local name detection complete",
-  download: "Download",
-  resumeDownload: "Resume download",
-  pauseDownload: "Pause download",
-  cached: "Cached",
-  notCached: "Not downloaded",
-  downloadIntro:
-    "Document tools are one-time downloads. Only these static files travel over the network; your books stay here.",
-  downloadPaused:
-    "Download paused. Completed files are kept. Partial files resume when the host supports ranges.",
-  removeModel: "Remove model",
-  size: "Download size",
-  ocrLabel: "Scanned PDF OCR · English + Spanish",
-  embeddingLabel: "Multilingual meaning search",
-  nerLabel: "Multilingual character names",
   removeTitle: 'Remove "{title}"?',
   removeBody:
-    "This removes the source file, analysis, reading position, cover and {n} prepared audio sentences from this browser, freeing about {size}. Other books and downloaded models stay.",
+    "This removes the source file, analysis, reading position, cover and {n} prepared audio sentences from this browser, freeing about {size}. Other books and the voices stay.",
   typeTitle: "Generated audio exists. Type the book title to confirm.",
   removeConfirm: "Remove from this browser",
   undo: "Undo",
   removed: "Book removed · Undo for 8 seconds",
   clearTitle: "Clear your shelf?",
   clearBody:
-    "Remove all books, source files, analysis and prepared audio from this browser. Downloaded models stay. This action cannot be undone.",
+    "Remove all books, source files, analysis and prepared audio from this browser. The voices stay. This action cannot be undone.",
   close: "Close",
   backupDone: "Library backup downloaded",
   imported: "Backup imported",
   creditsTitle: "Privacy and credits",
   creditsIntro:
-    "Reading, search, document processing and narration run in this browser. Voices and document tools are fixed files from public CDNs, fetched once.",
+    "Reading, search, document processing and narration run in this browser. Voices and text recognition are fixed files from public CDNs, fetched once when first needed.",
   licenses: "Open licenses & source notices",
   modelLicense: "Model / voice license",
   creditsNames:
-    "Voices: Kokoro-82M, Apache-2.0 (English); Piper with the davefx and sharvard voices, MIT, and the eSpeak NG phonemizer, GPL-3.0 (Spanish). OCR: Tesseract, Apache-2.0. Search models: Multilingual MiniLM, Apache-2.0. Name detection: Davlan multilingual NER, AFL-3.0. ONNX Runtime and Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces and Geist: SIL OFL-1.1.",
+    "Voices: Kokoro-82M, Apache-2.0 (English); Piper with the davefx and sharvard voices, MIT, and the eSpeak NG phonemizer, GPL-3.0 (Spanish). OCR: Tesseract, Apache-2.0. ONNX Runtime and Transformers.js: MIT / Apache-2.0. Newsreader, Fraunces and Geist: SIL OFL-1.1.",
   limits: "Real limits",
   limitsBody:
     "Narration speed depends on your device; slower devices need a larger buffer. The first listen fetches the voice (about 120 MB for English, 100 MB for Spanish). OCR and dialogue detection can be wrong. Background tabs may stop preparing. Browser storage can be evicted.",
@@ -270,7 +240,6 @@ export default {
   progressLabel: "Preparation progress",
   bookProgress: "{percent}% read",
   timeRemaining: "Remaining time",
-  downloadedModel: "Downloaded model",
   confirm: "Confirm",
   bookmarkSaved: "Bookmark saved",
   bookmarkRemoved: "Bookmark removed",
@@ -278,7 +247,6 @@ export default {
   sentenceSaved: "Sentence saved; affected audio cleared",
   sentenceChanged:
     "The sentence or its voice changed during preparation. Regenerate the current version.",
-  modelRemoved: "Model removed",
   help: "Help",
   skipToContent: "Skip to content",
   appMenu: "PageVoice",
@@ -301,7 +269,7 @@ export default {
     "Imported files, reading positions, bookmarks and generated audio are saved in this browser's storage (IndexedDB and the origin private file system) on this device. PageVoice has no accounts and no server that receives your documents. Removing a book or clearing site data deletes it; export a library backup to keep a copy.",
   privacyNetworkTitle: "What uses the network",
   privacyNetwork:
-    "Narration runs on this device: no text from your books is sent anywhere. The first time you listen, the voice files are fetched from Hugging Face; document tools (OCR, search models) are fetched only when you choose them, from Hugging Face and jsDelivr. These are fixed files checked against pinned hashes, and the requests contain no document text. The app's content security policy blocks connections to other servers. PageVoice includes no analytics or tracking.",
+    "Narration and text recognition run on this device: no text from your books is sent anywhere. The first time you listen, the voice files are fetched from Hugging Face; the first time you import a scanned PDF, the text recognition data is fetched from jsDelivr. These are fixed files checked against pinned hashes, and the requests contain no document text. The app's content security policy blocks connections to other servers. PageVoice includes no analytics or tracking.",
   sourceCode: "Source code on GitHub",
   notStarted: "Not started",
   step1: "Add a document",
@@ -335,7 +303,6 @@ export default {
   closeFind: "Close find",
   focusMode: "Focus mode",
   exitFocus: "Exit focus mode",
-  searchMode: "Search type",
   searching: "Searching…",
   results: "{n} passages",
   resultOne: "1 passage",
@@ -371,14 +338,12 @@ export default {
   widthNarrow: "Narrow",
   widthMedium: "Medium",
   widthWide: "Wide",
-  offlineDownloads:
-    "You're offline. Downloads need a connection; tools you already downloaded keep working.",
   savedForSession:
     "Added for this session only: this browser could not save the file permanently (this happens in some private-browsing modes). It will disappear when you close the tab.",
   importingQueue: "{index} of {total}",
   emptyKicker: "hello, reader",
   cacheTooLarge:
-    "This browser could not store a file this large. Try Chromium or Firefox, or a smaller voice.",
+    "This browser could not store a file this large. Try Chromium or Firefox.",
   contact: "Contact:",
   voiceHelp:
     "Voices run on this device: Kokoro reads English and Piper reads Spanish. The voice is fetched once, the first time you listen, and then works offline.",
@@ -402,9 +367,6 @@ export default {
   mixedSampleRates:
     "This sentence mixes voices that cannot be joined. Use voices for the book's language only.",
   noVoices: "No voice reads this language.",
-  analysisBusy:
-    "Another analysis is running. Wait for it to finish, then try again.",
-  analysisChanged: "The book changed during the analysis. Run it again.",
   storageError:
     "The browser could not save this change. Try again, or free some storage.",
   zipLimit: "The EPUB exceeds the archive safety limits.",
@@ -412,4 +374,7 @@ export default {
   encryptedOrInvalid:
     "This file is protected, encrypted or damaged, so it cannot be opened.",
   unsupportedLanguage: "Narration supports English and Spanish books.",
+  ocrLoading: "Loading text recognition (first time only)",
+  ocrLoadFailed:
+    "Text recognition for scanned pages could not be fetched. Check your connection and try again; this is only needed once.",
 };

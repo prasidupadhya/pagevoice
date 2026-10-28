@@ -59,7 +59,6 @@ export default function Reader({
   setFocus,
   onBack,
   onDelete,
-  onModels,
   toast,
 }) {
   const [chapter, setChapter] = useState(book.position.chapter),
@@ -74,10 +73,8 @@ export default function Reader({
     [reviewKind, setReviewKind] = useState("unclassified"),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState(""),
-    [searchMode, setSearchMode] = useState("lexical"),
     [hits, setHits] = useState([]),
     [searching, setSearching] = useState(false),
-    [analysis, setAnalysis] = useState(null),
     [voiceLoad, setVoiceLoad] = useState(null),
     [busy, setBusy] = useState(false),
     [charName, setCharName] = useState(""),
@@ -202,29 +199,21 @@ export default function Reader({
   }, []);
   useEffect(() => {
     searchWorker.current?.postMessage({ book });
-  }, [book.chapters, book.searchIndex, book.semantics]);
+  }, [book.chapters, book.searchIndex]);
   useEffect(() => {
     const id = ++searchSequence.current;
     setSearching(!!query.trim());
-    const timer = setTimeout(async () => {
-      let vector;
-      try {
-        if (searchMode === "hybrid" && book.semantics && query.trim())
-          vector = await api.semanticQuery(query);
-      } catch (e) {
-        api.setError(e.message);
-      }
-      if (id !== searchSequence.current) return;
+    const timer = setTimeout(() => {
       searchWorker.current.onmessage = ({ data }) => {
         if (data.id === searchSequence.current) {
           setHits(data.hits);
           setSearching(false);
         }
       };
-      searchWorker.current.postMessage({ id, query, chapter: filter, vector });
+      searchWorker.current.postMessage({ id, query, chapter: filter });
     }, 180);
     return () => clearTimeout(timer);
-  }, [query, filter, searchMode, book.semantics]);
+  }, [query, filter]);
   useEffect(() => {
     if (scroll.current) scroll.current.scrollTop = 0;
   }, [chapter]);
@@ -373,16 +362,6 @@ export default function Reader({
     });
     toast(t(marks.includes(id) ? "bookmarkRemoved" : "bookmarkSaved"));
   };
-  const analyze = (kind) =>
-    run(async () => {
-      setAnalysis({ kind, current: 0, total: 1 });
-      try {
-        await api.analyze(book.id, kind, (p) => setAnalysis({ kind, ...p }));
-        toast(t(kind === "embeddings" ? "semanticReady" : "nerReady"));
-      } finally {
-        setAnalysis(null);
-      }
-    });
   const tabKey = (e, index) => {
     const delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
     if (!delta && e.key !== "Home" && e.key !== "End") return;
@@ -843,19 +822,6 @@ export default function Reader({
                       ))}
                     </select>
                   </label>
-                  <label>
-                    {t("searchMode")}
-                    <select
-                      aria-label={t("searchMode")}
-                      value={searchMode}
-                      onChange={(e) => setSearchMode(e.target.value)}
-                    >
-                      <option value="lexical">{t("lexical")}</option>
-                      <option value="hybrid" disabled={!book.semantics}>
-                        {t("hybrid")}
-                      </option>
-                    </select>
-                  </label>
                 </div>
                 <div
                   className="search-hits"
@@ -987,41 +953,6 @@ export default function Reader({
                     </small>
                   ))}
                 </details>
-              </section>
-              <section className="panel-section optional-analysis">
-                <h2>{t("optionalAnalysis")}</h2>
-                <p className="muted">{t("analysisNotice")}</p>
-                <div className="button-row">
-                  <button
-                    disabled={!!analysis}
-                    onClick={() => analyze("embeddings")}
-                  >
-                    {book.semantics && <Check size={16} aria-hidden="true" />}
-                    {t("semanticIndex")}
-                  </button>
-                  <button disabled={!!analysis} onClick={() => analyze("ner")}>
-                    {book.entities && <Check size={16} aria-hidden="true" />}
-                    {t("nerIndex")}
-                  </button>
-                  <button className="text-button" onClick={onModels}>
-                    {t("models")}
-                  </button>
-                </div>
-                {analysis && (
-                  <div className="inline-progress">
-                    <progress
-                      value={analysis.current}
-                      max={analysis.total}
-                      aria-label={t("indexing")}
-                    />
-                    <button
-                      className="small"
-                      onClick={() => api.refs.current.cancelAnalysis?.()}
-                    >
-                      {t("cancelAnalysis")}
-                    </button>
-                  </div>
-                )}
               </section>
             </div>
           )}

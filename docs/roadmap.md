@@ -6,14 +6,12 @@ integration, no API key handling, and no model calls.
 
 ## Available today
 
-- Import PDF (text layer) and EPUB files in the browser. Scanned PDFs need the
-  optional OCR download.
+- Import PDF (text layer) and EPUB files in the browser. Scanned PDFs are read
+  with on-device text recognition, fetched the first time it is needed.
 - Read with sections, bookmarks, themes, text size and line width, and focus mode.
 - Listen with voices that run on your device (Kokoro for English, Piper for Spanish).
   No text is sent anywhere. Speed, sleep timer, and sentence-level control.
 - Keyword search across the book, with citations to sections and sentences.
-- Optional local meaning search and character-name detection, each a separate
-  download that runs on the device.
 - Library storage in the browser, and backup and restore as ZIP files.
 
 ## Planned: a Claude-based analysis layer

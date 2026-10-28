@@ -50,26 +50,6 @@ const definitions = {
       "es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx.json",
     ],
   ],
-  embeddings: [
-    "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
-    [
-      "config.json",
-      "tokenizer.json",
-      "tokenizer_config.json",
-      "special_tokens_map.json",
-      "onnx/model_quantized.onnx",
-    ],
-  ],
-  ner: [
-    "Xenova/bert-base-multilingual-cased-ner-hrl",
-    [
-      "config.json",
-      "tokenizer.json",
-      "tokenizer_config.json",
-      "special_tokens_map.json",
-      "onnx/model_quantized.onnx",
-    ],
-  ],
 };
 for (const [name, [id, paths]] of Object.entries(definitions)) {
   const info = metadata[id];
