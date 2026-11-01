@@ -19,7 +19,7 @@ jobs:
       - run: node web/scripts/cache-e2e-models.mjs
       - run: npm --prefix web run build
       - run: npm --prefix web run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: offline-browser-evidence
